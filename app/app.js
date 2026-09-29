@@ -9,7 +9,7 @@
 // og markøren, utvalget og det som er skrevet flyttes over til det nye feltet.
 // Da oppdateres f.eks. kostnaden med én gang man tabber fra antall til pris.
 import { APPNAVN, MILJO } from './config/app-config.js';
-import { tilstand, innlogging, hentTilgang, startLytting, alleLastet, oppdaterGiver, oppdaterBehov, oppdaterSoknad } from './data/index.js';
+import { tilstand, innlogging, hentTilgang, startLytting, alleLastet, oppdaterGiver, oppdaterBehov, oppdaterSoknad, oppdaterInnkjop } from './data/index.js';
 import { escapeHtml } from './ui/format.js';
 import { kobleLagringsstatus, lagre, visMelding } from './ui/lagring.js';
 import { tolkFelt, tolkNokkel } from './ui/felt.js';
@@ -121,6 +121,10 @@ function tegnNaa() {
       return;
     }
   }
+  // Et element merket data-autofokus (f.eks. prisfeltet i en celle som
+  // redigeres) får fokus når det dukker opp.
+  const auto = rot.querySelector('[data-autofokus]');
+  if (auto) { auto.focus({ preventScroll: true }); auto.select?.(); return; }
   if (knapp && !fokusEtterTegning) {
     const el = rot.querySelector(knapp);
     if (el) { el.focus({ preventScroll: true }); return; }
@@ -160,6 +164,15 @@ rot.addEventListener('click', e => {
   gjeldende?.side.klikk?.(el.dataset.handling, el, e);
 });
 
+rot.addEventListener('dblclick', e => {
+  const el = e.target.closest('[data-dobbelt]');
+  if (el && rot.contains(el)) gjeldende?.side.dobbeltklikk?.(el, e);
+});
+
+rot.addEventListener('paste', e => {
+  gjeldende?.side.limInn?.(e.target, e.clipboardData?.getData('text') ?? '', e);
+});
+
 rot.addEventListener('change', e => {
   if (e.target.matches('input[type=file]')) gjeldende?.side.filer?.(e.target, [...e.target.files]);
   // Nedtrekkslister lagres med én gang man velger, ikke først ved blur.
@@ -187,7 +200,7 @@ rot.addEventListener('focusout', e => {
   setTimeout(tegnHvisVentende, 0);
 });
 
-const OPPDATER = { givere: oppdaterGiver, behov: oppdaterBehov, soknader: oppdaterSoknad };
+const OPPDATER = { givere: oppdaterGiver, behov: oppdaterBehov, soknader: oppdaterSoknad, innkjop: oppdaterInnkjop };
 
 function lagreFelt(el) {
   if (el.value === el.dataset.verdi) return;
@@ -211,6 +224,7 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { el.value = el.dataset.verdi; el.blur(); e.preventDefault(); }
     return;
   }
+  if (e.key === 'Enter' && el.matches?.('input[data-blur-ved-enter]')) { e.preventDefault(); el.blur(); return; }
   if (e.key === 'Escape' && gjeldende?.side.escape?.()) { e.preventDefault(); tegn(); }
 });
 

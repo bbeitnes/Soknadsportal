@@ -1,6 +1,6 @@
 // Søknader: én rad per søknad. «+ Ny søknad» åpner et sidepanel.
 // Innvilget, disponert og gjenstår fylles ut fra trinn b (pott).
-import { tilstand, opprettSoknad } from '../data/index.js';
+import { tilstand, opprettSoknad, innkjopFor } from '../data/index.js';
 import { SOKNADSFILTRE, soktBelop, statusNavn, pott, erInnvilget } from '../data/beregning.js';
 import { escapeHtml, kr, tidspunkt, fornavn, datoFelt, tolkDato } from '../ui/format.js';
 import { lagre, visMelding } from '../ui/lagring.js';
@@ -27,7 +27,7 @@ function sortert() {
 function rad(s) {
   const g = giver(s.giverId);
   const sokt = soktBelop(s);
-  const p = pott(s);
+  const p = pott(s, innkjopFor(s.id));
   const innvilget = erInnvilget(s) && p.innvilget != null;
   const iDag = new Date().toISOString().slice(0, 10);
   const fristPasserer = s.status === 'utkast' && s.frist && s.frist >= iDag;
@@ -95,7 +95,7 @@ export const soknaderSide = {
     // Innvilget/disponert telles for innvilgede og avsluttede; gjenstår bare
     // for dem som fortsatt er åpne (innvilget). «I år» = året søknaden ble
     // sendt (frist hvis sendt mangler).
-    const medPott = liste => liste.filter(x => erInnvilget(x) && x.innvilget != null).map(x => ({ s: x, p: pott(x) }));
+    const medPott = liste => liste.filter(x => erInnvilget(x) && x.innvilget != null).map(x => ({ s: x, p: pott(x, innkjopFor(x.id)) }));
     const sum = (liste, f) => liste.reduce((a, x) => a + f(x), 0);
     const synligPott = medPott(synlig), synligApne = synligPott.filter(x => x.s.status === 'innvilget');
     const iAar = String(new Date().getFullYear());

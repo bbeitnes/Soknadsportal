@@ -1,0 +1,389 @@
+// Innkjøp-fanen i en søknad: tilbudsmatrisen. Linjer nedover, leverandører
+// bortover, netto stykkpris i cellene. Brukes av sider/soknad.js, som
+// sender klikk, tastatur og filer hit.
+//
+// Ingen moduser: klikk på en celle velger den, dobbeltklikk redigerer,
+// klikk på leverandørnavnet velger alt fra den, «Billigst per linje» velger
+// laveste netto per linje. Etterpå kan enkeltceller justeres med ett klikk.
+import {
+  tilstand, innkjopFor, opprettInnkjop, oppdaterInnkjop, slettInnkjop,
+  leggSoknadslinjeIInnkjop, leggFriLinjeIInnkjop, fjernInnkjopslinje,
+  leggTilLeverandor, fjernLeverandor, settPris, settPriser, velgPris, settValgt,
+  lastOppVedlegg, slettVedlegg, dokumentUrl,
+} from '../data/index.js';
+import {
+  INNKJOPSSTATUSER, innkjopsstatusNavn, innkjopsberegning, billigstPerLinje, tolkRutenett,
+  ikkeFordelte, vedleggsliste, linjeliste, momsProsent, giverandel,
+} from '../data/beregning.js';
+import { escapeHtml, kr, tidspunkt, fornavn } from '../ui/format.js';
+import { feltAttr, tekstomrade } from '../ui/felt.js';
+import { lagre } from '../ui/lagring.js';
+import { tegn, fokuser, sidepanel, lukkeknapp, IKON } from '../ui/visning.js';
+
+const ui = { aktiv: {}, panel: null, nyttPanel: false, redigerer: null };
+
+const KLIPS = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>';
+const HAK = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+
+function aktivtInnkjop(s) {
+  const liste = innkjopFor(s.id);
+  return liste.find(i => i.id === ui.aktiv[s.id]) || liste[0] || null;
+}
+
+// Linjetittelen hentes levende fra søknaden (og behovet), med kopien i
+// innkjøpet som reserve hvis linjen er fjernet fra søknaden.
+function linjetittel(s, l) {
+  if (l.soknadLinjeId) {
+    const sl = s.linjer?.[l.soknadLinjeId];
+    if (sl) return sl.behovId ? (tilstand.behov.find(b => b.id === sl.behovId)?.tittel || l.tittel) : sl.tittel;
+  }
+  return l.tittel;
+}
+
+function soktAntall(s, l) {
+  return l.soknadLinjeId ? s.linjer?.[l.soknadLinjeId]?.antall ?? null : null;
+}
+
+// ——— Tegning ———
+
+function chips(s, liste, aktiv, ikkeFordelt) {
+  return `
+    <div class="verktoyrad">
+      <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap">
+        ${liste.map(i => `<button type="button" class="chip ${i.id === aktiv?.id ? 'aktiv' : ''}" data-handling="innkjop-velg" data-id="${i.id}" title="${i.id === aktiv?.id ? 'Klikk igjen for navn, status og sletting' : 'Vis dette innkjøpet'}"><span>${escapeHtml(i.navn || 'Uten navn')}</span><span class="chip-sum">${kr(innkjopsberegning(i).total)}</span></button>`).join('')}
+        ${aktiv ? `<button type="button" class="merkelapp m-sendt" style="margin-left:6px; cursor:pointer; border:0" data-handling="innkjop-status" title="Klikk for å endre status">${innkjopsstatusNavn(aktiv.status)}</button>` : ''}
+        <button type="button" class="ikonknapp" style="border:2px solid var(--color-neutral-400); width:34px; height:34px" data-handling="innkjop-ny" title="Nytt innkjøp">${IKON.pluss}</button>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+        ${ikkeFordelt.length && aktiv ? `<button type="button" class="knapp knapp-ramme" data-handling="ikke-fordelt">${ikkeFordelt.length} behov ikke fordelt</button>` : ''}
+        ${aktiv ? `
+          <button type="button" class="knapp knapp-ramme" data-handling="fri-linje">+ Fri linje</button>
+          <button type="button" class="knapp knapp-ramme" data-handling="leverandor-ny">+ Leverandør</button>
+          <button type="button" class="knapp knapp-primar" data-handling="billigst">Billigst per linje</button>` : ''}
+      </div>
+    </div>`;
+}
+
+function celle(s, i, b, l, lev) {
+  const p = b.celle[l.id][lev.id];
+  const valgt = b.perLinje[l.id].valgtSid === lev.id;
+  const redigerer = ui.redigerer === `${l.id}|${lev.id}`;
+  const raa = i.priser?.[l.id]?.[lev.id]?.raa || '';
+  const vedlegg = vedleggsliste(lev);
+  let innhold;
+  if (redigerer) {
+    innhold = `<input class="m-inn" data-pris="${l.id}|${lev.id}" data-autofokus data-blur-ved-enter value="${escapeHtml(raa)}" placeholder="f.eks. 1200 -15%">`;
+  } else if (p) {
+    innhold = `<div class="m-netto">${kr(p.netto)}</div><div class="m-under">${escapeHtml(p.under)}</div>`;
+  } else {
+    innhold = `<div class="m-tom">ikke gitt pris</div>`;
+  }
+  const klips = p && !redigerer && vedlegg.length
+    ? `<button type="button" class="m-klips" data-handling="vedlegg-celle" data-lid="${l.id}" data-sid="${lev.id}" title="${vedlegg.length === 1 ? 'Åpne tilbudsdokumentet' : 'Velg vedlegg og side'}">${KLIPS}</button>` : '';
+  return `<td class="m-td"><div class="m-celle ${valgt ? 'valgt' : ''} ${redigerer ? 'redigerer' : ''}" data-handling="celle" data-dobbelt data-lid="${l.id}" data-sid="${lev.id}">
+    ${valgt ? `<span class="m-hak">${HAK}</span>` : ''}${innhold}${klips}</div></td>`;
+}
+
+function matrise(s, i) {
+  const b = innkjopsberegning(i);
+  const n = f => `innkjop/${i.id}/${f}`;
+  const prosent = momsProsent(s);
+  const rader = b.linjer.map(l => `
+    <tr>
+      <td class="m-linje">
+        ${l.soknadLinjeId
+          ? `<div class="fet">${escapeHtml(linjetittel(s, l) || 'Uten tittel')}</div>`
+          : `<input class="celleinn tekst" style="width:100%" placeholder="Beskriv linjen" ${feltAttr(n(`linjer.${l.id}.tittel`), l.tittel)}>`}
+        <div class="m-antall">
+          <input class="celleinn antall" style="width:52px; text-align:center" inputmode="numeric" ${feltAttr(n(`linjer.${l.id}.antall`), l.antall, 'tall')}>
+          <span>stk${soktAntall(s, l) != null ? ` · søkt ${soktAntall(s, l)}` : ''}</span>
+          <button type="button" class="ikonknapp m-fjern" data-handling="fjern-linje" data-lid="${l.id}" title="Fjern linjen fra innkjøpet">${IKON.fjern}</button>
+        </div>
+      </td>
+      ${b.leverandorer.map(lev => celle(s, i, b, l, lev)).join('')}
+      <td class="m-valgt ${b.perLinje[l.id].sum == null ? 'dempet' : ''}">${b.perLinje[l.id].sum == null ? '—' : kr(b.perLinje[l.id].sum)}</td>
+    </tr>`).join('');
+  const tomt = !b.linjer.length
+    ? `<tr><td class="m-linje dempet" style="padding:24px 24px">Ingen linjer enda. Bruk «behov ikke fordelt» eller «+ Fri linje».</td>${b.leverandorer.map(() => '<td></td>').join('')}<td class="m-valgt"></td></tr>` : '';
+  return `
+    <div class="hint" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis">Klikk en pris for å velge, dobbeltklikk for å endre (<code>1200 -15%</code> eller <code>1200 -180</code>). Be leverandøren om pris per linje – vi sammenligner netto stykkpris. Lim gjerne inn kolonner fra Excel.</div>
+    <div class="tabellramme" data-rull="matrise">
+      <table class="matrise">
+        <thead><tr>
+          <th class="m-linje m-th">Linje · antall</th>
+          ${b.leverandorer.map(lev => `
+            <th class="m-lev">
+              <div style="display:flex; justify-content:flex-end; align-items:center; gap:6px">
+                <button type="button" class="ikonknapp" style="width:26px; height:26px; color:var(--color-neutral-500)" data-handling="leverandor" data-sid="${lev.id}" title="Detaljer og vedlegg">${KLIPS}</button>
+                <button type="button" class="m-levnavn" data-handling="velg-alt" data-sid="${lev.id}" title="Velg alt fra denne leverandøren">${escapeHtml(lev.navn || 'Uten navn')}</button>
+              </div>
+              <div class="undertekst" style="padding-right:12px">${vedleggsliste(lev).length} vedlegg</div>
+            </th>`).join('')}
+          ${!b.leverandorer.length ? '<th class="m-lev dempet" style="font-weight:400; text-align:left">Ingen leverandører enda – bruk «+ Leverandør».</th>' : ''}
+          <th class="m-valgt m-th">Valgt</th>
+        </tr></thead>
+        <tbody>${rader || tomt}</tbody>
+        <tfoot>
+          <tr class="m-frakt">
+            <td class="m-linje dempet" style="font-size:13px">Frakt og faste kostnader</td>
+            ${b.leverandorer.map(lev => `<td style="text-align:right"><input class="celleinn" style="width:96px; background:transparent; ${b.brukt.has(lev.id) ? '' : 'color:var(--color-neutral-500)'}" inputmode="numeric" ${feltAttr(n(`leverandorer.${lev.id}.frakt`), lev.frakt, 'tall')}></td>`).join('')}
+            ${!b.leverandorer.length ? '<td></td>' : ''}
+            <td class="m-valgt dempet" style="font-size:14px; font-weight:400">${kr(b.frakt)}</td>
+          </tr>
+          <tr class="m-sum">
+            <td class="m-linje dempet" style="font-size:13px">Alt hos én leverandør <span style="color:var(--color-neutral-500)">· inkl. frakt</span></td>
+            ${b.leverandorer.map(lev => { const t = b.perLeverandor[lev.id]; return `<td style="text-align:right; vertical-align:top"><div style="font-weight:600; ${t.mangler ? 'color:var(--color-neutral-500)' : ''}">${kr(t.total)}</div><div class="undertekst">${t.mangler ? `mangler ${t.mangler} ${t.mangler === 1 ? 'pris' : 'priser'}` : 'alle linjer priset'}</div></td>`; }).join('')}
+            ${!b.leverandorer.length ? '<td></td>' : ''}
+            <td class="m-valgt m-kombo">
+              <div class="etikett" style="color:var(--color-accent-700)">Valgt kombinasjon</div>
+              <div style="font-size:20px; font-weight:700; color:var(--color-accent-800); line-height:1.2">${kr(b.total)}</div>
+              ${prosent != null ? `<div class="undertekst" style="color:var(--color-neutral-700)">Fra giver ${100 - prosent} %: <span class="fet" style="color:var(--color-text)">${kr(giverandel(b.total, prosent))}</span></div>` : ''}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>`;
+}
+
+function leverandorPanel(s, i, lev) {
+  const b = innkjopsberegning(i);
+  const n = f => `innkjop/${i.id}/leverandorer.${lev.id}.${f}`;
+  const vedlegg = vedleggsliste(lev);
+  const t = b.perLeverandor[lev.id];
+  return sidepanel(`
+    <div class="panelhode">
+      <div><div class="etikett">Leverandør</div><input class="tittelfelt" placeholder="Navn" ${feltAttr(n('navn'), lev.navn)}></div>
+      ${lukkeknapp()}
+    </div>
+    <div class="hint">Frakt ${kr(lev.frakt)} kr · alt hos én: ${kr(t.total)} kr${t.mangler ? ` (mangler ${t.mangler} ${t.mangler === 1 ? 'pris' : 'priser'})` : ''}</div>
+    <label class="felt"><span class="etikett">Kontakt</span>${tekstomrade(n('kontakt'), lev.kontakt, 'class="inndata" rows="3" placeholder="Kontaktperson, e-post, telefon"')}</label>
+    <div class="felt"><span class="etikett">Vedlegg (tilbudsdokumenter)</span>
+      <div class="valgliste">
+        ${vedlegg.map(v => `<div style="cursor:default">${IKON.fil}<button type="button" class="fyll" style="border:0; background:transparent; padding:0; text-align:left; cursor:pointer; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap" data-handling="apne-vedlegg" data-sid="${lev.id}" data-vid="${v.id}" title="Åpne">${escapeHtml(v.navn)}</button><span class="undertekst smal">${escapeHtml(fornavn(v.lastetOppAv?.navn, v.lastetOppAv?.epost))} · ${tidspunkt(v.tid)}</span><button type="button" class="ikonknapp" style="width:24px; height:24px" data-handling="slett-vedlegg" data-sid="${lev.id}" data-vid="${v.id}" title="Slett vedlegget">${IKON.fjern}</button></div>`).join('')}
+        <label style="font-weight:600">${IKON.pluss}Last opp tilbud<input type="file" multiple hidden data-sid="${lev.id}"></label>
+      </div>
+      <span class="undertekst">${vedlegg.length === 1 ? 'Ett vedlegg: alle prisene fra denne leverandøren peker automatisk til dette dokumentet.' : vedlegg.length > 1 ? 'Flere vedlegg: velg dokument og eventuelt side via binders-ikonet i hver celle.' : 'Last opp tilbudet, så kan hver pris åpnes i dokumentet.'}</span>
+    </div>
+    <button type="button" class="knapp knapp-primar" style="align-self:flex-start" data-handling="velg-alt" data-sid="${lev.id}">Velg alt fra ${escapeHtml(lev.navn || 'denne')}</button>
+    <div class="panelbunn"><span></span><button type="button" class="knapp knapp-fare" data-handling="slett-leverandor" data-sid="${lev.id}">Slett leverandør</button></div>`, { nytt: ui.nyttPanel });
+}
+
+function innkjopPanel(s, i) {
+  const n = f => `innkjop/${i.id}/${f}`;
+  return sidepanel(`
+    <div class="panelhode">
+      <div><div class="etikett">Innkjøp</div><input class="tittelfelt" placeholder="Navn" ${feltAttr(n('navn'), i.navn, 'tekst', { paakrevd: true })}></div>
+      ${lukkeknapp()}
+    </div>
+    <div class="felt"><span class="etikett">Status</span>
+      <div class="segment fyll">${INNKJOPSSTATUSER.map(st => `<button type="button" data-handling="innkjop-sett-status" data-id="${st.id}" aria-pressed="${i.status === st.id}">${st.navn}</button>`).join('')}</div>
+      <span class="undertekst">Innhenter tilbud → valgt → fakturert.</span>
+    </div>
+    <div class="hint">${innkjopsberegning(i).linjer.length} linjer · ${innkjopsberegning(i).leverandorer.length} leverandører</div>
+    <div class="panelbunn"><span>${i.endretAv ? `Sist endret av ${escapeHtml(fornavn(i.endretAv.navn, i.endretAv.epost))}, ${tidspunkt(i.endretTid)}` : ''}</span><button type="button" class="knapp knapp-fare" data-handling="slett-innkjop">Slett innkjøp</button></div>`, { nytt: ui.nyttPanel });
+}
+
+function ikkeFordeltPanel(s, i, liste) {
+  return sidepanel(`
+    <div class="panelhode">
+      <div><h2>Ikke fordelt</h2><div class="ingress" style="margin-top:4px">Behov i søknaden som ennå ikke ligger i et innkjøp.</div></div>
+      ${lukkeknapp()}
+    </div>
+    <div style="display:flex; flex-direction:column; gap:8px">
+      ${liste.map(l => {
+        const tittel = l.behovId ? (tilstand.behov.find(b => b.id === l.behovId)?.tittel || 'Slettet behov') : l.tittel;
+        return `<div style="display:flex; align-items:center; gap:12px; padding:12px 14px; background:var(--color-neutral-200)">
+          <div style="flex:1; min-width:0"><div class="fet">${escapeHtml(tittel || 'Uten tittel')}</div><div class="dempet">${l.antall ?? 0} stk i søknaden${l.finansieres ? ' · finansieres' : ''}</div></div>
+          <button type="button" class="knapp knapp-primar knapp-liten" data-handling="legg-i-innkjop" data-lid="${l.id}">Legg i ${escapeHtml(i.navn || 'innkjøpet')}</button>
+        </div>`; }).join('') || '<div class="dempet">Alle behov i søknaden ligger i et innkjøp.</div>'}
+    </div>
+    <div class="hint">Behov som ikke legges i et innkjøp forblir åpne i behovslisten.</div>`, { nytt: ui.nyttPanel });
+}
+
+function vedleggPanel(s, i, lid, sid) {
+  const lev = i.leverandorer?.[sid];
+  const vedlegg = vedleggsliste(lev);
+  const pris = i.priser?.[lid]?.[sid] || {};
+  const valgtVid = pris.vedleggId || (vedlegg.length === 1 ? vedlegg[0].id : null);
+  const l = i.linjer?.[lid];
+  return sidepanel(`
+    <div class="panelhode">
+      <div><h2>Dokumentasjon av pris</h2><div class="ingress" style="margin-top:4px">${escapeHtml(l ? linjetittel(s, { id: lid, ...l }) : '')} hos ${escapeHtml(lev?.navn || '')}</div></div>
+      ${lukkeknapp()}
+    </div>
+    <div class="felt"><span class="etikett">Vedlegg</span>
+      <div class="valgliste">
+        ${vedlegg.map(v => `<button type="button" data-handling="velg-vedlegg" data-lid="${lid}" data-sid="${sid}" data-vid="${v.id}" aria-pressed="${valgtVid === v.id}"><span class="fyll">${escapeHtml(v.navn)}</span></button>`).join('')}
+      </div>
+    </div>
+    <label class="felt" style="max-width:120px"><span class="etikett">Sidetall</span><input class="inndata tall" inputmode="numeric" placeholder="valgfritt" ${feltAttr(`innkjop/${i.id}/priser.${lid}.${sid}.side`, pris.side, 'tall')}></label>
+    ${valgtVid ? `<button type="button" class="knapp knapp-ramme" style="align-self:flex-start" data-handling="apne-vedlegg" data-sid="${sid}" data-vid="${valgtVid}">Åpne dokumentet${pris.side ? ` (side ${pris.side})` : ''}</button>` : ''}`, { nytt: ui.nyttPanel });
+}
+
+async function apneVedlegg(i, sid, vid) {
+  const v = i.leverandorer?.[sid]?.vedlegg?.[vid];
+  if (!v) return;
+  const vindu = window.open('', '_blank'); // før await, ellers stopper popup-blokkeringen det
+  try { const url = await dokumentUrl(v.sti); if (vindu) vindu.location = url; }
+  catch (err) { console.error(err); vindu?.close(); alert('Kunne ikke åpne dokumentet.'); }
+}
+
+export const innkjopFane = {
+  tegn(s) {
+    const liste = innkjopFor(s.id);
+    const aktiv = aktivtInnkjop(s);
+    const ikkeFordelt = ikkeFordelte(s, liste);
+    let panel = '';
+    if (aktiv && ui.panel?.type === 'leverandor' && aktiv.leverandorer?.[ui.panel.sid]) panel = leverandorPanel(s, aktiv, { id: ui.panel.sid, ...aktiv.leverandorer[ui.panel.sid] });
+    else if (aktiv && ui.panel?.type === 'innkjop') panel = innkjopPanel(s, aktiv);
+    else if (aktiv && ui.panel?.type === 'ikke-fordelt') panel = ikkeFordeltPanel(s, aktiv, ikkeFordelt);
+    else if (aktiv && ui.panel?.type === 'vedlegg' && aktiv.leverandorer?.[ui.panel.sid]) panel = vedleggPanel(s, aktiv, ui.panel.lid, ui.panel.sid);
+    else if (ui.panel) ui.panel = null;
+    const html = `
+      ${chips(s, liste, aktiv, ikkeFordelt)}
+      ${aktiv ? matrise(s, aktiv) : `<div class="laster" style="flex-direction:column; gap:12px">Ingen innkjøp enda.<div class="hint">Et innkjøp samler linjer og leverandører i én matrise. Lag ett per tilbudsrunde, f.eks. «Instrumenter» og «Uniformer».</div><button type="button" class="knapp knapp-primar" data-handling="innkjop-ny">+ Nytt innkjøp</button></div>`}
+      ${panel}`;
+    ui.nyttPanel = false;
+    return html;
+  },
+
+  // Returnerer true når klikket var vårt.
+  async klikk(handling, el, e, s) {
+    const i = aktivtInnkjop(s);
+    const lid = el.dataset.lid, sid = el.dataset.sid;
+    const apne = type => { ui.panel = { type, lid, sid }; ui.nyttPanel = true; tegn(); };
+    switch (handling) {
+      case 'innkjop-ny': {
+        const id = await lagre(() => opprettInnkjop(s));
+        if (id) { ui.aktiv[s.id] = id; ui.panel = { type: 'innkjop' }; ui.nyttPanel = true; fokuser(`innkjop/${id}/navn`); tegn(); }
+        return true;
+      }
+      case 'innkjop-velg':
+        if (ui.aktiv[s.id] === el.dataset.id || (i && i.id === el.dataset.id && ui.aktiv[s.id] == null)) apne('innkjop');
+        else { ui.aktiv[s.id] = el.dataset.id; ui.panel = null; ui.redigerer = null; tegn(); }
+        return true;
+      case 'innkjop-status': {
+        if (!i) return true;
+        const idx = INNKJOPSSTATUSER.findIndex(x => x.id === i.status);
+        lagre(() => oppdaterInnkjop(i.id, { status: INNKJOPSSTATUSER[(idx + 1) % INNKJOPSSTATUSER.length].id }));
+        return true;
+      }
+      case 'innkjop-sett-status': if (i) lagre(() => oppdaterInnkjop(i.id, { status: el.dataset.id })); return true;
+      case 'slett-innkjop':
+        if (i && confirm(`Slette innkjøpet «${i.navn}» med alle priser og vedlegg?\n\nDette kan ikke angres.`)) {
+          ui.panel = null; delete ui.aktiv[s.id];
+          lagre(() => slettInnkjop(i));
+        }
+        return true;
+      case 'ikke-fordelt': apne('ikke-fordelt'); return true;
+      case 'legg-i-innkjop': {
+        const sl = s.linjer?.[lid];
+        if (!i || !sl) return true;
+        const tittel = sl.behovId ? (tilstand.behov.find(b => b.id === sl.behovId)?.tittel || '') : sl.tittel;
+        lagre(() => leggSoknadslinjeIInnkjop(i, { id: lid, ...sl }, tittel));
+        return true;
+      }
+      case 'fri-linje': {
+        if (!i) return true;
+        const nyLid = await lagre(() => leggFriLinjeIInnkjop(i));
+        if (nyLid) { fokuser(`innkjop/${i.id}/linjer.${nyLid}.tittel`); tegn(); }
+        return true;
+      }
+      case 'fjern-linje': if (i) lagre(() => fjernInnkjopslinje(i, lid)); return true;
+      case 'leverandor-ny': {
+        if (!i) return true;
+        const nySid = await lagre(() => leggTilLeverandor(i));
+        if (nySid) { ui.panel = { type: 'leverandor', sid: nySid }; ui.nyttPanel = true; fokuser(`innkjop/${i.id}/leverandorer.${nySid}.navn`); tegn(); }
+        return true;
+      }
+      case 'leverandor': apne('leverandor'); return true;
+      case 'slett-leverandor': {
+        const lev = i?.leverandorer?.[sid];
+        if (lev && confirm(`Slette leverandøren «${lev.navn || 'Uten navn'}» med priser og vedlegg?`)) { ui.panel = null; lagre(() => fjernLeverandor(i, sid)); }
+        return true;
+      }
+      case 'velg-alt': {
+        if (!i) return true;
+        const b = innkjopsberegning(i);
+        const valgt = { ...(i.valgt || {}) };
+        for (const l of b.linjer) if (b.celle[l.id][sid]) valgt[l.id] = sid;
+        lagre(() => settValgt(i, valgt));
+        return true;
+      }
+      case 'billigst': if (i) lagre(() => settValgt(i, billigstPerLinje(i))); return true;
+      case 'celle': {
+        if (!i || e.target.closest('input')) return true;
+        const nokkel = `${lid}|${sid}`;
+        if (ui.redigerer === nokkel) return true;
+        if (!innkjopsberegning(i).celle[lid]?.[sid]) { ui.redigerer = nokkel; tegn(); }
+        else lagre(() => velgPris(i, lid, sid));
+        return true;
+      }
+      case 'vedlegg-celle': {
+        const vedlegg = vedleggsliste(i?.leverandorer?.[sid]);
+        const pris = i?.priser?.[lid]?.[sid];
+        if (vedlegg.length === 1 && !pris?.side) apneVedlegg(i, sid, vedlegg[0].id);
+        else apne('vedlegg');
+        return true;
+      }
+      case 'velg-vedlegg': if (i) lagre(() => oppdaterInnkjop(i.id, { [`priser.${lid}.${sid}.vedleggId`]: el.dataset.vid })); return true;
+      case 'apne-vedlegg': if (i) apneVedlegg(i, sid, el.dataset.vid); return true;
+      case 'slett-vedlegg': {
+        const v = i?.leverandorer?.[sid]?.vedlegg?.[el.dataset.vid];
+        if (v && confirm(`Slette «${v.navn}»?`)) lagre(() => slettVedlegg(i, sid, el.dataset.vid, v.sti));
+        return true;
+      }
+      case 'lukk-panel': ui.panel = null; tegn(); return true;
+    }
+    return false;
+  },
+
+  dobbeltklikk(el, e, s) {
+    if (!el.matches('.m-celle') || e.target.closest('input')) return;
+    ui.redigerer = `${el.dataset.lid}|${el.dataset.sid}`;
+    tegn();
+  },
+
+  // Prisfeltet i en celle lagres når man forlater det.
+  fokusUt(el, e, s) {
+    if (!el.dataset.pris) return false;
+    const i = aktivtInnkjop(s);
+    const [lid, sid] = el.dataset.pris.split('|');
+    const raa = el.value;
+    ui.redigerer = null;
+    if (i && raa.trim() !== (i.priser?.[lid]?.[sid]?.raa || '')) lagre(() => settPris(i, lid, sid, raa));
+    else tegn();
+    return true;
+  },
+
+  // Innliming fra Excel (tabulator/linjeskift) fyller flere celler fra
+  // cellen det limes i. Vanlig innliming av ett tall går som før.
+  limInn(el, tekst, e, s) {
+    if (!el.dataset?.pris || !/[\t\n]/.test(tekst)) return false;
+    const i = aktivtInnkjop(s);
+    if (!i) return false;
+    e.preventDefault();
+    const [lid, sid] = el.dataset.pris.split('|');
+    const b = innkjopsberegning(i);
+    const li = b.linjer.findIndex(l => l.id === lid), si = b.leverandorer.findIndex(x => x.id === sid);
+    ui.redigerer = null;
+    lagre(() => settPriser(i, li, si, tolkRutenett(tekst)));
+    return true;
+  },
+
+  async filer(el, filer, s) {
+    const i = aktivtInnkjop(s);
+    if (!i || !el.dataset.sid) return false;
+    for (const fil of filer) await lagre(() => lastOppVedlegg(i, el.dataset.sid, fil));
+    if (el.type === 'file') el.value = '';
+    return true;
+  },
+
+  escape() {
+    if (ui.redigerer) { ui.redigerer = null; return true; }
+    if (ui.panel) { ui.panel = null; return true; }
+    return false;
+  },
+
+  forlat() { ui.panel = null; ui.redigerer = null; },
+};

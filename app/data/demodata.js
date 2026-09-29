@@ -78,5 +78,41 @@ export function lagDemodata() {
     },
   };
 
-  return { brukere, givere, behov, soknader };
+  const pris = raa => ({ raa });
+  const innkjop = {
+    i1: {
+      organisasjonId: org, soknadId: 's1', navn: 'Instrumenter', status: 'innhenter', rekkefolge: 1,
+      linjer: {
+        k1: { soknadLinjeId: 'l1', tittel: 'Kornett Bb', antall: 4, rekkefolge: 1 },
+        k2: { soknadLinjeId: 'l2', tittel: 'Althorn Eb', antall: 2, rekkefolge: 2 },
+        k3: { soknadLinjeId: 'l3', tittel: 'Trombone, tenor', antall: 2, rekkefolge: 3 },
+        k4: { soknadLinjeId: 'l4', tittel: 'Baryton', antall: 1, rekkefolge: 4 },
+        k6: { soknadLinjeId: 'l6', tittel: 'Notestativ', antall: 12, rekkefolge: 5 },
+      },
+      leverandorer: {
+        mh: { navn: 'Musikkhuset AS', kontakt: 'Ola Berg\nola@musikkhuset.no · 22 33 44 55', frakt: 1500, rekkefolge: 1, vedlegg: { v1: { navn: 'Tilbud 2026-0412.pdf', sti: 'demo/v1', tid: dagerSiden(20), lastetOppAv: { epost: kari[0], navn: kari[1] } } } },
+        nb: { navn: 'Nordic Brass', kontakt: 'Anne Lie\nanne@nordicbrass.no', frakt: 0, rekkefolge: 2, vedlegg: { v2: { navn: 'Tilbud messing.pdf', sti: 'demo/v2', tid: dagerSiden(18), lastetOppAv: { epost: kari[0], navn: kari[1] } }, v3: { navn: 'Tilbud trommer.pdf', sti: 'demo/v3', tid: dagerSiden(17), lastetOppAv: { epost: kari[0], navn: kari[1] } } } },
+        to: { navn: 'Tono Instrumenter', kontakt: 'post@tono.no · 55 12 34 56', frakt: 2400, rekkefolge: 3, vedlegg: {} },
+      },
+      priser: {
+        k1: { mh: pris('8900 -10%'), nb: pris('7650'), to: pris('8200 -500') },
+        k2: { mh: pris('12400 -10%'), nb: pris('11900') },
+        k3: { mh: pris('9800'), nb: pris('10200 -8%'), to: pris('9600') },
+        k4: { mh: pris('21500 -10%'), nb: pris('19900'), to: pris('20400') },
+        k6: { mh: pris('420'), to: pris('390') },
+      },
+      valgt: { k1: 'nb', k2: 'mh', k3: 'nb', k4: 'mh', k6: 'to' },
+      ...av(...kari, 1),
+    },
+    i2: {
+      organisasjonId: org, soknadId: 's3', navn: 'Uniformer', status: 'valgt', rekkefolge: 1,
+      linjer: { k1: { soknadLinjeId: 'l1', tittel: 'Uniformsjakker', antall: 30, rekkefolge: 1 } },
+      leverandorer: { u1: { navn: 'Uniformsenteret', kontakt: '', frakt: 300, rekkefolge: 1, vedlegg: {} } },
+      priser: { k1: { u1: pris('1400') } },
+      valgt: { k1: 'u1' },
+      ...av(...per, 40),
+    },
+  };
+
+  return { brukere, givere, behov, soknader, innkjop };
 }

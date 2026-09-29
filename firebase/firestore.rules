@@ -71,5 +71,12 @@ service cloud.firestore {
       allow update: if erMedlem() && orgUendret();
       allow delete: if erMedlem();
     }
+
+    match /innkjop/{id} {
+      allow read: if erMedlem();
+      allow create: if erMedlem() && riktigOrg();
+      allow update: if erMedlem() && orgUendret();
+      allow delete: if erMedlem();
+    }
   }
 }

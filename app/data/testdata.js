@@ -14,8 +14,8 @@ export async function leggInnTestdata() {
     const stopp = lager.lytt('givere', liste => { stopp(); ok(liste); }, feil);
   });
   if (finnes.some(g => g.navn === 'Sparebankstiftelsen Nord')) {
-    console.warn('Testdataene ligger der allerede – ingenting lagt inn.');
-    return;
+    console.warn('Testdataene ligger der allerede – legger bare inn innkjøp som mangler.');
+    return leggInnInnkjop(data);
   }
 
   // Demodataene bruker korte ID-er (g1, b1 …). Databasen gir nye, så vi
@@ -23,10 +23,33 @@ export async function leggInnTestdata() {
   const giverId = {}, behovId = {};
   for (const [id, g] of Object.entries(data.givere)) giverId[id] = await lager.opprett('givere', g);
   for (const [id, b] of Object.entries(data.behov)) behovId[id] = await lager.opprett('behov', b);
-  for (const s of Object.values(data.soknader)) {
+  const soknadId = {};
+  for (const [id, s] of Object.entries(data.soknader)) {
     const linjer = {};
     for (const [lid, l] of Object.entries(s.linjer)) linjer[lid] = { ...l, behovId: l.behovId ? behovId[l.behovId] : null };
-    await lager.opprett('soknader', { ...s, giverId: giverId[s.giverId], linjer, dokumenter: {} });
+    soknadId[id] = await lager.opprett('soknader', { ...s, giverId: giverId[s.giverId], linjer, dokumenter: {} });
   }
-  console.log(`Lagt inn ${Object.keys(giverId).length} givere, ${Object.keys(behovId).length} behov og ${Object.keys(data.soknader).length} søknader.`);
+  await leggInnInnkjop(data, soknadId);
+  console.log(`Lagt inn ${Object.keys(giverId).length} givere, ${Object.keys(behovId).length} behov, ${Object.keys(data.soknader).length} søknader og ${Object.keys(data.innkjop || {}).length} innkjøp.`);
+}
+
+const hentAlle = samling => new Promise((ok, feil) => {
+  const stopp = lager.lytt(samling, liste => { stopp(); ok(liste); }, feil);
+});
+
+// Innkjøpene kobles til søknadene på tittel når ID-kartet mangler (data
+// som alt lå i databasen). Søknader som allerede har innkjøp hoppes over.
+async function leggInnInnkjop(data, soknadId = null) {
+  const soknader = await hentAlle('soknader');
+  const innkjop = await hentAlle('innkjop');
+  let antall = 0;
+  for (const i of Object.values(data.innkjop || {})) {
+    const id = soknadId ? soknadId[i.soknadId] : soknader.find(s => s.tittel === data.soknader[i.soknadId].tittel)?.id;
+    if (!id || innkjop.some(x => x.soknadId === id)) continue;
+    const leverandorer = {};
+    for (const [sid, lev] of Object.entries(i.leverandorer)) leverandorer[sid] = { ...lev, vedlegg: {} };
+    await lager.opprett('innkjop', { ...i, soknadId: id, leverandorer });
+    antall++;
+  }
+  if (!soknadId) console.log(`Lagt inn ${antall} innkjøp.`);
 }

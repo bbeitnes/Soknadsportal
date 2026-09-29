@@ -3,7 +3,7 @@
 // Revisjon kommer i senere trinn.
 import {
   tilstand, oppdaterSoknad, oppdaterLinje, leggBehovISoknad, leggFriLinjeISoknad, fjernLinje,
-  lastOppDokument, slettDokument, dokumentUrl, slettSoknad,
+  lastOppDokument, slettDokument, dokumentUrl, slettSoknad, innkjopFor,
   leggTilUtgift, oppdaterUtgift, fjernUtgift,
 } from '../data/index.js';
 import {
@@ -15,9 +15,10 @@ import { feltAttr } from '../ui/felt.js';
 import { lagre, visMelding } from '../ui/lagring.js';
 import { tegn, fokuser, gaaTil, avkryss, sidepanel, lukkeknapp, IKON } from '../ui/visning.js';
 import { utskrift } from '../ui/utskrift.js';
+import { innkjopFane } from './innkjop.js';
 
 const FANER = [['soknad', 'Søknad'], ['innkjop', 'Innkjøp'], ['utgifter', 'Utgifter'], ['revisjon', 'Revisjon']];
-const KOMMER = { innkjop: 'Innkjøp og tilbudsmatrisen kommer i trinn c.', revisjon: 'Fakturaer og revisjon kommer i trinn d.' };
+const KOMMER = { revisjon: 'Fakturaer og revisjon kommer i trinn d.' };
 
 const ui = { soknadId: null, panel: null, nyttPanel: false, velger: false, laster: 0 };
 
@@ -78,7 +79,7 @@ function topp(s, fane) {
 // er «disponert» giverens andel, og en linje under viser full kostnad og
 // hva som forventes fra momskompensasjonen neste år.
 function pottlinje(s) {
-  const p = pott(s);
+  const p = pott(s, innkjopFor(s.id));
   const strek = '–';
   const negativ = p.gjenstar != null && p.gjenstar < 0;
   return `
@@ -140,7 +141,7 @@ function behovstabell(s) {
 
 // Hint under «Innvilget beløp»: er estimatet (giverandelen) over eller under?
 function innvilgetHint(s) {
-  const p = pott(s);
+  const p = pott(s, innkjopFor(s.id));
   if (p.innvilget == null) return 'Fylles inn når svaret kommer';
   const estimat = soktForslag(s);
   const hva = p.harMoms ? 'Estimatet (giverandel)' : 'Estimatet';
@@ -231,7 +232,7 @@ function soknadsfane(s) {
   const n = f => `soknader/${s.id}/${f}`;
   const forslag = soktForslag(s);
   const overstyrt = s.soktOverstyrt != null;
-  const p = pott(s);
+  const p = pott(s, innkjopFor(s.id));
   const givere = [...tilstand.givere].sort((a, b) => (a.navn || '').localeCompare(b.navn || '', 'nb'));
   return `
     <div style="flex:1 1 auto; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:0 28px">
@@ -317,14 +318,15 @@ export const soknadSide = {
   meny: 'soknader',
 
   tegn([id, fane = 'soknad'] = []) {
-    if (id !== ui.soknadId) { ui.soknadId = id; ui.panel = null; ui.velger = false; }
+    if (id !== ui.soknadId) { ui.soknadId = id; ui.panel = null; ui.velger = false; innkjopFane.forlat(); }
+    if (fane !== 'innkjop') innkjopFane.forlat();
     const s = gjeldende();
     if (!s) return `<div class="laster">Fant ikke søknaden. <a href="#/soknader" style="margin-left:6px">Til alle søknader</a></div>`;
     const aktivFane = FANER.some(([f]) => f === fane) ? fane : 'soknad';
     const html = `
       ${topp(s, aktivFane)}
       <main class="innhold" style="padding-top:12px">
-        ${aktivFane === 'soknad' ? soknadsfane(s) : aktivFane === 'utgifter' ? utgiftsfane(s) : `<div class="laster">${KOMMER[aktivFane]}</div>`}
+        ${aktivFane === 'soknad' ? soknadsfane(s) : aktivFane === 'utgifter' ? utgiftsfane(s) : aktivFane === 'innkjop' ? innkjopFane.tegn(s) : `<div class="laster">${KOMMER[aktivFane]}</div>`}
       </main>
       ${ui.panel === 'fra-listen' ? fraListenPanel(s) : ''}`;
     ui.nyttPanel = false;
@@ -348,9 +350,14 @@ export const soknadSide = {
 
   // Den tomme utgiftsraden har ikke data-felt; den lagres når man forlater
   // et av feltene i raden.
+  dobbeltklikk(el, e) { const s = gjeldende(); if (s) innkjopFane.dobbeltklikk(el, e, s); },
+  limInn(el, tekst, e) { const s = gjeldende(); if (s) innkjopFane.limInn(el, tekst, e, s); },
+
   fokusUt(el, e) {
     const s = gjeldende();
-    if (!s || !el.id?.startsWith('ny-utgift-')) return;
+    if (!s) return;
+    if (innkjopFane.fokusUt(el, e, s)) return;
+    if (!el.id?.startsWith('ny-utgift-')) return;
     // relatedTarget er feltet som får fokus; innenfor raden gjør vi ingenting.
     if (e.relatedTarget?.id?.startsWith('ny-utgift-')) return;
     lagreNyUtgift(s);
@@ -360,9 +367,10 @@ export const soknadSide = {
     if (ui.velger && !e.target.closest('.velgerliste, [data-handling="velger"]')) { ui.velger = false; tegn(); }
   },
 
-  async klikk(handling, el) {
+  async klikk(handling, el, e) {
     const s = gjeldende();
     if (!s) return;
+    if (location.hash.includes('/innkjop') && await innkjopFane.klikk(handling, el, e, s)) return;
     const linje = el.dataset.linje;
     switch (handling) {
       case 'velger': ui.velger = !ui.velger; tegn(); break;
@@ -413,6 +421,7 @@ export const soknadSide = {
   async filer(el, filer) {
     const s = gjeldende();
     if (!s || !filer.length) return;
+    if (await innkjopFane.filer(el, filer, s)) return;
     ui.laster++;
     tegn();
     for (const fil of filer) await lagre(() => lastOppDokument(s.id, fil));
@@ -422,6 +431,7 @@ export const soknadSide = {
   },
 
   escape() {
+    if (innkjopFane.escape()) return true;
     if (ui.velger) { ui.velger = false; return true; }
     if (ui.panel) { ui.panel = null; return true; }
     return false;

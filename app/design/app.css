@@ -175,3 +175,45 @@ textarea.inndata { height: auto; padding: 8px 10px; font-size: 14px; line-height
 /* Den tomme «ny»-raden i utgifter: stiplet til den er fylt ut */
 .celleinn.ny { border: 2px dashed var(--color-neutral-400); background: transparent; }
 .celleinn.ny:focus { border-style: solid; }
+
+/* ——— Innkjøp: chips og tilbudsmatrisen ——— */
+.chip { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 8px 0 14px; cursor: pointer; border: 2px solid var(--color-neutral-300); background: transparent; color: var(--color-text); font-weight: 600; font-size: 14px; }
+.chip:hover { background: var(--color-surface); }
+.chip.aktiv { border-color: var(--color-accent); background: var(--color-accent-100); }
+.chip-sum { font-variant-numeric: tabular-nums; font-weight: 400; color: var(--color-neutral-700); padding-right: 6px; }
+code { font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+
+table.matrise { border-collapse: separate; border-spacing: 0; min-width: 100%; font-variant-numeric: tabular-nums; }
+.matrise th, .matrise td { background: var(--color-neutral-100); }
+.matrise thead th { position: sticky; top: 0; z-index: 3; border-bottom: 2px solid var(--color-divider); vertical-align: bottom; text-align: right; padding: 10px 16px 10px 12px; min-width: 200px; white-space: nowrap; font-weight: 400; }
+.matrise .m-th { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-neutral-600); font-weight: 600; }
+.matrise th.m-linje { text-align: left; min-width: 250px; padding: 12px 20px 10px 24px; z-index: 4; }
+.matrise .m-linje { position: sticky; left: 0; z-index: 2; }
+.matrise .m-valgt { position: sticky; right: 0; z-index: 2; text-align: right; box-shadow: -2px 0 0 var(--color-divider); font-weight: 600; font-size: 16px; padding: 10px 24px 10px 16px; min-width: 176px; white-space: nowrap; }
+.matrise thead .m-valgt { z-index: 4; }
+.matrise tbody td { border-bottom: 1px solid var(--color-neutral-300); vertical-align: middle; }
+.matrise td.m-linje { padding: 10px 20px 10px 24px; }
+.m-antall { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 13px; color: var(--color-neutral-700); }
+.m-fjern { width: 24px; height: 24px; opacity: 0; }
+.m-linje:hover .m-fjern, .m-fjern:focus-visible { opacity: 1; }
+.m-levnavn { height: 30px; padding: 0 12px; border: 0; background: transparent; cursor: pointer; font-weight: 600; font-size: 15px; color: var(--color-text); }
+.m-levnavn:hover { background: var(--color-accent-100); color: var(--color-accent-700); }
+.m-td { padding: 0; cursor: pointer; user-select: none; }
+.m-celle { position: relative; margin: 5px 6px; padding: 8px 12px 8px 30px; min-height: 52px; text-align: right; }
+.m-celle:hover { background: var(--color-neutral-200); }
+.m-celle.valgt { background: var(--color-accent-100); box-shadow: inset 0 0 0 2px var(--color-accent); }
+.m-celle.redigerer { padding: 8px 6px; }
+.m-netto { font-size: 16px; font-weight: 600; line-height: 1.2; }
+.m-under { font-size: 12px; color: var(--color-neutral-600); margin-top: 2px; min-height: 16px; }
+.m-tom { font-size: 13px; color: var(--color-neutral-400); line-height: 36px; }
+.m-hak { position: absolute; top: 6px; left: 8px; width: 18px; height: 18px; background: var(--color-accent); color: var(--color-neutral-100); display: inline-flex; align-items: center; justify-content: center; }
+.m-klips { position: absolute; bottom: 6px; left: 8px; width: 22px; height: 22px; border: 0; background: transparent; color: var(--color-neutral-500); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.m-klips:hover { background: var(--color-accent-100); color: var(--color-accent-700); }
+.m-inn { width: 100%; height: 36px; padding: 0 10px; border: 2px solid var(--color-accent); background: var(--color-neutral-100); text-align: right; font-size: 15px; font-weight: 600; color: var(--color-text); }
+.m-inn:focus { outline: none; }
+.matrise tfoot td { position: sticky; z-index: 3; }
+.matrise tfoot .m-linje, .matrise tfoot .m-valgt { z-index: 4; }
+.matrise .m-frakt td { bottom: 74px; border-top: 2px solid var(--color-divider); padding: 6px 18px 2px 12px; text-align: right; }
+.matrise .m-sum td { bottom: 0; height: 74px; padding: 4px 28px 12px 12px; vertical-align: top; text-align: right; }
+.matrise .m-sum .m-linje, .matrise .m-frakt .m-linje { text-align: left; padding-left: 24px; white-space: nowrap; }
+.matrise .m-kombo { background: var(--color-accent-100); padding: 6px 24px 10px 16px; }

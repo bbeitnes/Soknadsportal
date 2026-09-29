@@ -156,3 +156,52 @@ test('pott: disponert er giverens andel, moms kommer neste år', async () => {
   assert.equal(ikkeInnvilget.gjenstar, null);
   assert.equal(pott({}).disponert, 0);
 });
+
+test('tolkPris: stykkpris, prosentrabatt og kronerabatt', async () => {
+  const { tolkPris } = await import('../app/data/beregning.js');
+  assert.equal(tolkPris('1200').netto, 1200);
+  assert.equal(tolkPris('1200 -15%').netto, 1020);
+  assert.equal(tolkPris('1200 -180').netto, 1020);
+  assert.equal(tolkPris('1 200-15 %').netto, 1020);
+  assert.equal(tolkPris('8900 -10%').under, 'Liste 8 900 −10 %');
+  assert.equal(tolkPris('1200 -180').under, 'Liste 1 200 −180');
+  assert.equal(tolkPris('1200').under, 'vår pris');
+  assert.equal(tolkPris(''), null);
+  assert.equal(tolkPris('abc'), null);
+  assert.equal(tolkPris('1200 + 5'), null);
+});
+
+const innkjop = {
+  linjer: { l1: { antall: 4, rekkefolge: 1 }, l2: { antall: 2, rekkefolge: 2 }, l3: { antall: 1, rekkefolge: 3 } },
+  leverandorer: { a: { navn: 'A', frakt: 1500, rekkefolge: 1 }, b: { navn: 'B', frakt: 0, rekkefolge: 2 } },
+  priser: { l1: { a: { raa: '1000 -10%' }, b: { raa: '950' } }, l2: { a: { raa: '500' } }, l3: { a: { raa: 'x' }, b: { raa: '100' } } },
+  valgt: { l1: 'b', l2: 'a', l3: 'a' },
+};
+
+test('innkjopsberegning: valgt, alt hos én og frakt', async () => {
+  const { innkjopsberegning, sumInnkjop, billigstPerLinje } = await import('../app/data/beregning.js');
+  const b = innkjopsberegning(innkjop);
+  assert.equal(b.perLinje.l1.sum, 3800);
+  assert.equal(b.perLinje.l2.sum, 1000);
+  assert.equal(b.perLinje.l3.valgtSid, null); // «x» er ikke en pris
+  assert.equal(b.sumValgt, 4800);
+  assert.equal(b.frakt, 1500); // bare A brukes med frakt; B har 0
+  assert.equal(b.total, 6300);
+  assert.equal(sumInnkjop(innkjop), 6300);
+  assert.equal(b.perLeverandor.a.total, 1500 + 3600 + 1000);
+  assert.equal(b.perLeverandor.a.mangler, 1);
+  assert.equal(b.perLeverandor.b.mangler, 1);
+  assert.deepEqual(billigstPerLinje(innkjop), { l1: 'a', l2: 'a', l3: 'b' });
+  assert.equal(innkjopsberegning({}).total, 0);
+});
+
+test('pott tar med innkjøp, ikkeFordelte og rutenett', async () => {
+  const { pott, ikkeFordelte, tolkRutenett } = await import('../app/data/beregning.js');
+  const s = soknad('s1', 'innvilget', { x: { antall: 1, estPris: 1 }, y: { antall: 1, estPris: 1 } }, { innvilget: 10000, utgifter: { u: { belop: 700 } } });
+  const p = pott(s, [innkjop]);
+  assert.equal(p.innkjop, 6300);
+  assert.equal(p.disponertFull, 7000);
+  assert.equal(p.gjenstar, 3000);
+  assert.deepEqual(ikkeFordelte(s, [{ linjer: { q: { soknadLinjeId: 'x' } } }]).map(l => l.id), ['y']);
+  assert.deepEqual(tolkRutenett('1200\t1300\r\n\n 900 -5%\t\n'), [['1200', '1300'], ['900 -5%', '']]);
+});

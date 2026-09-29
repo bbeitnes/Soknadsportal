@@ -183,6 +183,7 @@ rot.addEventListener('focusout', e => {
   if (tegner) return;
   const el = e.target;
   if (el.matches?.('[data-felt]')) lagreFelt(el);
+  else gjeldende?.side.fokusUt?.(el, e);
   setTimeout(tegnHvisVentende, 0);
 });
 

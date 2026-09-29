@@ -1,7 +1,7 @@
 // Søknader: én rad per søknad. «+ Ny søknad» åpner et sidepanel.
 // Innvilget, disponert og gjenstår fylles ut fra trinn b (pott).
 import { tilstand, opprettSoknad } from '../data/index.js';
-import { SOKNADSFILTRE, soktBelop, statusNavn } from '../data/beregning.js';
+import { SOKNADSFILTRE, soktBelop, statusNavn, pott, erInnvilget } from '../data/beregning.js';
 import { escapeHtml, kr, tidspunkt, fornavn, datoFelt, tolkDato } from '../ui/format.js';
 import { lagre, visMelding } from '../ui/lagring.js';
 import { tegn, gaaTil, sidepanel, lukkeknapp } from '../ui/visning.js';
@@ -27,6 +27,8 @@ function sortert() {
 function rad(s) {
   const g = giver(s.giverId);
   const sokt = soktBelop(s);
+  const p = pott(s);
+  const innvilget = erInnvilget(s) && p.innvilget != null;
   const iDag = new Date().toISOString().slice(0, 10);
   const fristPasserer = s.status === 'utkast' && s.frist && s.frist >= iDag;
   return `
@@ -35,9 +37,9 @@ function rad(s) {
       <td class="smal ${fristPasserer ? 'aksent' : ''}" style="font-size:14px">${s.frist ? datoFelt(s.frist) : STREK}</td>
       <td class="smal"><span class="merkelapp m-${s.status}">${statusNavn(s.status)}</span></td>
       <td class="tall">${sokt ? kr(sokt) : STREK}</td>
-      <td class="tall fet">${STREK}</td>
-      <td class="tall">${STREK}</td>
-      <td class="tall fet">${STREK}</td>
+      <td class="tall fet">${innvilget ? kr(p.innvilget) : STREK}</td>
+      <td class="tall">${innvilget ? kr(p.disponert) : STREK}</td>
+      <td class="tall fet ${p.gjenstar < 0 ? 'aksent' : ''}">${innvilget && s.status === 'innvilget' ? kr(p.gjenstar) : STREK}</td>
       <td class="smal dempet">${escapeHtml(sistEndret(s))}</td>
     </tr>`;
 }
@@ -90,6 +92,15 @@ export const soknaderSide = {
     const synlig = alle.filter(SOKNADSFILTRE[ui.filter]);
     const antall = Object.fromEntries(FILTRE.map(([id]) => [id, alle.filter(SOKNADSFILTRE[id]).length]));
     const sumSokt = synlig.reduce((s, x) => s + soktBelop(x), 0);
+    // Innvilget/disponert telles for innvilgede og avsluttede; gjenstår bare
+    // for dem som fortsatt er åpne (innvilget). «I år» = året søknaden ble
+    // sendt (frist hvis sendt mangler).
+    const medPott = liste => liste.filter(x => erInnvilget(x) && x.innvilget != null).map(x => ({ s: x, p: pott(x) }));
+    const sum = (liste, f) => liste.reduce((a, x) => a + f(x), 0);
+    const synligPott = medPott(synlig), synligApne = synligPott.filter(x => x.s.status === 'innvilget');
+    const iAar = String(new Date().getFullYear());
+    const iAarPott = medPott(alle).filter(x => (x.s.sendt || x.s.frist || '').startsWith(iAar));
+    const allePott = medPott(alle).filter(x => x.s.status === 'innvilget');
     const html = `
       <header class="sidehode">
         <div>
@@ -97,8 +108,8 @@ export const soknaderSide = {
           <div class="ingress">Alle søknader til stiftelser og andre givere. Klikk en rad for å åpne.</div>
         </div>
         <div class="nokkeltall">
-          <div><div class="etikett">Innvilget i år</div><div class="tall">${STREK}</div></div>
-          <div><div class="etikett">Gjenstår i potter</div><div class="tall">${STREK}</div></div>
+          <div><div class="etikett">Innvilget i år</div><div class="tall">${kr(sum(iAarPott, x => x.p.innvilget))}</div></div>
+          <div><div class="etikett">Gjenstår i potter</div><div class="tall">${kr(sum(allePott, x => x.p.gjenstar))}</div></div>
           <div><div class="etikett">Venter på svar</div><div class="tall">${antall.venter}</div></div>
         </div>
       </header>
@@ -111,7 +122,7 @@ export const soknaderSide = {
           <table class="liste">
             <thead><tr><th>Søknad</th><th>Frist</th><th>Status</th><th class="tall">Søkt</th><th class="tall">Innvilget</th><th class="tall">Disponert</th><th class="tall">Gjenstår</th><th>Sist endret</th></tr></thead>
             <tbody>${synlig.map(rad).join('') || '<tr class="tom-rad"><td colspan="8">Ingen søknader i dette utvalget.</td></tr>'}</tbody>
-            <tfoot><tr><td colspan="3" class="dempet">${synlig.length} søknader vist</td><td class="tall fet">${kr(sumSokt)}</td><td class="tall sum">${STREK}</td><td class="tall fet">${STREK}</td><td class="tall sum">${STREK}</td><td></td></tr></tfoot>
+            <tfoot><tr><td colspan="3" class="dempet">${synlig.length} søknader vist</td><td class="tall fet">${kr(sumSokt)}</td><td class="tall sum">${kr(sum(synligPott, x => x.p.innvilget))}</td><td class="tall fet">${kr(sum(synligPott, x => x.p.disponert))}</td><td class="tall sum">${kr(sum(synligApne, x => x.p.gjenstar))}</td><td></td></tr></tfoot>
           </table>
         </div>
       </main>

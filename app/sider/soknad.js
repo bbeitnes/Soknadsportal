@@ -3,19 +3,21 @@
 // Revisjon kommer i senere trinn.
 import {
   tilstand, oppdaterSoknad, oppdaterLinje, leggBehovISoknad, leggFriLinjeISoknad, fjernLinje,
-  lastOppDokument, slettDokument, dokumentUrl,
+  lastOppDokument, slettDokument, dokumentUrl, slettSoknad,
+  leggTilUtgift, oppdaterUtgift, fjernUtgift,
 } from '../data/index.js';
 import {
-  SOKNADSSTATUSER, statusNavn, linjeliste, linjekostnad, sumEstimert, soktBelop, velgbareBehov,
+  SOKNADSSTATUSER, statusNavn, linjeliste, linjekostnad, sumEstimert, soktBelop, soktForslag, velgbareBehov,
+  pott, giverandel, momsProsent, utgiftsliste, sumUtgifter,
 } from '../data/beregning.js';
-import { escapeHtml, kr, datoFelt, tidspunkt, fornavn } from '../ui/format.js';
+import { escapeHtml, kr, datoFelt, tidspunkt, fornavn, tolkTall, tolkDato } from '../ui/format.js';
 import { feltAttr } from '../ui/felt.js';
-import { lagre } from '../ui/lagring.js';
+import { lagre, visMelding } from '../ui/lagring.js';
 import { tegn, fokuser, gaaTil, avkryss, sidepanel, lukkeknapp, IKON } from '../ui/visning.js';
 import { utskrift } from '../ui/utskrift.js';
 
 const FANER = [['soknad', 'Søknad'], ['innkjop', 'Innkjøp'], ['utgifter', 'Utgifter'], ['revisjon', 'Revisjon']];
-const KOMMER = { innkjop: 'Innkjøp og tilbudsmatrisen kommer i trinn c.', utgifter: 'Løse utgifter kommer i trinn b.', revisjon: 'Fakturaer og revisjon kommer i trinn d.' };
+const KOMMER = { innkjop: 'Innkjøp og tilbudsmatrisen kommer i trinn c.', revisjon: 'Fakturaer og revisjon kommer i trinn d.' };
 
 const ui = { soknadId: null, panel: null, nyttPanel: false, velger: false, laster: 0 };
 
@@ -65,23 +67,44 @@ function topp(s, fane) {
         </div>
         <div class="ingress" style="margin-top:8px">${detaljer}</div>
       </div>
-      <div class="nokkeltall">
-        <div><div class="etikett">Søkt</div><div class="tall">${kr(soktBelop(s))}</div></div>
-      </div>
+      ${pottlinje(s)}
     </header>
     <nav style="flex:0 0 auto; padding:14px 40px 0; display:flex; gap:4px; align-items:center">
       ${FANER.map(([id, navn]) => `<a href="#/soknad/${s.id}/${id}" style="height:36px; display:inline-flex; align-items:center; padding:0 18px; font-weight:600; font-size:15px; text-decoration:none; background:${fane === id ? 'var(--color-surface)' : 'transparent'}; color:${fane === id ? 'var(--color-text)' : 'var(--color-neutral-700)'}">${navn}</a>`).join('')}
     </nav>`;
 }
 
+// Pottlinjen: søkt / innvilget / disponert / gjenstår. Med momskompensasjon
+// er «disponert» giverens andel, og en linje under viser full kostnad og
+// hva som forventes fra momskompensasjonen neste år.
+function pottlinje(s) {
+  const p = pott(s);
+  const strek = '–';
+  const negativ = p.gjenstar != null && p.gjenstar < 0;
+  return `
+    <div>
+      <div class="nokkeltall">
+        <div><div class="etikett">Søkt</div><div class="tall">${kr(p.sokt)}</div></div>
+        <div><div class="etikett">Innvilget</div><div class="tall">${p.innvilget == null ? strek : kr(p.innvilget)}</div></div>
+        <div><div class="etikett">${p.harMoms ? 'Disponert (giverandel)' : 'Disponert'}</div><div class="tall">${kr(p.disponert)}</div></div>
+        <div><div class="etikett">Gjenstår</div><div class="tall ${negativ ? 'aksent' : ''}">${p.gjenstar == null ? strek : kr(p.gjenstar)}</div></div>
+      </div>
+      ${p.harMoms ? `<div class="hint" style="margin-top:8px">Giver dekker ${p.giverProsent} % av det vi faktisk betaler (${kr(p.disponertFull)}). Momskompensasjon ${p.prosent} %: <span style="color:var(--color-text); font-variant-numeric:tabular-nums">${kr(p.moms)}</span>, forventes mottatt neste år.</div>` : ''}
+    </div>`;
+}
+
 // ——— Søknad-fanen ———
 
 function behovstabell(s) {
   const linjer = linjeliste(s);
+  const prosent = momsProsent(s);
+  const moms = prosent != null;
   const n = (l, f) => `soknader/${s.id}/linjer.${l.id}.${f}`;
   const finansieres = linjer.filter(l => l.finansieres).length;
+  const sum = sumEstimert(s), sumGiver = giverandel(sum, prosent);
   const rader = linjer.map(l => {
     const b = l.behovId ? behovMedId(l.behovId) : null;
+    const kostnad = linjekostnad(l), fraGiver = giverandel(kostnad, prosent);
     return `
       <tr>
         <td>${l.behovId
@@ -89,23 +112,99 @@ function behovstabell(s) {
           : `<input class="celleinn tekst" ${feltAttr(n(l, 'tittel'), l.tittel)} placeholder="Beskriv linjen">`}</td>
         <td class="tall"><input class="celleinn antall" inputmode="numeric" ${feltAttr(n(l, 'antall'), l.antall, 'tall')}></td>
         <td class="tall"><input class="celleinn" inputmode="numeric" ${feltAttr(n(l, 'estPris'), l.estPris, 'tall')}></td>
-        <td class="tall fet">${kr(linjekostnad(l))}</td>
+        <td class="tall fet">${kr(kostnad)}</td>
+        ${moms ? `<td class="tall">${kr(fraGiver)}</td><td class="tall dempet">${kr(kostnad - fraGiver)}</td>` : ''}
         <td>${avkryss(!!l.finansieres, l.finansieres ? 'Ja' : 'Nei', 'finansieres', `data-linje="${l.id}"`)}</td>
         <td style="width:40px; padding-left:0"><button type="button" class="ikonknapp" data-handling="fjern-linje" data-linje="${l.id}" title="Fjern fra søknaden">${IKON.fjern}</button></td>
       </tr>`;
   }).join('');
+  const kolonner = moms ? 8 : 6;
   return `
     <div class="tabellramme" data-rull="soknad-behov">
       <table class="liste">
-        <thead><tr><th>Behov</th><th class="tall">Antall</th><th class="tall">Est. stk.pris</th><th class="tall">Kostnad</th><th>Finansieres</th><th></th></tr></thead>
-        <tbody>${rader || '<tr class="tom-rad"><td colspan="6">Ingen behov i søknaden enda. Legg til fra behovslisten eller som fri linje.</td></tr>'}</tbody>
+        <thead><tr>
+          <th>Behov</th><th class="tall">Antall</th><th class="tall">Est. stk.pris</th><th class="tall">Kostnad</th>
+          ${moms ? `<th class="tall">Fra giver (${100 - prosent} %)</th><th class="tall">Fra momskomp. (${prosent} %)</th>` : ''}
+          <th>Finansieres</th><th></th>
+        </tr></thead>
+        <tbody>${rader || `<tr class="tom-rad"><td colspan="${kolonner}">Ingen behov i søknaden enda. Legg til fra behovslisten eller som fri linje.</td></tr>`}</tbody>
         <tfoot><tr>
           <td colspan="3" class="dempet">Sum estimert</td>
-          <td class="tall sum">${kr(sumEstimert(s))}</td>
+          <td class="tall sum">${kr(sum)}</td>
+          ${moms ? `<td class="tall sum">${kr(sumGiver)}</td><td class="tall fet dempet">${kr(sum - sumGiver)}<div class="undertekst" style="font-weight:400">forventes mottatt neste år</div></td>` : ''}
           <td colspan="2" class="dempet smal">${finansieres} av ${linjer.length} finansieres</td>
         </tr></tfoot>
       </table>
     </div>`;
+}
+
+// Hint under «Innvilget beløp»: er estimatet (giverandelen) over eller under?
+function innvilgetHint(s) {
+  const p = pott(s);
+  if (p.innvilget == null) return 'Fylles inn når svaret kommer';
+  const estimat = soktForslag(s);
+  const hva = p.harMoms ? 'Estimatet (giverandel)' : 'Estimatet';
+  if (estimat > p.innvilget) return `${hva} er ${kr(estimat - p.innvilget)} over innvilget – juster antall`;
+  if (estimat < p.innvilget) return `${kr(p.innvilget - estimat)} til overs mot estimatet`;
+  return 'Innvilget som søkt';
+}
+
+// ——— Utgifter-fanen ———
+
+function utgiftsfane(s) {
+  const liste = utgiftsliste(s);
+  const n = (u, f) => `soknader/${s.id}/utgifter.${u.id}.${f}`;
+  const rader = liste.map(u => `
+    <tr>
+      <td><input class="celleinn tekst" style="font-weight:400" ${feltAttr(n(u, 'beskrivelse'), u.beskrivelse, 'tekst', { paakrevd: true })}></td>
+      <td><input class="celleinn tekst" style="min-width:110px; font-weight:400" placeholder="dd.mm.åååå" ${feltAttr(n(u, 'dato'), u.dato, 'dato')}></td>
+      <td class="tall"><input class="celleinn" style="width:110px; font-weight:600" inputmode="numeric" ${feltAttr(n(u, 'belop'), u.belop, 'tall')}></td>
+      <td class="smal dempet">${escapeHtml(fornavn(u.lagtInnAv?.navn, u.lagtInnAv?.epost))}</td>
+      <td style="width:44px; padding-left:0; text-align:center"><button type="button" class="ikonknapp" data-handling="fjern-utgift" data-id="${u.id}" title="Slett utgiften">${IKON.fjern}</button></td>
+    </tr>`).join('');
+  return `
+    <div class="verktoyrad">
+      <div class="etikett">Løse utgifter</div>
+      <div class="hint">Trekkes fra potten. Kobles til faktura under Revisjon.</div>
+    </div>
+    <div class="tabellramme" data-rull="utgifter" style="flex:0 1 auto">
+      <table class="liste">
+        <thead><tr><th>Beskrivelse</th><th style="width:130px">Dato</th><th class="tall" style="width:140px">Beløp</th><th style="width:150px">Lagt inn av</th><th style="width:44px"></th></tr></thead>
+        <tbody>
+          ${rader}
+          <tr class="ny-utgift">
+            <td><input class="celleinn tekst ny" id="ny-utgift-beskrivelse" placeholder="Ny utgift – beskrivelse"></td>
+            <td><input class="celleinn tekst ny" id="ny-utgift-dato" placeholder="dd.mm.åååå"></td>
+            <td class="tall"><input class="celleinn ny" id="ny-utgift-belop" inputmode="numeric" placeholder="0" style="width:110px"></td>
+            <td colspan="2" class="undertekst">Lagres når beskrivelse og beløp er fylt ut</td>
+          </tr>
+        </tbody>
+        <tfoot><tr>
+          <td colspan="2" class="dempet">Sum løse utgifter</td>
+          <td class="tall sum">${kr(sumUtgifter(s))}</td>
+          <td colspan="2" class="dempet">${liste.length} ${liste.length === 1 ? 'utgift' : 'utgifter'}</td>
+        </tr></tfoot>
+      </table>
+    </div>`;
+}
+
+// Den nederste raden er alltid en tom ny utgift. Den lagres når man forlater
+// raden og både beskrivelse og beløp er fylt ut.
+async function lagreNyUtgift(s) {
+  const felt = ['beskrivelse', 'dato', 'belop'].map(f => document.getElementById(`ny-utgift-${f}`));
+  if (felt.some(el => !el)) return;
+  const [b, d, k] = felt;
+  const beskrivelse = b.value.trim(), belop = tolkTall(k.value), dato = tolkDato(d.value);
+  if (!beskrivelse || belop == null) return;
+  if (Number.isNaN(belop)) { visMelding(`«${k.value}» er ikke et gyldig beløp`); return; }
+  if (Number.isNaN(dato)) { visMelding(`«${d.value}» er ikke en gyldig dato (dd.mm.åååå)`); return; }
+  // Tøm raden FØR lagringen, så et nytt focusout underveis finner en tom rad
+  // og ikke lagrer den samme utgiften én gang til.
+  const gamle = felt.map(el => el.value);
+  felt.forEach(el => { el.value = ''; });
+  const id = await lagre(() => leggTilUtgift(s, { beskrivelse, belop, dato }));
+  if (id) tegn();
+  else felt.forEach((el, i) => { el.value = gamle[i]; });
 }
 
 function dokumenter(s) {
@@ -130,8 +229,9 @@ function dokumenter(s) {
 
 function soknadsfane(s) {
   const n = f => `soknader/${s.id}/${f}`;
-  const forslag = sumEstimert(s);
+  const forslag = soktForslag(s);
   const overstyrt = s.soktOverstyrt != null;
+  const p = pott(s);
   const givere = [...tilstand.givere].sort((a, b) => (a.navn || '').localeCompare(b.navn || '', 'nb'));
   return `
     <div style="flex:1 1 auto; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:0 28px">
@@ -148,8 +248,17 @@ function soknadsfane(s) {
         <div class="tre-kol" style="flex:0 0 auto">
           <label class="felt"><span class="etikett">Søkt beløp</span>
             <input class="inndata tall" style="text-align:left" inputmode="numeric" ${feltAttr(n('soktOverstyrt'), soktBelop(s), 'tall')}>
-            <span class="undertekst">${overstyrt ? `Overstyrt. Foreslått ${kr(forslag)} – tøm feltet for å bruke forslaget.` : 'Foreslått: sum av estimatene'}</span>
+            <span class="undertekst">${overstyrt ? `Overstyrt. Foreslått ${kr(forslag)} – tøm feltet for å bruke forslaget.` : (p.harMoms ? `Foreslått: giverens andel (${p.giverProsent} %) av estimatet` : 'Foreslått: sum av estimatene')}</span>
           </label>
+          <label class="felt"><span class="etikett">Innvilget beløp</span>
+            <input class="inndata tall" style="text-align:left" inputmode="numeric" ${feltAttr(n('innvilget'), s.innvilget, 'tall')}>
+            <span class="undertekst">${escapeHtml(innvilgetHint(s))}</span>
+          </label>
+          ${p.harMoms ? `
+          <label class="felt"><span class="etikett">Momskompensasjon</span>
+            <div style="display:flex; align-items:center; gap:8px"><input class="inndata prosent" style="height:36px; font-size:16px" inputmode="numeric" ${feltAttr(n('momsProsent'), p.prosent, 'prosent')}><span>%</span></div>
+            <span class="undertekst">Arvet fra giveren, kan justeres her</span>
+          </label>` : ''}
         </div>
       </div>
       <div style="min-height:0; display:flex; flex-direction:column; gap:14px; border-left:2px solid var(--color-divider); padding-left:24px; overflow:auto">
@@ -168,6 +277,7 @@ function soknadsfane(s) {
         </div>
         ${avkryss(!!s.revisjon, 'Revisjon på denne søknaden', 'revisjon')}
         ${dokumenter(s)}
+        <div style="display:flex; justify-content:flex-end; flex:0 0 auto"><button type="button" class="knapp knapp-fare" data-handling="slett-soknad">Slett søknad</button></div>
       </div>
     </div>`;
 }
@@ -214,7 +324,7 @@ export const soknadSide = {
     const html = `
       ${topp(s, aktivFane)}
       <main class="innhold" style="padding-top:12px">
-        ${aktivFane === 'soknad' ? soknadsfane(s) : `<div class="laster">${KOMMER[aktivFane]}</div>`}
+        ${aktivFane === 'soknad' ? soknadsfane(s) : aktivFane === 'utgifter' ? utgiftsfane(s) : `<div class="laster">${KOMMER[aktivFane]}</div>`}
       </main>
       ${ui.panel === 'fra-listen' ? fraListenPanel(s) : ''}`;
     ui.nyttPanel = false;
@@ -230,8 +340,20 @@ export const soknadSide = {
       const g = giver(verdi);
       return { giverId: verdi, momsProsent: g?.momsTrekk ? (g.momsProsent ?? 0) : null };
     }
-    if (sti === 'soktOverstyrt' && s && (verdi == null || verdi === sumEstimert(s))) return { soktOverstyrt: null };
+    if (sti === 'soktOverstyrt' && s && (verdi == null || verdi === soktForslag(s))) return { soktOverstyrt: null };
+    // Tomt momsfelt betyr 0 %, ikke «ingen innstilling» — den styres av giveren.
+    if (sti === 'momsProsent' && verdi == null) return { momsProsent: 0 };
     return null;
+  },
+
+  // Den tomme utgiftsraden har ikke data-felt; den lagres når man forlater
+  // et av feltene i raden.
+  fokusUt(el, e) {
+    const s = gjeldende();
+    if (!s || !el.id?.startsWith('ny-utgift-')) return;
+    // relatedTarget er feltet som får fokus; innenfor raden gjør vi ingenting.
+    if (e.relatedTarget?.id?.startsWith('ny-utgift-')) return;
+    lagreNyUtgift(s);
   },
 
   klikkOveralt(e) {
@@ -260,6 +382,15 @@ export const soknadSide = {
         break;
       }
       case 'fjern-linje': lagre(() => fjernLinje(s.id, linje)); break;
+      case 'fjern-utgift': lagre(() => fjernUtgift(s.id, el.dataset.id)); break;
+      case 'slett-soknad': {
+        const antallUtgifter = utgiftsliste(s).length;
+        const hva = [linjeliste(s).length && `${linjeliste(s).length} behov`, antallUtgifter && `${antallUtgifter} utgifter`, Object.keys(s.dokumenter || {}).length && `${Object.keys(s.dokumenter).length} dokumenter`].filter(Boolean).join(', ');
+        if (!confirm(`Slette søknaden «${s.tittel || 'Uten tittel'}»?${hva ? `\n\nDen har ${hva}. Behovene forblir i behovslisten.` : ''}\n\nDette kan ikke angres.`)) break;
+        const ok = await lagre(() => slettSoknad(s).then(() => true));
+        if (ok) gaaTil('#/soknader');
+        break;
+      }
       case 'finansieres': lagre(() => oppdaterLinje(s.id, linje, { finansieres: !s.linjer[linje]?.finansieres })); break;
       case 'status': lagre(() => oppdaterSoknad(s.id, { status: el.dataset.id })); break;
       case 'revisjon': lagre(() => oppdaterSoknad(s.id, { revisjon: !s.revisjon })); break;

@@ -37,10 +37,15 @@ export function lagDemodata() {
   const soknader = {
     s1: {
       organisasjonId: org, giverId: 'g1', tittel: 'Instrumenter til aspirantkorpset 2026', frist: '2026-03-15', sendt: '2026-03-03',
-      status: 'innvilget', soktOverstyrt: null, momsProsent: 8, revisjon: true,
+      status: 'innvilget', soktOverstyrt: null, innvilget: 150000, momsProsent: 8, revisjon: true,
       linjer: {
         l1: linje('b1', 4, 8500, true, 1), l2: linje('b2', 2, 12000, true, 2), l3: linje('b3', 2, 10000, true, 3),
         l4: linje('b4', 1, 21000, true, 4), l6: linje('b6', 12, 450, true, 5), l7: linje('b7', 2, 6500, false, 6),
+      },
+      utgifter: {
+        u1: { beskrivelse: 'Frakt av notestativ fra lager', belop: 1200, dato: '2026-05-12', lagtInnAv: { epost: kari[0], navn: kari[1] }, rekkefolge: 1 },
+        u2: { beskrivelse: 'Rekvisita til øvingslokalet', belop: 1850, dato: '2026-05-20', lagtInnAv: { epost: per[0], navn: per[1] }, rekkefolge: 2 },
+        u3: { beskrivelse: 'Parkering ved henting av instrumenter', belop: 800, dato: '2026-06-02', lagtInnAv: { epost: kari[0], navn: kari[1] }, rekkefolge: 3 },
       },
       dokumenter: {
         d1: { navn: 'Søknad Sparebankstiftelsen 2026.pdf', sti: 'demo/d1', lastetOppAv: { epost: kari[0], navn: kari[1] }, tid: dagerSiden(200) },
@@ -56,7 +61,7 @@ export function lagDemodata() {
     },
     s3: {
       organisasjonId: org, giverId: 'g3', tittel: 'Uniformer 2026', frist: '2026-02-01', sendt: '2026-01-20',
-      status: 'innvilget', soktOverstyrt: null, momsProsent: 8, revisjon: true,
+      status: 'innvilget', soktOverstyrt: null, innvilget: 42000, momsProsent: 8, revisjon: true,
       linjer: { l1: linje('b9', 30, 1400, true, 1) },
       dokumenter: {}, ...av(...per, 109),
     },

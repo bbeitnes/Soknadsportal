@@ -6,7 +6,7 @@
 // stier for søknadslinjer), så to som redigerer samtidig bare overskriver
 // hverandre på samme felt: siste lagring per felt vinner.
 import { lager, innlogging, SLETT } from './lager.js';
-import { linjeliste, nesteRekkefolge } from './beregning.js';
+import { linjeliste, nesteRekkefolge, nesteUtgiftsrekkefolge } from './beregning.js';
 
 export { innlogging };
 
@@ -97,10 +97,10 @@ export function opprettSoknad({ giverId, tittel, frist }) {
   const giver = tilstand.givere.find(g => g.id === giverId);
   return lager.opprett('soknader', {
     giverId, tittel, frist: frist || null, sendt: null, status: 'utkast',
-    soktOverstyrt: null,
-    // Arves fra giveren nå, kan justeres per søknad (trinn b).
+    soktOverstyrt: null, innvilget: null,
+    // Arves fra giveren nå, kan justeres per søknad.
     momsProsent: giver?.momsTrekk ? (giver.momsProsent ?? 0) : null,
-    revisjon: false, linjer: {}, dokumenter: {},
+    revisjon: false, linjer: {}, utgifter: {}, dokumenter: {},
     ...signatur(),
   });
 }
@@ -137,6 +137,37 @@ export function oppdaterLinje(soknadId, linjeId, felt) {
 
 export function fjernLinje(soknadId, linjeId) {
   return oppdaterSoknad(soknadId, { [`linjer.${linjeId}`]: SLETT });
+}
+
+// Sletter søknaden og filene den eier. Kan ikke angres.
+export async function slettSoknad(soknad) {
+  await lager.slett('soknader', soknad.id);
+  for (const d of Object.values(soknad.dokumenter || {})) {
+    await lager.slettFil(d.sti).catch(err => console.error('Kunne ikke slette fil', d.sti, err));
+  }
+}
+
+// ——— Løse utgifter (ligger som kart på søknaden, som linjene) ———
+
+export function leggTilUtgift(soknad, { beskrivelse, belop, dato }) {
+  const id = nyId('u');
+  return oppdaterSoknad(soknad.id, {
+    [`utgifter.${id}`]: {
+      beskrivelse, belop, dato: dato || null,
+      lagtInnAv: { epost: tilstand.meg.epost, navn: tilstand.meg.navn },
+      rekkefolge: nesteUtgiftsrekkefolge(soknad),
+    },
+  }).then(() => id);
+}
+
+export function oppdaterUtgift(soknadId, utgiftId, felt) {
+  const stier = {};
+  for (const [k, v] of Object.entries(felt)) stier[`utgifter.${utgiftId}.${k}`] = v;
+  return oppdaterSoknad(soknadId, stier);
+}
+
+export function fjernUtgift(soknadId, utgiftId) {
+  return oppdaterSoknad(soknadId, { [`utgifter.${utgiftId}`]: SLETT });
 }
 
 export async function lastOppDokument(soknadId, fil) {

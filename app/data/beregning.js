@@ -29,10 +29,73 @@ export function sumEstimert(soknad) {
   return linjeliste(soknad).reduce((sum, l) => sum + linjekostnad(l), 0);
 }
 
-// Søkt beløp: overstyrt verdi hvis satt, ellers summen av estimatene.
-// (Momskompensasjon trekkes fra i trinn b.)
+// ——— Momskompensasjon ———
+// Noen givere krever at forventet momskompensasjon trekkes ut: koster varen
+// 1 000 kr og prosenten er 8, dekker giveren 920 kr og momskompensasjonen
+// (som kommer året etter) 80 kr. Prosenten ligger på søknaden (arvet fra
+// giveren, kan justeres). null = giveren har ikke innstillingen.
+
+export function momsProsent(soknad) {
+  const p = soknad?.momsProsent;
+  return p == null ? null : Number(p) || 0;
+}
+
+export function harMoms(soknad) {
+  return momsProsent(soknad) != null;
+}
+
+// Giverens andel av et beløp. Uten moms-innstilling: hele beløpet.
+export function giverandel(belop, prosent) {
+  if (prosent == null) return Math.round(belop);
+  return Math.round(belop * (100 - prosent) / 100);
+}
+
+// Foreslått søkt beløp: giverens andel av estimatet.
+export function soktForslag(soknad) {
+  return giverandel(sumEstimert(soknad), momsProsent(soknad));
+}
+
+// Søkt beløp: overstyrt verdi hvis satt, ellers forslaget.
 export function soktBelop(soknad) {
-  return soknad?.soktOverstyrt ?? sumEstimert(soknad);
+  return soknad?.soktOverstyrt ?? soktForslag(soknad);
+}
+
+// ——— Løse utgifter og pott ———
+
+export function utgiftsliste(soknad) {
+  return Object.entries(soknad?.utgifter || {})
+    .map(([id, u]) => ({ id, ...u }))
+    .sort((a, b) => (a.rekkefolge ?? 0) - (b.rekkefolge ?? 0));
+}
+
+export function sumUtgifter(soknad) {
+  return utgiftsliste(soknad).reduce((sum, u) => sum + (Number(u.belop) || 0), 0);
+}
+
+export function erInnvilget(soknad) {
+  return soknad?.status === 'innvilget' || soknad?.status === 'avsluttet';
+}
+
+// Potten: innvilget beløp, hva som er disponert (løse utgifter — innkjøp
+// kommer i trinn c) og hva som gjenstår. Med moms-innstilling er «disponert»
+// giverens andel av det vi faktisk betaler; resten dekkes av
+// momskompensasjonen neste år.
+export function pott(soknad) {
+  const prosent = momsProsent(soknad);
+  const innvilget = soknad?.innvilget ?? null;
+  const disponertFull = sumUtgifter(soknad);
+  const disponert = giverandel(disponertFull, prosent);
+  return {
+    harMoms: prosent != null,
+    prosent,
+    giverProsent: prosent == null ? 100 : 100 - prosent,
+    sokt: soktBelop(soknad),
+    innvilget,
+    disponertFull,
+    disponert,
+    moms: disponertFull - disponert,
+    gjenstar: innvilget == null ? null : innvilget - disponert,
+  };
 }
 
 // Hvor et behov er brukt: én oppføring per søknadslinje som peker på det.
@@ -104,4 +167,8 @@ export const SOKNADSFILTRE = {
 
 export function nesteRekkefolge(soknad) {
   return linjeliste(soknad).reduce((m, l) => Math.max(m, l.rekkefolge ?? 0), 0) + 1;
+}
+
+export function nesteUtgiftsrekkefolge(soknad) {
+  return utgiftsliste(soknad).reduce((m, u) => Math.max(m, u.rekkefolge ?? 0), 0) + 1;
 }

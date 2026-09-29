@@ -111,3 +111,44 @@ test('søknadsfiltre', () => {
   assert.equal(tell('lukket'), 2);
   assert.equal(tell('alle'), 5);
 });
+
+test('momskompensasjon: giverandel og forslag til søkt beløp', async () => {
+  const { giverandel, soktForslag, soktBelop, momsProsent, harMoms } = await import('../app/data/beregning.js');
+  assert.equal(giverandel(1000, 8), 920);
+  assert.equal(giverandel(1000, null), 1000);
+  assert.equal(giverandel(1000, 0), 1000);
+  const s = soknad('s1', 'utkast', { l: { antall: 1, estPris: 1000 } }, { momsProsent: 8 });
+  assert.equal(soktForslag(s), 920);
+  assert.equal(soktBelop(s), 920);
+  assert.equal(soktBelop({ ...s, soktOverstyrt: 900 }), 900);
+  assert.equal(harMoms(s), true);
+  assert.equal(harMoms({ ...s, momsProsent: null }), false);
+  assert.equal(momsProsent({ ...s, momsProsent: '8' }), 8);
+  assert.equal(soktForslag({ ...s, momsProsent: null }), 1000);
+});
+
+test('pott: disponert er giverens andel, moms kommer neste år', async () => {
+  const { pott, sumUtgifter, utgiftsliste, nesteUtgiftsrekkefolge } = await import('../app/data/beregning.js');
+  const s = soknad('s1', 'innvilget', { l: { antall: 1, estPris: 1000 } }, {
+    momsProsent: 8, innvilget: 5000,
+    utgifter: { b: { belop: 1000, rekkefolge: 2 }, a: { belop: 500, rekkefolge: 1 } },
+  });
+  assert.deepEqual(utgiftsliste(s).map(u => u.id), ['a', 'b']);
+  assert.equal(sumUtgifter(s), 1500);
+  assert.equal(nesteUtgiftsrekkefolge(s), 3);
+  const p = pott(s);
+  assert.equal(p.disponertFull, 1500);
+  assert.equal(p.disponert, 1380);
+  assert.equal(p.moms, 120);
+  assert.equal(p.gjenstar, 3620);
+  assert.equal(p.giverProsent, 92);
+
+  const utenMoms = pott({ ...s, momsProsent: null });
+  assert.equal(utenMoms.disponert, 1500);
+  assert.equal(utenMoms.moms, 0);
+  assert.equal(utenMoms.gjenstar, 3500);
+
+  const ikkeInnvilget = pott({ ...s, innvilget: null });
+  assert.equal(ikkeInnvilget.gjenstar, null);
+  assert.equal(pott({}).disponert, 0);
+});

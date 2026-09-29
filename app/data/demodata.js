@@ -78,6 +78,13 @@ export function lagDemodata() {
     },
   };
 
+  const leverandorer = {
+    mh: { organisasjonId: org, navn: 'Musikkhuset AS', kontakt: 'Ola Berg\nola@musikkhuset.no · 22 33 44 55', ...av(...kari, 30) },
+    nb: { organisasjonId: org, navn: 'Nordic Brass', kontakt: 'Anne Lie\nanne@nordicbrass.no', ...av(...kari, 30) },
+    to: { organisasjonId: org, navn: 'Tono Instrumenter', kontakt: 'post@tono.no · 55 12 34 56', ...av(...per, 25) },
+    us: { organisasjonId: org, navn: 'Uniformsenteret', kontakt: 'ordre@uniformsenteret.no', ...av(...per, 90) },
+    cl: { organisasjonId: org, navn: 'Clas Ohlson', kontakt: '', ...av(...per, 90) },
+  };
   const pris = raa => ({ raa });
   const innkjop = {
     i1: {
@@ -90,9 +97,9 @@ export function lagDemodata() {
         k6: { soknadLinjeId: 'l6', tittel: 'Notestativ', antall: 12, rekkefolge: 5 },
       },
       leverandorer: {
-        mh: { navn: 'Musikkhuset AS', kontakt: 'Ola Berg\nola@musikkhuset.no · 22 33 44 55', frakt: 1500, rekkefolge: 1, vedlegg: { v1: { navn: 'Tilbud 2026-0412.pdf', sti: 'demo/v1', tid: dagerSiden(20), lastetOppAv: { epost: kari[0], navn: kari[1] } } } },
-        nb: { navn: 'Nordic Brass', kontakt: 'Anne Lie\nanne@nordicbrass.no', frakt: 0, rekkefolge: 2, vedlegg: { v2: { navn: 'Tilbud messing.pdf', sti: 'demo/v2', tid: dagerSiden(18), lastetOppAv: { epost: kari[0], navn: kari[1] } }, v3: { navn: 'Tilbud trommer.pdf', sti: 'demo/v3', tid: dagerSiden(17), lastetOppAv: { epost: kari[0], navn: kari[1] } } } },
-        to: { navn: 'Tono Instrumenter', kontakt: 'post@tono.no · 55 12 34 56', frakt: 2400, rekkefolge: 3, vedlegg: {} },
+        mh: { leverandorId: 'mh', frakt: 1500, rekkefolge: 1, vedlegg: { v1: { navn: 'Tilbud 2026-0412.pdf', sti: 'demo/v1', tid: dagerSiden(20), lastetOppAv: { epost: kari[0], navn: kari[1] } } } },
+        nb: { leverandorId: 'nb', frakt: 0, rekkefolge: 2, vedlegg: { v2: { navn: 'Tilbud messing.pdf', sti: 'demo/v2', tid: dagerSiden(18), lastetOppAv: { epost: kari[0], navn: kari[1] } }, v3: { navn: 'Tilbud trommer.pdf', sti: 'demo/v3', tid: dagerSiden(17), lastetOppAv: { epost: kari[0], navn: kari[1] } } } },
+        to: { leverandorId: 'to', frakt: 2400, rekkefolge: 3, vedlegg: {} },
       },
       priser: {
         k1: { mh: pris('8900 -10%'), nb: pris('7650'), to: pris('8200 -500') },
@@ -107,12 +114,12 @@ export function lagDemodata() {
     i2: {
       organisasjonId: org, soknadId: 's3', navn: 'Uniformer', status: 'valgt', rekkefolge: 1,
       linjer: { k1: { soknadLinjeId: 'l1', tittel: 'Uniformsjakker', antall: 30, rekkefolge: 1 } },
-      leverandorer: { u1: { navn: 'Uniformsenteret', kontakt: '', frakt: 300, rekkefolge: 1, vedlegg: {} } },
+      leverandorer: { u1: { leverandorId: 'us', frakt: 300, rekkefolge: 1, vedlegg: {} } },
       priser: { k1: { u1: pris('1400') } },
       valgt: { k1: 'u1' },
       ...av(...per, 40),
     },
   };
 
-  return { brukere, givere, behov, soknader, innkjop };
+  return { brukere, givere, behov, soknader, innkjop, leverandorer };
 }

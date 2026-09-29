@@ -42,12 +42,18 @@ const hentAlle = samling => new Promise((ok, feil) => {
 async function leggInnInnkjop(data, soknadId = null) {
   const soknader = await hentAlle('soknader');
   const innkjop = await hentAlle('innkjop');
+  // Leverandørregisteret: finnes på navn, ellers opprettes.
+  const register = await hentAlle('leverandorer');
+  const leverandorId = {};
+  for (const [id, lev] of Object.entries(data.leverandorer || {})) {
+    leverandorId[id] = register.find(r => r.navn === lev.navn)?.id || await lager.opprett('leverandorer', lev);
+  }
   let antall = 0;
   for (const i of Object.values(data.innkjop || {})) {
     const id = soknadId ? soknadId[i.soknadId] : soknader.find(s => s.tittel === data.soknader[i.soknadId].tittel)?.id;
     if (!id || innkjop.some(x => x.soknadId === id)) continue;
     const leverandorer = {};
-    for (const [sid, lev] of Object.entries(i.leverandorer)) leverandorer[sid] = { ...lev, vedlegg: {} };
+    for (const [sid, lev] of Object.entries(i.leverandorer)) leverandorer[sid] = { ...lev, leverandorId: leverandorId[lev.leverandorId] || null, vedlegg: {} };
     await lager.opprett('innkjop', { ...i, soknadId: id, leverandorer });
     antall++;
   }

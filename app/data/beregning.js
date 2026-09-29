@@ -213,7 +213,8 @@ export function vedleggsliste(leverandor) {
 // rabatt skrives «1200 -15%» eller «1200 -180» — begge gir netto 1 020.
 // Gir null når cellen er tom eller ikke kan tolkes (= ikke gitt pris).
 export function tolkPris(raa) {
-  const s = String(raa ?? '').trim();
+  // Regneark limer gjerne inn «kr 1 200,00» — vi ser bort fra «kr».
+  const s = String(raa ?? '').replace(/\bkr\.?/gi, '').trim();
   if (!s) return null;
   const m = s.match(/^(\d[\d\s .]*(?:,\d+)?)(?:\s*[-−]\s*(\d+(?:[.,]\d+)?)\s*(%?))?$/);
   if (!m) return null;
@@ -312,4 +313,23 @@ export function ikkeFordelte(soknad, innkjopListe) {
 
 export function nesteRekkefolgeI(kart) {
   return Object.values(kart || {}).reduce((m, x) => Math.max(m, x.rekkefolge ?? 0), 0) + 1;
+}
+
+// ——— Leverandørregister ———
+// Leverandørene i et innkjøp peker på registeret (leverandorId) og har
+// bare det som er spesifikt for innkjøpet: frakt og vedlegg. Eldre
+// innkjøp uten leverandorId har navn og kontakt på seg selv.
+export function leverandorNavn(lev, register) {
+  const r = lev?.leverandorId ? register.find(x => x.id === lev.leverandorId) : null;
+  return (r ? r.navn : lev?.navn) || '';
+}
+
+export function leverandorKontakt(lev, register) {
+  const r = lev?.leverandorId ? register.find(x => x.id === lev.leverandorId) : null;
+  return (r ? r.kontakt : lev?.kontakt) || '';
+}
+
+// Innkjøp der en registerleverandør er brukt.
+export function innkjopMedLeverandor(leverandorId, innkjopListe) {
+  return innkjopListe.filter(i => leverandorer(i).some(l => l.leverandorId === leverandorId));
 }

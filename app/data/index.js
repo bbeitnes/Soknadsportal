@@ -16,10 +16,11 @@ export const tilstand = {
   behov: [],
   soknader: [],
   innkjop: [],
+  leverandorer: [],
   lastet: new Set(),
 };
 
-const SAMLINGER = ['givere', 'behov', 'soknader', 'innkjop'];
+const SAMLINGER = ['givere', 'behov', 'soknader', 'innkjop', 'leverandorer'];
 
 export function erAdmin() {
   return tilstand.meg?.rolle === 'administrator';
@@ -240,11 +241,29 @@ export function fjernInnkjopslinje(innkjop, linjeId) {
   return oppdaterInnkjop(innkjop.id, { [`linjer.${linjeId}`]: SLETT, [`priser.${linjeId}`]: SLETT, [`valgt.${linjeId}`]: SLETT });
 }
 
-export function leggTilLeverandor(innkjop) {
+// Leverandør fra registeret legges i innkjøpet. Navn og kontakt hentes
+// derfra ved visning; innkjøpet eier bare frakt og vedlegg.
+export function leggTilLeverandor(innkjop, leverandorId) {
   const id = nyId('s');
   return oppdaterInnkjop(innkjop.id, {
-    [`leverandorer.${id}`]: { navn: '', kontakt: '', frakt: 0, vedlegg: {}, rekkefolge: nesteRekkefolgeI(innkjop.leverandorer) },
+    [`leverandorer.${id}`]: { leverandorId, frakt: 0, vedlegg: {}, rekkefolge: nesteRekkefolgeI(innkjop.leverandorer) },
   }).then(() => id);
+}
+
+// ——— Leverandørregister ———
+
+export function opprettLeverandor(navn = '') {
+  return lager.opprett('leverandorer', { navn, kontakt: '', ...signatur() });
+}
+
+export function oppdaterLeverandor(id, felt) {
+  return lager.oppdater('leverandorer', id, { ...felt, ...signatur() });
+}
+
+export function slettLeverandor(id) {
+  const iBruk = tilstand.innkjop.some(i => leverandorer(i).some(l => l.leverandorId === id));
+  if (iBruk) return Promise.reject(new Error('Leverandøren er brukt i et innkjøp og kan ikke slettes'));
+  return lager.slett('leverandorer', id);
 }
 
 export async function fjernLeverandor(innkjop, sid) {

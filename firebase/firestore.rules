@@ -78,5 +78,14 @@ service cloud.firestore {
       allow update: if erMedlem() && orgUendret();
       allow delete: if erMedlem();
     }
+
+    // Leverandørregisteret: alle kan legge til og endre, bare
+    // administrator kan slette.
+    match /leverandorer/{id} {
+      allow read: if erMedlem();
+      allow create: if erMedlem() && riktigOrg();
+      allow update: if erMedlem() && orgUendret();
+      allow delete: if erAdmin();
+    }
   }
 }

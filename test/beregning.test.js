@@ -26,6 +26,10 @@ test('tolkDato godtar norske formater', () => {
   assert.equal(tolkDato('15.03.2026'), '2026-03-15');
   assert.equal(tolkDato('15.3.26'), '2026-03-15');
   assert.equal(tolkDato('2026-03-15'), '2026-03-15');
+  assert.equal(tolkDato('290926'), '2026-09-29');
+  assert.equal(tolkDato('29092026'), '2026-09-29');
+  assert.ok(Number.isNaN(tolkDato('2909')));
+  assert.ok(Number.isNaN(tolkDato('320926')));
   assert.equal(tolkDato(''), null);
   assert.ok(Number.isNaN(tolkDato('31.02.2026')));
   assert.ok(Number.isNaN(tolkDato('i morgen')));

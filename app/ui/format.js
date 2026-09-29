@@ -28,15 +28,19 @@ export function tolkTall(tekst) {
   return Number.isFinite(n) && n >= 0 ? Math.round(n) : NaN;
 }
 
-// «15.3.26», «15.03.2026» og «2026-03-15» → «2026-03-15». Tomt gir null,
-// ugyldig gir NaN (kallstedet viser da feil og lagrer ikke).
+// «15.3.26», «15.03.2026», «150326», «15032026» og «2026-03-15» → «2026-03-15».
+// Tomt gir null, ugyldig gir NaN (kallstedet viser da feil og lagrer ikke).
 export function tolkDato(tekst) {
   const t = String(tekst ?? '').trim();
   if (t === '') return null;
   let d, m, a;
   let treff = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   if (treff) [, a, m, d] = treff.map(Number);
-  else {
+  else if ((treff = t.match(/^(\d{2})(\d{2})(\d{2}|\d{4})$/))) {
+    // Bare sifre, uten skilletegn: ddmmåå eller ddmmåååå.
+    [, d, m, a] = treff.map(Number);
+    if (a < 100) a += 2000;
+  } else {
     treff = t.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2}|\d{4})$/);
     if (!treff) return NaN;
     [, d, m, a] = treff.map(Number);

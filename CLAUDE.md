@@ -20,7 +20,7 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
 | `app/data/` | Lagring + alle beregninger. ENESTE sted som snakker med Firebase |
 | `app/data/beregning.js` | Rene funksjoner (status, summer, filtre) — testes med node |
 | `app/ui/` | Felles UI: format, felt-lagring, lagrestatus, sidepanel, utskrift |
-| `app/sider/` | Én fil per skjerm: `tegn()` gir HTML, `klikk()` håndterer knapper |
+| `app/sider/` | Én fil per skjerm: `tegn()` gir HTML, `klikk()` håndterer knapper. `innkjop.js` er Innkjøp-fanen og kalles fra `soknad.js` |
 | `firebase/` | Regler som limes inn manuelt i Firebase Console |
 | `test/` | `node --test test/` |
 
@@ -36,6 +36,12 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
 - Siden tegnes på nytt ved dataendring, men ALDRI mens et felt har fokus eller
   museknappen er nede (det ville revet bort fokus/klikk). Se `tegn()` i `app.js`.
 - Alle dokumenter har `organisasjonId`; `lytt()` filtrerer på det.
+- Samlinger: `brukere` (ID = e-post), `givere`, `behov`, `soknader` (linjer,
+  utgifter og dokumenter som kart på dokumentet), `innkjop` (én per
+  tilbudsrunde: linjer, leverandorer, priser[lid][sid].raa, valgt[lid]).
+- Priser lagres slik de ble skrevet («1200 -15%»); `tolkPris()` gir netto.
+- Endres `firebase/firestore.rules`, må HELE filen limes inn i Console for
+  begge databasene — si fra om det i svaret.
 
 ## Kjøre lokalt
 - Preview-serveren `soknadsportal` (`.claude/launch.json`) serverer `app/`.

@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/modernist-0b23ad56-9b66-4ca9-9c86-e99fef79c546/styles.css">
+<script src="_ds/modernist-0b23ad56-9b66-4ca9-9c86-e99fef79c546/_ds_bundle.js"></script>
+<style>
+  html, body { margin:0; height:100%; background:var(--color-bg); color:var(--color-text); }
+  body { font-family: var(--font-body); }
+  * { box-sizing: border-box; }
+  a { color:var(--color-accent-700); text-underline-offset:3px; }
+  a:hover { color:var(--color-accent); }
+  button, input { font: inherit; color: inherit; }
+  :focus { outline: none; }
+  :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  ::selection { background: var(--color-accent-200); }
+  @keyframes savedIn { from { opacity:0; transform:translateY(2px);} to { opacity:1; transform:none;} }
+  @keyframes panelIn { from { transform:translateX(24px); opacity:0;} to { transform:none; opacity:1;} }
+</style>
+</helmet>
+<div data-screen-label="Søknad" style="height:100vh; display:flex; flex-direction:column; overflow:hidden; background:var(--color-bg); color:var(--color-text); font-size:15px; line-height:1.45; position:relative">
+
+  <nav style="flex:0 0 auto; height:44px; padding:0 40px; display:flex; align-items:center; gap:4px; border-bottom:2px solid var(--color-divider)">
+    <span style="font-weight:800; font-size:14px; margin-right:20px">Søknadsportal</span>
+    <a href="Søknader.dc.html" style="height:44px; display:inline-flex; align-items:center; padding:0 12px; font-size:14px; font-weight:600; color:var(--color-text); box-shadow:inset 0 -2px 0 var(--color-text); text-decoration:none">Søknader</a>
+    <a href="Behovsliste.dc.html" style="height:44px; display:inline-flex; align-items:center; padding:0 12px; font-size:14px; font-weight:600; color:var(--color-neutral-700); text-decoration:none" style-hover="color:var(--color-text)">Behov</a>
+    <a href="Givere.dc.html" style="height:44px; display:inline-flex; align-items:center; padding:0 12px; font-size:14px; font-weight:600; color:var(--color-neutral-700); text-decoration:none" style-hover="color:var(--color-text)">Givere</a>
+  </nav>
+
+  <header style="flex:0 0 auto; padding:20px 40px 0; display:flex; justify-content:space-between; align-items:flex-start; gap:28px 48px; flex-wrap:wrap">
+    <div style="min-width:0; flex:1 1 380px">
+      <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; position:relative">
+        <button onClick="{{ toggleSwitcher }}" title="Bytt søknad" style="display:inline-flex; align-items:center; gap:12px; padding:0 8px 0 0; margin-left:-2px; border:2px solid transparent; background:transparent; cursor:pointer; text-align:left" style-hover="border-color:var(--color-neutral-400)">
+          <h1 style="font-family:var(--font-heading); font-weight:800; font-size:30px; line-height:1.1; margin:0; letter-spacing:-0.015em">{{ form.title }}</h1>
+          <span style="display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border:2px solid var(--color-divider); color:var(--color-text); flex:0 0 auto"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></span>
+        </button>
+        <sc-if value="{{ switcherOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute; top:100%; left:0; margin-top:6px; width:420px; max-width:90vw; background:var(--color-neutral-100); border:2px solid var(--color-divider); box-shadow:var(--shadow-lg); z-index:30; display:flex; flex-direction:column">
+            <sc-for list="{{ switcherApps }}" as="a" hint-placeholder-count="3">
+              <button onClick="{{ a.onClick }}" style="display:flex; align-items:center; gap:12px; padding:10px 14px; border:0; border-bottom:1px solid var(--color-neutral-300); background:{{ a.bg }}; cursor:pointer; text-align:left; color:var(--color-text)" style-hover="background:var(--color-surface)">
+                <span style="flex:1; min-width:0"><span style="font-weight:600; font-size:14px">{{ a.title }}</span><br><span style="font-size:12px; color:var(--color-neutral-600)">{{ a.giver }}</span></span>
+                <span style="font-size:12px; font-weight:600; white-space:nowrap; color:var(--color-neutral-700)">{{ a.status }}</span>
+              </button>
+            </sc-for>
+            <a href="Søknader.dc.html" style="padding:10px 14px; font-size:13px; font-weight:600; color:var(--color-accent-700); text-decoration:none" style-hover="background:var(--color-surface)">Alle søknader →</a>
+          </div>
+        </sc-if>
+        <span style="display:inline-flex; align-items:center; height:26px; padding:0 12px; border-radius:0; background:var(--color-text); color:var(--color-bg); font-size:13px; font-weight:600">{{ statusLabel }}</span>
+      </div>
+      <div style="margin-top:8px; color:var(--color-neutral-700); font-size:14px">Sparebankstiftelsen Nord · Frist {{ form.frist }} · Sendt {{ form.sendt }} · Sist endret av Kari Nordmann, i dag 14:02</div>
+    </div>
+    <div style="flex:0 0 auto">
+      <div style="display:flex; gap:36px; flex-wrap:wrap">
+        <div>
+          <div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Søkt</div>
+          <div style="font-size:22px; font-weight:600; font-variant-numeric:tabular-nums; line-height:1.2; margin-top:2px">{{ pott.sokt }}</div>
+        </div>
+        <div>
+          <div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Innvilget</div>
+          <div style="font-size:22px; font-weight:600; font-variant-numeric:tabular-nums; line-height:1.2; margin-top:2px">{{ pott.innvilget }}</div>
+        </div>
+        <div>
+          <div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">{{ pott.disponertLabel }}</div>
+          <div style="font-size:22px; font-weight:600; font-variant-numeric:tabular-nums; line-height:1.2; margin-top:2px">{{ pott.disponert }}</div>
+        </div>
+        <div>
+          <div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Gjenstår</div>
+          <div style="font-size:22px; font-weight:600; font-variant-numeric:tabular-nums; line-height:1.2; margin-top:2px; color:var(--color-text)">{{ pott.gjenstar }}</div>
+        </div>
+      </div>
+      <sc-if value="{{ mvaOn }}" hint-placeholder-val="{{ true }}">
+        <div style="margin-top:8px; font-size:13px; color:var(--color-neutral-700)">Giver dekker {{ pott.giverPct }} % av det vi faktisk betaler ({{ pott.disponertFull }}). Momskompensasjon {{ pott.mvaPct }} %: <span style="font-variant-numeric:tabular-nums; color:var(--color-text)">{{ pott.mva }}</span>, forventes mottatt neste år.</div>
+      </sc-if>
+    </div>
+  </header>
+
+  <nav style="flex:0 0 auto; padding:14px 40px 0; display:flex; gap:4px; align-items:center">
+    <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+      <button onClick="{{ t.onClick }}" style="height:36px; padding:0 18px; border-radius:0; border:0; cursor:pointer; font-family:var(--font-body); font-weight:600; font-size:15px; background:{{ t.bg }}; color:{{ t.color }}" style-hover="background:var(--color-surface)">{{ t.label }}</button>
+    </sc-for>
+    <div style="margin-left:auto; display:flex; align-items:center; min-height:32px">
+      <sc-if value="{{ saveIdle }}" hint-placeholder-val="{{ true }}"><span style="font-size:13px; color:var(--color-neutral-600)">{{ lastSavedLabel }}</span></sc-if>
+      <sc-if value="{{ saveSaving }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px; color:var(--color-neutral-600)">Lagrer …</span></sc-if>
+      <sc-if value="{{ saveSaved }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex; align-items:center; gap:5px; font-size:13px; color:var(--color-neutral-700); animation:savedIn .2s ease-out"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>Lagret</span></sc-if>
+      <sc-if value="{{ saveError }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex; align-items:center; gap:10px; height:32px; padding:0 6px 0 14px; background:var(--color-accent-100); color:var(--color-accent-700); font-size:13px; font-weight:600">Kunne ikke lagre siste endring<button onClick="{{ retrySave }}" style="height:24px; padding:0 10px; border:0; background:var(--color-accent); color:var(--color-neutral-100); font-size:12px; font-weight:600; cursor:pointer">Prøv igjen</button></span></sc-if>
+    </div>
+  </nav>
+
+  <main style="flex:1 1 auto; min-height:0; padding:12px 40px 20px; display:flex; flex-direction:column; gap:10px">
+
+    <sc-if value="{{ isInnkjop }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap">
+        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap">
+          <sc-for list="{{ chips }}" as="c" hint-placeholder-count="2">
+            <button onClick="{{ c.onClick }}" style="display:inline-flex; align-items:center; gap:8px; height:34px; padding:0 8px 0 14px; border-radius:0; cursor:pointer; border:2px solid {{ c.border }}; background:{{ c.bg }}; color:var(--color-text); font-weight:600; font-size:14px">
+              <span>{{ c.name }}</span>
+              <span style="font-variant-numeric:tabular-nums; font-weight:400; color:var(--color-neutral-700); padding-right:6px">{{ c.sum }}</span>
+            </button>
+          </sc-for>
+          <button onClick="{{ cycleStatus }}" title="Klikk for å endre status" style="display:inline-flex; align-items:center; height:24px; padding:0 10px; border-radius:0; border:0; cursor:pointer; background:var(--color-surface); color:var(--color-neutral-800); font-size:12px; font-weight:600; margin-left:6px">{{ status }}</button>
+          <button title="Nytt innkjøp" style="width:34px; height:34px; border-radius:0; border:2px solid var(--color-neutral-400); background:transparent; color:var(--color-neutral-700); cursor:pointer; display:inline-flex; align-items:center; justify-content:center" style-hover="background:var(--color-surface); color:var(--color-text)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+          </button>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+          <sc-if value="{{ hasUnassigned }}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{ openUnassigned }}" style="height:34px; padding:0 14px; border-radius:0; border:2px solid var(--color-neutral-300); background:transparent; cursor:pointer; font-size:14px; color:var(--color-text)" style-hover="background:var(--color-surface)">{{ unassignedLabel }}</button>
+          </sc-if>
+          <button onClick="{{ pickCheapest }}" style="height:34px; padding:0 16px; border-radius:0; border:0; background:var(--color-accent); color:var(--color-neutral-100); cursor:pointer; font-family:var(--font-body); font-weight:600; font-size:14px" style-hover="background:var(--color-accent-600)">Billigst per linje</button>
+        </div>
+      </div>
+
+      <div style="flex:0 0 auto; font-size:13px; color:var(--color-neutral-700); white-space:nowrap; overflow:hidden; text-overflow:ellipsis">Klikk en pris for å velge, dobbeltklikk for å endre (<span style="font-family:ui-monospace, Menlo, monospace; font-size:12px">1200 -15%</span> eller <span style="font-family:ui-monospace, Menlo, monospace; font-size:12px">1200 -180</span>). Be leverandøren om pris per linje – vi sammenligner netto stykkpris.</div>
+
+      <div style="flex:1 1 auto; min-height:0; overflow:auto; background:var(--color-neutral-100); border-radius:0; border:2px solid var(--color-divider)">
+        <table style="border-collapse:separate; border-spacing:0; min-width:100%; font-variant-numeric:tabular-nums">
+          <thead>
+            <tr>
+              <th style="position:sticky; top:0; left:0; z-index:4; background:var(--color-neutral-100); text-align:left; padding:12px 20px 10px 24px; min-width:250px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider); vertical-align:bottom">Linje · antall</th>
+              <sc-for list="{{ cols }}" as="s" hint-placeholder-count="3">
+                <th style="position:sticky; top:0; z-index:3; background:var(--color-neutral-100); text-align:right; padding:10px 16px 10px 12px; min-width:200px; white-space:nowrap; border-bottom:2px solid var(--color-divider); vertical-align:bottom; font-weight:400">
+                  <div style="display:flex; justify-content:flex-end; align-items:center; gap:6px">
+                    <button onClick="{{ s.openPanel }}" title="Detaljer og vedlegg" style="width:26px; height:26px; border-radius:0; border:0; background:transparent; color:var(--color-neutral-500); cursor:pointer; display:inline-flex; align-items:center; justify-content:center" style-hover="background:var(--color-neutral-200); color:var(--color-text)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg></button>
+                    <button onClick="{{ s.selectAll }}" title="Velg alt fra denne leverandøren" style="height:30px; padding:0 12px; border-radius:0; border:0; background:transparent; cursor:pointer; font-weight:600; font-size:15px; color:var(--color-text)" style-hover="background:var(--color-accent-100); color:var(--color-accent-700)">{{ s.name }}</button>
+                  </div>
+                  <div style="font-size:12px; color:var(--color-neutral-600); margin-top:2px; padding-right:12px">{{ s.meta }}</div>
+                </th>
+              </sc-for>
+              <th style="position:sticky; top:0; right:0; z-index:4; background:var(--color-neutral-100); text-align:right; padding:14px 24px 10px 16px; min-width:176px; white-space:nowrap; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider); vertical-align:bottom; box-shadow:-2px 0 0 var(--color-divider)">Valgt</th>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{ rows }}" as="r" hint-placeholder-count="6">
+              <tr>
+                <td style="position:sticky; left:0; z-index:2; background:var(--color-neutral-100); padding:10px 20px 10px 24px; border-bottom:1px solid var(--color-neutral-300); vertical-align:middle">
+                  <div style="font-weight:600">{{ r.title }}</div>
+                  <div style="display:flex; align-items:center; gap:8px; margin-top:4px; font-size:13px; color:var(--color-neutral-700)">
+                    <input value="{{ r.qty }}" onChange="{{ r.onQty }}" onBlur="{{ r.onQtyBlur }}" inputMode="numeric" style="width:52px; height:26px; padding:0 10px; border-radius:0; border:2px solid transparent; background:var(--color-surface); text-align:center; font-weight:600; font-size:13px; color:var(--color-text)" style-hover="border-color:var(--color-neutral-400)" style-focus="border-color:var(--color-accent); background:var(--color-neutral-100)">
+                    <span>stk · søkt {{ r.applied }}</span>
+                  </div>
+                </td>
+                <sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="3">
+                  <td onClick="{{ c.onClick }}" onDoubleClick="{{ c.onDbl }}" style="padding:0; border-bottom:1px solid var(--color-neutral-300); vertical-align:middle; cursor:pointer; user-select:none">
+                    <div style="position:relative; margin:5px 6px; padding:8px 12px; min-height:52px; border-radius:0; text-align:right; background:{{ c.bg }}; box-shadow:{{ c.ring }}" style-hover="background:var(--color-neutral-200)">
+                      <sc-if value="{{ c.editing }}" hint-placeholder-val="{{ false }}">
+                        <input autoFocus="{{ true }}" defaultValue="{{ c.raw }}" onBlur="{{ c.onCommit }}" onKeyDown="{{ c.onKey }}" onPaste="{{ c.onPaste }}" onClick="{{ stop }}" placeholder="f.eks. 1200 -15%" style="width:100%; height:36px; padding:0 10px; border-radius:0; border:2px solid var(--color-accent); background:var(--color-neutral-100); text-align:right; font-size:15px; font-weight:600">
+                      </sc-if>
+                      <sc-if value="{{ c.showPrice }}" hint-placeholder-val="{{ true }}">
+                        <div style="font-size:16px; font-weight:600; line-height:1.2">{{ c.net }}</div>
+                        <div style="font-size:12px; color:var(--color-neutral-600); margin-top:2px; min-height:16px">{{ c.sub }}</div>
+                      </sc-if>
+                      <sc-if value="{{ c.showEmpty }}" hint-placeholder-val="{{ false }}">
+                        <div style="font-size:13px; color:var(--color-neutral-400); line-height:52px">ikke gitt pris</div>
+                      </sc-if>
+                      <sc-if value="{{ c.selected }}" hint-placeholder-val="{{ false }}">
+                        <span style="position:absolute; top:6px; left:8px; width:18px; height:18px; border-radius:0; background:var(--color-accent); color:var(--color-neutral-100); display:inline-flex; align-items:center; justify-content:center"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span>
+                      </sc-if>
+                      <sc-if value="{{ c.clip }}" hint-placeholder-val="{{ false }}">
+                        <button onClick="{{ c.onClip }}" title="Velg vedlegg og side" style="position:absolute; bottom:6px; left:8px; width:22px; height:22px; border-radius:0; border:0; background:transparent; color:var(--color-neutral-500); cursor:pointer; display:inline-flex; align-items:center; justify-content:center" style-hover="background:var(--color-accent-100); color:var(--color-accent-700)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg></button>
+                      </sc-if>
+                    </div>
+                  </td>
+                </sc-for>
+                <td style="position:sticky; right:0; z-index:2; background:var(--color-neutral-100); padding:10px 24px 10px 16px; border-bottom:1px solid var(--color-neutral-300); text-align:right; vertical-align:middle; font-weight:600; font-size:16px; box-shadow:-2px 0 0 var(--color-divider); color:{{ r.valgtColor }}">{{ r.valgt }}</td>
+              </tr>
+            </sc-for>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td style="position:sticky; bottom:74px; left:0; z-index:4; background:var(--color-neutral-100); padding:8px 20px 4px 24px; border-top:2px solid var(--color-divider); font-size:13px; color:var(--color-neutral-700); white-space:nowrap">Frakt og faste kostnader</td>
+              <sc-for list="{{ cols }}" as="s" hint-placeholder-count="3">
+                <td style="position:sticky; bottom:74px; z-index:3; background:var(--color-neutral-100); padding:6px 18px 2px 12px; border-top:2px solid var(--color-divider); text-align:right; vertical-align:middle">
+                  <input value="{{ s.freightRaw }}" onChange="{{ s.onFreight }}" onBlur="{{ s.onFreightBlur }}" inputMode="numeric" style="width:96px; height:28px; padding:0 10px; border-radius:0; border:2px solid transparent; background:transparent; text-align:right; font-size:14px; color:{{ s.freightColor }}" style-hover="border-color:var(--color-neutral-400)" style-focus="border-color:var(--color-accent); background:var(--color-neutral-100)">
+                </td>
+              </sc-for>
+              <td style="position:sticky; bottom:74px; right:0; z-index:4; background:var(--color-neutral-100); padding:8px 24px 4px 16px; border-top:2px solid var(--color-divider); text-align:right; vertical-align:middle; font-size:14px; color:var(--color-neutral-700); box-shadow:-2px 0 0 var(--color-divider)">{{ freightCounted }}</td>
+            </tr>
+            <tr>
+              <td style="position:sticky; bottom:0; left:0; z-index:4; background:var(--color-neutral-100); padding:4px 20px 12px 24px; font-size:13px; color:var(--color-neutral-700);  white-space:nowrap; height:74px; vertical-align:top">Alt hos én leverandør <span style="color:var(--color-neutral-500)">· inkl. frakt</span></td>
+              <sc-for list="{{ cols }}" as="s" hint-placeholder-count="3">
+                <td style="position:sticky; bottom:0; z-index:3; background:var(--color-neutral-100); padding:4px 28px 12px 12px; text-align:right; vertical-align:top; height:74px">
+                  <div style="font-weight:600; font-size:15px; color:{{ s.totalColor }}">{{ s.total }}</div>
+                  <div style="font-size:12px; color:var(--color-neutral-500)">{{ s.totalNote }}</div>
+                </td>
+              </sc-for>
+              <td style="position:sticky; bottom:0; right:0; z-index:4; background:var(--color-accent-100); padding:6px 24px 10px 16px; text-align:right; vertical-align:top;  height:74px">
+                <div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-accent-700); font-weight:600; white-space:nowrap">Valgt kombinasjon</div>
+                <div style="font-size:20px; font-weight:700; color:var(--color-accent-800); line-height:1.2">{{ comboTotal }}</div>
+                <sc-if value="{{ mvaOn }}" hint-placeholder-val="{{ true }}"><div style="font-size:12px; color:var(--color-neutral-700); white-space:nowrap">Fra giver {{ pott.giverPct }} %: <span style="font-weight:600; color:var(--color-text)">{{ comboGiver }}</span></div></sc-if>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isSoknad }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1 1 auto; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:0 28px">
+        <div style="min-height:0; display:flex; flex-direction:column; gap:12px">
+          <div style="flex:0 0 auto; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap">
+            <div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Behov i søknaden</div>
+            <div style="display:flex; gap:8px">
+              <button onClick="{{ printBehov }}" style="height:32px; padding:0 12px; border:2px solid var(--color-divider); background:transparent; cursor:pointer; font-size:13px; font-weight:600; color:var(--color-text)" style-hover="background:var(--color-surface)">Skriv ut</button>
+              <button style="height:32px; padding:0 12px; border:2px solid var(--color-divider); background:transparent; cursor:pointer; font-size:13px; font-weight:600; color:var(--color-text)" style-hover="background:var(--color-surface)">+ Behov fra listen</button>
+              <button style="height:32px; padding:0 12px; border:2px solid var(--color-divider); background:transparent; cursor:pointer; font-size:13px; font-weight:600; color:var(--color-text)" style-hover="background:var(--color-surface)">+ Fri linje</button>
+            </div>
+          </div>
+          <div style="flex:1 1 auto; min-height:0; overflow:auto; border:2px solid var(--color-divider); background:var(--color-neutral-100)">
+            <table style="border-collapse:separate; border-spacing:0; width:100%; font-variant-numeric:tabular-nums">
+              <thead>
+                <tr>
+                  <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:left; padding:10px 12px 8px 16px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider)">Behov</th>
+                  <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:right; padding:10px 12px 8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider); white-space:nowrap">Antall</th>
+                  <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:right; padding:10px 12px 8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider); white-space:nowrap">Est. stk.pris</th>
+                  <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:right; padding:10px 12px 8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider); white-space:nowrap">Kostnad</th>
+                  <sc-if value="{{ mvaOn }}" hint-placeholder-val="{{ true }}">
+                    <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:right; padding:10px 12px 8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider); white-space:nowrap">Fra giver ({{ pott.giverPct }} %)</th>
+                    <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:right; padding:10px 12px 8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider); white-space:nowrap">Fra momskomp. ({{ pott.mvaPct }} %)</th>
+                  </sc-if>
+                  <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:left; padding:10px 16px 8px 12px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider); white-space:nowrap">Finansieres</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ behov }}" as="b" hint-placeholder-count="8">
+                  <tr>
+                    <td style="padding:8px 12px 8px 16px; border-bottom:1px solid var(--color-neutral-300); font-weight:600">{{ b.title }}<span style="font-weight:400; color:var(--color-neutral-600); font-size:13px"> {{ b.note }}</span></td>
+                    <td style="padding:6px 12px; border-bottom:1px solid var(--color-neutral-300); text-align:right"><input value="{{ b.qty }}" onChange="{{ b.onQty }}" onBlur="{{ flashNow }}" inputMode="numeric" style="width:56px; height:28px; padding:0 8px; border:2px solid transparent; background:var(--color-surface); text-align:right; font-weight:600; font-size:14px; color:var(--color-text)" style-hover="border-color:var(--color-neutral-400)" style-focus="border-color:var(--color-accent); background:var(--color-neutral-100)"></td>
+                    <td style="padding:6px 12px; border-bottom:1px solid var(--color-neutral-300); text-align:right"><input value="{{ b.est }}" onChange="{{ b.onEst }}" onBlur="{{ flashNow }}" inputMode="numeric" style="width:84px; height:28px; padding:0 8px; border:2px solid transparent; background:var(--color-surface); text-align:right; font-size:14px; color:var(--color-text)" style-hover="border-color:var(--color-neutral-400)" style-focus="border-color:var(--color-accent); background:var(--color-neutral-100)"></td>
+                    <td style="padding:8px 12px; border-bottom:1px solid var(--color-neutral-300); text-align:right; font-weight:600">{{ b.cost }}</td>
+                    <sc-if value="{{ mvaOn }}" hint-placeholder-val="{{ true }}">
+                      <td style="padding:8px 12px; border-bottom:1px solid var(--color-neutral-300); text-align:right">{{ b.giver }}</td>
+                      <td style="padding:8px 12px; border-bottom:1px solid var(--color-neutral-300); text-align:right; color:var(--color-neutral-700)">{{ b.mva }}</td>
+                    </sc-if>
+                    <td style="padding:6px 16px 6px 12px; border-bottom:1px solid var(--color-neutral-300)"><button onClick="{{ b.toggleFunded }}" style="display:inline-flex; align-items:center; gap:8px; height:28px; padding:0 8px 0 0; border:0; background:transparent; cursor:pointer; font-size:13px; color:var(--color-text)"><span style="width:18px; height:18px; border:2px solid var(--color-text); display:inline-flex; align-items:center; justify-content:center; background:{{ b.boxBg }}"><sc-if value="{{ b.funded }}" hint-placeholder-val="{{ true }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-100)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></sc-if></span>{{ b.fundedLabel }}</button></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td style="position:sticky; bottom:0; background:var(--color-neutral-100); padding:10px 12px 10px 16px; border-top:2px solid var(--color-divider); font-size:13px; color:var(--color-neutral-700)" colSpan="{{ sumSpan }}">Sum estimert</td>
+                  <td style="position:sticky; bottom:0; background:var(--color-neutral-100); padding:10px 12px; border-top:2px solid var(--color-divider); text-align:right; font-weight:700; font-size:16px">{{ sums.cost }}</td>
+                  <sc-if value="{{ mvaOn }}" hint-placeholder-val="{{ true }}">
+                    <td style="position:sticky; bottom:0; background:var(--color-neutral-100); padding:10px 12px; border-top:2px solid var(--color-divider); text-align:right; font-weight:700; font-size:16px">{{ sums.giver }}</td>
+                    <td style="position:sticky; bottom:0; background:var(--color-neutral-100); padding:10px 12px; border-top:2px solid var(--color-divider); text-align:right; font-weight:600; color:var(--color-neutral-700)">{{ sums.mva }}<div style="font-size:11px; font-weight:400">forventes mottatt neste år</div></td>
+                  </sc-if>
+                  <td style="position:sticky; bottom:0; background:var(--color-neutral-100); padding:10px 16px 10px 12px; border-top:2px solid var(--color-divider); font-size:13px; color:var(--color-neutral-700); white-space:nowrap">{{ sums.funded }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <div style="flex:0 0 auto; display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:20px">
+            <label style="display:flex; flex-direction:column; gap:4px"><span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Søkt beløp</span><input value="{{ form.soktRaw }}" onChange="{{ form.onSokt }}" onBlur="{{ flashNow }}" inputMode="numeric" style="min-width:0; width:100%; height:36px; padding:0 10px; border:2px solid var(--color-divider); background:var(--color-neutral-100); font-size:16px; font-weight:600; color:var(--color-text)" style-focus="border-color:var(--color-accent)"><span style="font-size:12px; color:var(--color-neutral-600)">{{ form.soktHint }}</span></label>
+            <label style="display:flex; flex-direction:column; gap:4px"><span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Innvilget beløp</span><input value="{{ form.innvilgetRaw }}" onChange="{{ form.onInnvilget }}" onBlur="{{ flashNow }}" inputMode="numeric" style="min-width:0; width:100%; height:36px; padding:0 10px; border:2px solid var(--color-divider); background:var(--color-neutral-100); font-size:16px; font-weight:600; color:var(--color-text)" style-focus="border-color:var(--color-accent)"><span style="font-size:12px; color:var(--color-neutral-600)">{{ form.innvilgetHint }}</span></label>
+            <label style="display:flex; flex-direction:column; gap:4px"><span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Momskompensasjon</span><div style="display:flex; align-items:center; gap:8px"><input value="{{ form.mvaPct }}" onChange="{{ form.onMva }}" onBlur="{{ flashNow }}" inputMode="numeric" style="width:64px; height:36px; padding:0 10px; border:2px solid var(--color-divider); background:var(--color-neutral-100); font-size:16px; font-weight:600; color:var(--color-text)" style-focus="border-color:var(--color-accent)"><span>%</span></div><span style="font-size:12px; color:var(--color-neutral-600)">Arvet fra giveren, kan justeres her</span></label>
+          </div>
+        </div>
+        <div style="min-height:0; display:flex; flex-direction:column; gap:14px; border-left:2px solid var(--color-divider); padding-left:24px; overflow:auto">
+          <label style="display:flex; flex-direction:column; gap:4px"><span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Giver</span><div style="height:36px; padding:0 10px; border:2px solid var(--color-divider); display:flex; align-items:center; justify-content:space-between; font-size:15px">Sparebankstiftelsen Nord<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div></label>
+          <label style="display:flex; flex-direction:column; gap:4px"><span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Tittel</span><input value="{{ form.title }}" onChange="{{ form.onTitle }}" onBlur="{{ flashNow }}" style="min-width:0; width:100%; height:36px; padding:0 10px; border:2px solid var(--color-divider); background:var(--color-neutral-100); font-size:15px; color:var(--color-text)" style-focus="border-color:var(--color-accent)"></label>
+          <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px">
+            <label style="display:flex; flex-direction:column; gap:4px; min-width:0"><span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Frist</span><input value="{{ form.frist }}" onChange="{{ form.onFrist }}" onBlur="{{ flashNow }}" style="min-width:0; width:100%; height:36px; padding:0 10px; border:2px solid var(--color-divider); background:var(--color-neutral-100); font-size:15px; color:var(--color-text)" style-focus="border-color:var(--color-accent)"></label>
+            <label style="display:flex; flex-direction:column; gap:4px; min-width:0"><span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Sendt</span><input value="{{ form.sendt }}" onChange="{{ form.onSendt }}" onBlur="{{ flashNow }}" style="min-width:0; width:100%; height:36px; padding:0 10px; border:2px solid var(--color-divider); background:var(--color-neutral-100); font-size:15px; color:var(--color-text)" style-focus="border-color:var(--color-accent)"></label>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:4px"><span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Status</span>
+            <div style="display:flex; border:2px solid var(--color-divider)">
+              <sc-for list="{{ statusOpts }}" as="o" hint-placeholder-count="5">
+                <button onClick="{{ o.onClick }}" style="flex:1; height:32px; border:0; cursor:pointer; font-size:12px; font-weight:600; background:{{ o.bg }}; color:{{ o.color }}" style-hover="background:var(--color-surface)">{{ o.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+          <button onClick="{{ form.toggleRevisjon }}" style="display:flex; align-items:center; gap:10px; height:32px; padding:0; border:0; background:transparent; cursor:pointer; font-size:14px; color:var(--color-text); align-self:flex-start"><span style="width:18px; height:18px; border:2px solid var(--color-text); display:inline-flex; align-items:center; justify-content:center; background:{{ form.revBg }}"><sc-if value="{{ form.revisjon }}" hint-placeholder-val="{{ true }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-100)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></sc-if></span>Revisjon på denne søknaden</button>
+          <div style="flex:1 1 auto; min-height:140px; display:flex; flex-direction:column; gap:6px">
+            <div style="display:flex; justify-content:space-between; align-items:center"><span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Dokumenter</span><span style="font-size:12px; color:var(--color-neutral-600)">{{ form.docCount }}</span></div>
+            <div style="flex:1 1 auto; min-height:0; overflow:auto; border:2px solid var(--color-divider); display:flex; flex-direction:column">
+              <sc-for list="{{ form.docs }}" as="d" hint-placeholder-count="3">
+                <a href="#" onClick="{{ stopPrevent }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid var(--color-neutral-300); color:var(--color-text); text-decoration:none; font-size:14px" style-hover="background:var(--color-surface)">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path></svg>
+                  <span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600">{{ d.name }}</span>
+                  <span style="font-size:12px; color:var(--color-neutral-600); white-space:nowrap">{{ d.meta }}</span>
+                </a>
+              </sc-for>
+              <button onClick="{{ form.addDoc }}" style="display:flex; align-items:center; gap:10px; padding:12px; border:0; background:transparent; cursor:pointer; font-size:14px; font-weight:600; color:var(--color-text); text-align:left" style-hover="background:var(--color-surface)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>Last opp fil<span style="font-weight:400; color:var(--color-neutral-600)">· eller slipp her</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isUtgifter }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:0 0 auto; display:flex; justify-content:space-between; align-items:center; gap:12px">
+        <div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Løse utgifter</div>
+        <div style="font-size:13px; color:var(--color-neutral-700)">Trekkes fra potten. Kobles til faktura under Revisjon.</div>
+      </div>
+      <div style="flex:0 1 auto; min-height:0; overflow:auto; border:2px solid var(--color-divider); background:var(--color-neutral-100)">
+        <table style="border-collapse:separate; border-spacing:0; width:100%; font-variant-numeric:tabular-nums">
+          <thead>
+            <tr>
+              <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:left; padding:10px 12px 8px 16px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider)">Beskrivelse</th>
+              <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:left; padding:10px 12px 8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider); width:130px">Dato</th>
+              <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:right; padding:10px 12px 8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider); width:140px">Beløp</th>
+              <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:left; padding:10px 12px 8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider); width:150px; white-space:nowrap">Lagt inn av</th>
+              <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); border-bottom:2px solid var(--color-divider); width:44px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{ utgifterRows }}" as="u" hint-placeholder-count="3">
+              <tr>
+                <td style="padding:6px 12px 6px 16px; border-bottom:1px solid var(--color-neutral-300)"><input value="{{ u.desc }}" onChange="{{ u.onDesc }}" onBlur="{{ flashNow }}" style="width:100%; min-width:0; height:30px; padding:0 8px; border:2px solid transparent; background:transparent; font-size:15px; color:var(--color-text)" style-hover="border-color:var(--color-neutral-400)" style-focus="border-color:var(--color-accent); background:var(--color-neutral-100)"></td>
+                <td style="padding:6px 12px; border-bottom:1px solid var(--color-neutral-300)"><input value="{{ u.date }}" onChange="{{ u.onDate }}" onBlur="{{ flashNow }}" style="width:100%; min-width:0; height:30px; padding:0 8px; border:2px solid transparent; background:transparent; font-size:14px; color:var(--color-text)" style-hover="border-color:var(--color-neutral-400)" style-focus="border-color:var(--color-accent); background:var(--color-neutral-100)"></td>
+                <td style="padding:6px 12px; border-bottom:1px solid var(--color-neutral-300)"><input value="{{ u.amount }}" onChange="{{ u.onAmount }}" onBlur="{{ flashNow }}" inputMode="numeric" style="width:100%; min-width:0; height:30px; padding:0 8px; border:2px solid transparent; background:transparent; text-align:right; font-weight:600; font-size:15px; color:var(--color-text)" style-hover="border-color:var(--color-neutral-400)" style-focus="border-color:var(--color-accent); background:var(--color-neutral-100)"></td>
+                <td style="padding:6px 12px; border-bottom:1px solid var(--color-neutral-300); font-size:13px; color:var(--color-neutral-700); white-space:nowrap">{{ u.by }}</td>
+                <td style="padding:6px 8px; border-bottom:1px solid var(--color-neutral-300); text-align:center"><button onClick="{{ u.onRemove }}" title="Slett" style="width:28px; height:28px; border:0; background:transparent; cursor:pointer; color:var(--color-neutral-500); display:inline-flex; align-items:center; justify-content:center" style-hover="background:var(--color-accent-100); color:var(--color-accent-700)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></button></td>
+              </tr>
+            </sc-for>
+            <tr>
+              <td style="padding:6px 12px 6px 16px"><input value="{{ newUtgift.desc }}" onChange="{{ newUtgift.onDesc }}" onBlur="{{ newUtgift.onBlur }}" placeholder="Ny utgift – beskrivelse" style="width:100%; min-width:0; height:30px; padding:0 8px; border:2px dashed var(--color-neutral-400); background:transparent; font-size:15px; color:var(--color-text)" style-focus="border:2px solid var(--color-accent); background:var(--color-neutral-100)"></td>
+              <td style="padding:6px 12px"><input value="{{ newUtgift.date }}" onChange="{{ newUtgift.onDate }}" onBlur="{{ newUtgift.onBlur }}" placeholder="dd.mm.åååå" style="width:100%; min-width:0; height:30px; padding:0 8px; border:2px dashed var(--color-neutral-400); background:transparent; font-size:14px; color:var(--color-text)" style-focus="border:2px solid var(--color-accent); background:var(--color-neutral-100)"></td>
+              <td style="padding:6px 12px"><input value="{{ newUtgift.amount }}" onChange="{{ newUtgift.onAmount }}" onBlur="{{ newUtgift.onBlur }}" placeholder="0" inputMode="numeric" style="width:100%; min-width:0; height:30px; padding:0 8px; border:2px dashed var(--color-neutral-400); background:transparent; text-align:right; font-size:15px; color:var(--color-text)" style-focus="border:2px solid var(--color-accent); background:var(--color-neutral-100)"></td>
+              <td style="padding:6px 12px; font-size:13px; color:var(--color-neutral-500)" colSpan="2">Lagres når beskrivelse og beløp er fylt ut</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td style="position:sticky; bottom:0; background:var(--color-neutral-100); padding:10px 12px 10px 16px; border-top:2px solid var(--color-divider); font-size:13px; color:var(--color-neutral-700)" colSpan="2">Sum løse utgifter</td>
+              <td style="position:sticky; bottom:0; background:var(--color-neutral-100); padding:10px 12px; border-top:2px solid var(--color-divider); text-align:right; font-weight:700; font-size:16px">{{ utgifterSum }}</td>
+              <td style="position:sticky; bottom:0; background:var(--color-neutral-100); padding:10px 12px; border-top:2px solid var(--color-divider); font-size:13px; color:var(--color-neutral-700)" colSpan="2">{{ utgifterCount }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isRevisjon }}" hint-placeholder-val="{{ false }}">
+      <sc-if value="{{ revisjonOff }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; align-items:center; gap:16px; color:var(--color-neutral-700); font-size:15px">Revisjon er slått av for denne søknaden.<button onClick="{{ form.toggleRevisjon }}" style="height:32px; padding:0 12px; border:2px solid var(--color-divider); background:transparent; cursor:pointer; font-size:13px; font-weight:600; color:var(--color-text)" style-hover="background:var(--color-surface)">Slå på</button></div>
+      </sc-if>
+      <sc-if value="{{ revisjonOn }}" hint-placeholder-val="{{ true }}">
+        <div style="flex:0 0 auto; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap">
+          <div style="flex:1 1 auto; min-width:0; font-size:14px; color:var(--color-neutral-700)">Fakturert <span style="font-weight:600; color:var(--color-text)">{{ rev.invoiced }}</span> av disponert {{ rev.disponert }} · {{ rev.missing }} · {{ rev.deviations }}</div>
+          <div style="flex:0 0 auto; display:flex; gap:8px">
+            <button onClick="{{ rev.newFaktura }}" style="height:34px; padding:0 14px; border:2px solid var(--color-divider); background:transparent; cursor:pointer; font-size:14px; font-weight:600; color:var(--color-text)" style-hover="background:var(--color-surface)">+ Ny faktura</button>
+            <button onClick="{{ rev.report }}" style="height:34px; padding:0 16px; border:0; background:var(--color-accent); color:var(--color-neutral-100); cursor:pointer; font-size:14px; font-weight:600" style-hover="background:var(--color-accent-600)">Revisjonsrapport (PDF)</button>
+          </div>
+        </div>
+        <div style="flex:1 1 auto; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:0 28px">
+          <div style="min-height:0; display:flex; flex-direction:column; gap:8px">
+            <div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Fakturaer</div>
+            <div style="flex:1 1 auto; min-height:0; overflow:auto; border:2px solid var(--color-divider); background:var(--color-neutral-100)">
+              <table style="border-collapse:separate; border-spacing:0; width:100%; font-variant-numeric:tabular-nums">
+                <thead>
+                  <tr>
+                    <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:left; padding:10px 8px 8px 16px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider)">Nr</th>
+                    <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:left; padding:10px 8px 8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider)">Leverandør</th>
+                    <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:left; padding:10px 8px 8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider); white-space:nowrap">Fakturanr</th>
+                    <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:left; padding:10px 8px 8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider)">Dato</th>
+                    <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:right; padding:10px 8px 8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider)">Beløp</th>
+                    <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:right; padding:10px 16px 8px 8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider)">Avvik</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <sc-for list="{{ fakturaRows }}" as="f" hint-placeholder-count="3">
+                    <tr onClick="{{ f.open }}" style="cursor:pointer; background:{{ f.bg }}" style-hover="background:var(--color-surface)">
+                      <td style="padding:9px 8px 9px 16px; border-bottom:1px solid var(--color-neutral-300); font-weight:700">{{ f.nr }}</td>
+                      <td style="padding:9px 8px; border-bottom:1px solid var(--color-neutral-300)">{{ f.supplier }}<div style="font-size:12px; color:var(--color-neutral-600); max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap" title="{{ f.gjelder }}">{{ f.gjelder }}</div></td>
+                      <td style="padding:9px 8px; border-bottom:1px solid var(--color-neutral-300); white-space:nowrap; font-size:13px">{{ f.invNo }}</td>
+                      <td style="padding:9px 8px; border-bottom:1px solid var(--color-neutral-300); white-space:nowrap; font-size:13px">{{ f.date }}</td>
+                      <td style="padding:9px 8px; border-bottom:1px solid var(--color-neutral-300); text-align:right; font-weight:600">{{ f.amount }}</td>
+                      <td style="padding:9px 16px 9px 8px; border-bottom:1px solid var(--color-neutral-300); text-align:right; font-weight:600; color:{{ f.devColor }}; white-space:nowrap">{{ f.dev }}</td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td style="position:sticky; bottom:0; background:var(--color-neutral-100); padding:10px 8px 10px 16px; border-top:2px solid var(--color-divider); font-size:13px; color:var(--color-neutral-700)" colSpan="4">Sum fakturert</td>
+                    <td style="position:sticky; bottom:0; background:var(--color-neutral-100); padding:10px 8px; border-top:2px solid var(--color-divider); text-align:right; font-weight:700; font-size:16px">{{ rev.invoiced }}</td>
+                    <td style="position:sticky; bottom:0; background:var(--color-neutral-100); padding:10px 16px 10px 8px; border-top:2px solid var(--color-divider); text-align:right; font-weight:600; color:{{ rev.devTotalColor }}">{{ rev.devTotal }}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+          <div style="min-height:0; display:flex; flex-direction:column; gap:8px">
+            <div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Hva potten er brukt på</div>
+            <div style="flex:1 1 auto; min-height:0; overflow:auto; border:2px solid var(--color-divider); background:var(--color-neutral-100)">
+              <table style="border-collapse:separate; border-spacing:0; width:100%; font-variant-numeric:tabular-nums">
+                <thead>
+                  <tr>
+                    <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:left; padding:10px 8px 8px 16px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider)">Gjelder</th>
+                    <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:right; padding:10px 8px 8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider)">Tilbudt</th>
+                    <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:left; padding:10px 16px 8px 8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider)">Faktura</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <sc-for list="{{ items }}" as="i" hint-placeholder-count="6">
+                    <tr>
+                      <td style="padding:9px 8px 9px 16px; border-bottom:1px solid var(--color-neutral-300)">{{ i.title }}<div style="font-size:12px; color:var(--color-neutral-600)">{{ i.sub }}</div></td>
+                      <td style="padding:9px 8px; border-bottom:1px solid var(--color-neutral-300); text-align:right; font-weight:600">{{ i.expected }}</td>
+                      <td style="padding:9px 16px 9px 8px; border-bottom:1px solid var(--color-neutral-300); white-space:nowrap"><span style="display:inline-flex; align-items:center; height:22px; padding:0 8px; font-size:12px; font-weight:600; background:{{ i.tagBg }}; color:{{ i.tagColor }}">{{ i.status }}</span></td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+    </sc-if>
+
+    <sc-if value="{{ isOther }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1; display:flex; align-items:center; justify-content:center; color:var(--color-neutral-600); font-size:15px; text-align:center; padding:40px">{{ otherNote }}</div>
+    </sc-if>
+  </main>
+
+  <sc-if value="{{ panelOpen }}" hint-placeholder-val="{{ false }}">
+    <aside tabIndex="-1" onKeyDown="{{ escKey }}" ref="{{ asideRef }}" style="position:absolute; top:0; right:0; bottom:0; outline:none; width:380px; max-width:calc(100% - 32px); background:var(--color-neutral-100); border-radius:0; border-left:2px solid var(--color-divider); box-shadow:var(--shadow-lg); padding:24px 26px; overflow:auto; z-index:20; animation:panelIn .18s ease-out">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px">
+        <h2 style="font-family:var(--font-heading); font-weight:800; font-size:22px; margin:0; line-height:1.15">{{ panel.title }}</h2>
+        <button onClick="{{ closePanel }}" title="Lukk" style="width:32px; height:32px; border-radius:0; border:0; background:transparent; cursor:pointer; color:var(--color-neutral-700); display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto" style-hover="background:var(--color-surface); color:var(--color-text)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></button>
+      </div>
+      <div style="color:var(--color-neutral-700); font-size:14px; margin-top:4px">{{ panel.subtitle }}</div>
+
+      <sc-if value="{{ panel.isSupplier }}" hint-placeholder-val="{{ true }}">
+        <div style="margin-top:22px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Kontakt</div>
+        <div style="margin-top:6px; font-size:14px; white-space:pre-line">{{ panel.contact }}</div>
+        <div style="margin-top:22px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Vedlegg</div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px">
+          <sc-for list="{{ panel.attachments }}" as="a" hint-placeholder-count="2">
+            <a href="#" onClick="{{ stopPrevent }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:0; background:var(--color-neutral-200); color:var(--color-text); text-decoration:none; font-size:14px" style-hover="background:var(--color-surface)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path></svg>
+              <span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ a.name }}</span>
+              <span style="font-size:12px; color:var(--color-neutral-600)">{{ a.meta }}</span>
+            </a>
+          </sc-for>
+          <button style="height:34px; padding:0 14px; border-radius:0; border:2px solid var(--color-neutral-400); background:transparent; cursor:pointer; font-size:14px; color:var(--color-neutral-700); align-self:flex-start" style-hover="background:var(--color-surface); color:var(--color-text)">+ Last opp tilbud</button>
+        </div>
+        <div style="margin-top:22px; font-size:13px; color:var(--color-neutral-700)">{{ panel.attachNote }}</div>
+        <div style="margin-top:22px; display:flex; gap:8px; flex-wrap:wrap">
+          <button onClick="{{ panel.selectAll }}" style="height:36px; padding:0 16px; border-radius:0; border:0; background:var(--color-accent); color:var(--color-neutral-100); cursor:pointer; font-family:var(--font-body); font-weight:600; font-size:14px" style-hover="background:var(--color-accent-600)">{{ panel.selectAllLabel }}</button>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ panel.isFaktura }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin-top:20px">
+          <label style="display:flex; flex-direction:column; gap:4px; min-width:0; grid-column:1 / -1"><span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Leverandør</span><input value="{{ panel.f.supplier }}" onChange="{{ panel.f.onSupplier }}" onBlur="{{ flashNow }}" style="min-width:0; width:100%; height:36px; padding:0 10px; border:2px solid var(--color-divider); background:var(--color-neutral-100); font-size:15px; color:var(--color-text)" style-focus="border-color:var(--color-accent)"></label>
+          <label style="display:flex; flex-direction:column; gap:4px; min-width:0"><span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Fakturanr</span><input value="{{ panel.f.invNo }}" onChange="{{ panel.f.onInvNo }}" onBlur="{{ flashNow }}" style="min-width:0; width:100%; height:36px; padding:0 10px; border:2px solid var(--color-divider); background:var(--color-neutral-100); font-size:15px; color:var(--color-text)" style-focus="border-color:var(--color-accent)"></label>
+          <label style="display:flex; flex-direction:column; gap:4px; min-width:0"><span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Dato</span><input value="{{ panel.f.date }}" onChange="{{ panel.f.onDate }}" onBlur="{{ flashNow }}" placeholder="dd.mm.åååå" style="min-width:0; width:100%; height:36px; padding:0 10px; border:2px solid var(--color-divider); background:var(--color-neutral-100); font-size:15px; color:var(--color-text)" style-focus="border-color:var(--color-accent)"></label>
+          <label style="display:flex; flex-direction:column; gap:4px; min-width:0"><span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Beløp</span><input value="{{ panel.f.amount }}" onChange="{{ panel.f.onAmount }}" onBlur="{{ flashNow }}" inputMode="numeric" style="min-width:0; width:100%; height:36px; padding:0 10px; border:2px solid var(--color-divider); background:var(--color-neutral-100); font-size:16px; font-weight:600; color:var(--color-text); text-align:right" style-focus="border-color:var(--color-accent)"></label>
+          <div style="display:flex; flex-direction:column; gap:4px; min-width:0"><span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Vedlegg</span>
+            <sc-if value="{{ panel.f.hasFile }}" hint-placeholder-val="{{ true }}"><a href="#" onClick="{{ stopPrevent }}" style="display:flex; align-items:center; gap:8px; height:36px; padding:0 10px; border:2px solid var(--color-divider); color:var(--color-text); text-decoration:none; font-size:13px; min-width:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path></svg><span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ panel.f.file }}</span></a></sc-if>
+            <sc-if value="{{ panel.f.noFile }}" hint-placeholder-val="{{ false }}"><button onClick="{{ panel.f.addFile }}" style="height:36px; padding:0 10px; border:2px dashed var(--color-neutral-400); background:transparent; cursor:pointer; font-size:13px; font-weight:600; color:var(--color-text); text-align:left" style-hover="background:var(--color-surface)">+ Last opp</button></sc-if>
+          </div>
+        </div>
+        <div style="margin-top:20px; display:flex; justify-content:space-between; align-items:baseline"><span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Gjelder</span><span style="font-size:13px; color:var(--color-neutral-700)">Tilbudt {{ panel.f.expected }} · avvik <span style="font-weight:600; color:{{ panel.f.devColor }}">{{ panel.f.dev }}</span></span></div>
+        <div style="display:flex; flex-direction:column; margin-top:8px; border:2px solid var(--color-divider)">
+          <sc-for list="{{ panel.f.links }}" as="k" hint-placeholder-count="4">
+            <button onClick="{{ k.toggle }}" style="display:flex; align-items:center; gap:10px; padding:9px 10px; border:0; border-bottom:1px solid var(--color-neutral-300); background:transparent; cursor:pointer; font-size:13px; color:{{ k.color }}; text-align:left" style-hover="background:var(--color-surface)"><span style="width:16px; height:16px; flex:0 0 auto; border:2px solid var(--color-text); display:inline-flex; align-items:center; justify-content:center; background:{{ k.boxBg }}"><sc-if value="{{ k.on }}" hint-placeholder-val="{{ false }}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-100)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></sc-if></span><span style="flex:1; min-width:0">{{ k.title }}</span><span style="font-variant-numeric:tabular-nums; white-space:nowrap">{{ k.expected }}</span></button>
+          </sc-for>
+        </div>
+        <div style="margin-top:20px; display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--color-neutral-600)"><span>{{ panel.f.by }}</span><button onClick="{{ panel.f.remove }}" style="height:28px; padding:0 10px; border:0; background:transparent; cursor:pointer; font-size:12px; font-weight:600; color:var(--color-accent-700)" style-hover="background:var(--color-accent-100)">Slett faktura</button></div>
+      </sc-if>
+
+      <sc-if value="{{ panel.isUnassigned }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top:22px">
+          <sc-for list="{{ unassigned }}" as="u" hint-placeholder-count="2">
+            <div style="display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:0; background:var(--color-neutral-200)">
+              <div style="flex:1; min-width:0">
+                <div style="font-weight:600">{{ u.title }}</div>
+                <div style="font-size:13px; color:var(--color-neutral-700)">{{ u.meta }}</div>
+              </div>
+              <button onClick="{{ u.onAdd }}" style="height:30px; padding:0 12px; border-radius:0; border:0; background:var(--color-accent); color:var(--color-neutral-100); cursor:pointer; font-size:13px; font-weight:600; flex:0 0 auto" style-hover="background:var(--color-accent-600)">{{ u.addLabel }}</button>
+            </div>
+          </sc-for>
+        </div>
+        <div style="margin-top:18px; font-size:13px; color:var(--color-neutral-700)">Behov som ikke legges i et innkjøp forblir åpne i behovslisten.</div>
+      </sc-if>
+    </aside>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;mvaOn&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Giver&quot;,&quot;description&quot;:&quot;Giveren trekker ut momskompensasjon (viser fordelingen under pottlinjen)&quot;},&quot;saveError&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo&quot;,&quot;description&quot;:&quot;Simuler at lagring feiler&quot;}}">
+class Component extends DCLogic {
+  state = {
+    tab: 'innkjop', active: 'instr', panel: null, editing: null, save: null, switcherOpen: false,
+    apps: [
+      { id: 's1', title: 'Instrumenter til aspirantkorpset 2026', giver: 'Sparebankstiftelsen Nord', status: 'Innvilget' },
+      { id: 's2', title: 'Klarinetter og kornetter', giver: 'Kulturrådet', status: 'Sendt' },
+      { id: 's3', title: 'Uniformer 2026', giver: 'Gjensidigestiftelsen', status: 'Innvilget' },
+      { id: 's4', title: 'Seminarhelg høsten 2026', giver: 'Kommunen – kulturmidler', status: 'Utkast' },
+    ],
+    innkjop: [
+      { id: 'instr', name: 'Instrumenter', status: 'Innhenter tilbud' },
+      { id: 'unif', name: 'Uniformer', status: 'Valgt', fixed: 42300 },
+    ],
+    lines: [
+      { id: 'l1', title: 'Kornett Bb', qty: 4, applied: 4, est: 8500, funded: true },
+      { id: 'l2', title: 'Althorn Eb', qty: 2, applied: 2, est: 12000, funded: true },
+      { id: 'l3', title: 'Trombone, tenor', qty: 2, applied: 2, est: 10000, funded: true },
+      { id: 'l4', title: 'Baryton', qty: 1, applied: 1, est: 21000, funded: true },
+      { id: 'l5', title: 'Skarptromme med stativ', qty: 2, applied: 2, est: 3300, funded: true },
+      { id: 'l6', title: 'Notestativ', qty: 12, applied: 12, est: 450, funded: true },
+    ],
+    unassigned: [
+      { id: 'u1', title: 'Klarinett Bb', qty: 2, est: 6500, funded: true },
+      { id: 'u2', title: 'Dirigentpodium', qty: 1, est: 4800, funded: false },
+    ],
+    utgifter: [
+      { id: 'x1', desc: 'Frakt av notestativ fra lager', date: '12.05.2026', amount: 1200, by: 'Kari' },
+      { id: 'x2', desc: 'Rekvisita til øvingslokalet', date: '20.05.2026', amount: 1850, by: 'Per' },
+      { id: 'x3', desc: 'Parkering ved henting av instrumenter', date: '02.06.2026', amount: 800, by: 'Kari' },
+    ],
+    newUtgift: { desc: '', date: '', amount: '' },
+    fakturaer: [
+      { id: 'f1', nr: 1, supplier: 'Nordic Brass', invNo: '2026-118', date: '12.05.2026', amount: 30600, by: 'Lagt inn av Kari, 13. mai', links: ['l1'], file: 'faktura-2026-118.pdf' },
+      { id: 'f2', nr: 2, supplier: 'Clas Ohlson', invNo: 'Kvittering', date: '20.05.2026', amount: 1850, by: 'Lagt inn av Per, 20. mai', links: ['x2'], file: 'kvittering-rekvisita.jpg' },
+      { id: 'f3', nr: 3, supplier: 'Tono Instrumenter', invNo: '88123', date: '28.05.2026', amount: 5900, by: 'Lagt inn av Kari, 29. mai', links: ['l5'], file: 'faktura-88123.pdf' },
+    ],
+    form: { title: 'Instrumenter til aspirantkorpset 2026', frist: '15.03.2026', sendt: '03.03.2026', status: 'Innvilget', mvaPct: 8, revisjon: true, soktOverride: null, innvilget: 150000,
+      docs: [{ name: 'Søknad Sparebankstiftelsen 2026.pdf', meta: 'Kari · 3. mars' }, { name: 'Budsjett aspirantkorps.xlsx', meta: 'Kari · 2. mars' }, { name: 'Tilsagnsbrev.pdf', meta: 'Per · 28. april' }] },
+    suppliers: [
+      { id: 'mh', name: 'Musikkhuset AS', freight: 1500, contact: 'Ola Berg\nola@musikkhuset.no · 22 33 44 55', attachments: [{ name: 'Tilbud 2026-0412.pdf', meta: '3 sider' }] },
+      { id: 'nb', name: 'Nordic Brass', freight: 0, contact: 'Anne Lie\nanne@nordicbrass.no', attachments: [{ name: 'Tilbud messing.pdf', meta: '2 sider' }, { name: 'Tilbud trommer.pdf', meta: '1 side' }] },
+      { id: 'to', name: 'Tono Instrumenter', freight: 2400, contact: 'post@tono.no · 55 12 34 56', attachments: [{ name: 'Pristilbud korps.pdf', meta: '5 sider' }] },
+    ],
+    prices: {
+      l1: { mh: '8900 -10%', nb: '7650', to: '8200 -500' },
+      l2: { mh: '12400 -10%', nb: '11900', to: '' },
+      l3: { mh: '9800', nb: '10200 -8%', to: '9600' },
+      l4: { mh: '21500 -10%', nb: '19900', to: '20400' },
+      l5: { mh: '3200', nb: '', to: '3400 -15%' },
+      l6: { mh: '420', nb: '', to: '390' },
+    },
+    sel: { l1: 'nb', l2: 'mh', l3: 'nb', l4: 'mh', l5: 'to', l6: 'to' },
+  };
+
+  fmt(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0'); }
+  kr(n) { return this.fmt(n) + ' kr'; }
+
+  parse(raw) {
+    const s = (raw || '').trim();
+    if (!s) return null;
+    const m = s.match(/^(\d[\d\s.]*)(?:\s*-\s*(\d+(?:[.,]\d+)?)\s*(%?))?$/);
+    if (!m) return null;
+    const list = parseFloat(m[1].replace(/[\s.]/g, ''));
+    if (!isFinite(list)) return null;
+    let net = list, sub = 'vår pris';
+    if (m[2]) {
+      const d = parseFloat(m[2].replace(',', '.'));
+      if (m[3]) { net = list * (1 - d / 100); sub = `Liste ${this.fmt(list)} −${m[2]} %`; }
+      else { net = list - d; sub = `Liste ${this.fmt(list)} −${this.fmt(d)}`; }
+    }
+    return { list, net, sub };
+  }
+
+  flash() {
+    clearTimeout(this._t1); clearTimeout(this._t2);
+    this.setState({ save: 'saving' });
+    const fail = !!this.props.saveError;
+    this._t1 = setTimeout(() => {
+      this.setState({ save: fail ? 'error' : 'saved', lastSaved: fail ? this.state.lastSaved : new Date() });
+      if (!fail) this._t2 = setTimeout(() => this.setState({ save: null }), 2000);
+    }, 350);
+  }
+
+  componentDidMount() {
+    this._esc = (e) => { if (e.key === 'Escape') this.setState({ panel: null, editing: null, switcherOpen: false }); };
+    window.addEventListener('keydown', this._esc, true); document.addEventListener('keydown', this._esc, true);
+    this._click = () => { if (this.state.switcherOpen) this.setState({ switcherOpen: false }); };
+    window.addEventListener('click', this._click);
+  }
+  componentWillUnmount() { window.removeEventListener('keydown', this._esc, true); document.removeEventListener('keydown', this._esc, true); window.removeEventListener('click', this._click); clearTimeout(this._t1); clearTimeout(this._t2); }
+
+  commit(lineId, supId, raw) {
+    this.setState(s => ({ prices: { ...s.prices, [lineId]: { ...s.prices[lineId], [supId]: raw } }, editing: null,
+      sel: this.parse(raw) ? s.sel : (s.sel[lineId] === supId ? { ...s.sel, [lineId]: undefined } : s.sel) }));
+    this.flash();
+  }
+
+  pasteGrid(lineIdx, supIdx, text) {
+    const rows = text.replace(/\r/g, '').split('\n').filter(r => r.trim() !== '').map(r => r.split('\t'));
+    this.setState(s => {
+      const prices = { ...s.prices };
+      rows.forEach((cells, i) => {
+        const line = s.lines[lineIdx + i]; if (!line) return;
+        prices[line.id] = { ...prices[line.id] };
+        cells.forEach((v, j) => { const sup = s.suppliers[supIdx + j]; if (sup) prices[line.id][sup.id] = v.trim(); });
+      });
+      return { prices, editing: null };
+    });
+    this.flash();
+  }
+
+  num(v) { const n = parseInt(String(v).replace(/\D/g, ''), 10); return isNaN(n) ? 0 : n; }
+
+  updBehov(id, patch) {
+    this.setState(s => ({ lines: s.lines.map(x => x.id === id ? { ...x, ...patch } : x), unassigned: s.unassigned.map(x => x.id === id ? { ...x, ...patch } : x) }));
+  }
+  setForm(patch) { this.setState(s => ({ form: { ...s.form, ...patch } })); }
+
+  updFaktura(id, patch) { this.setState(s => ({ fakturaer: s.fakturaer.map(f => f.id === id ? { ...f, ...patch } : f) })); }
+
+  printReport(R) {
+    const S = this.state, F = S.form, esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const row = (l, v, strong) => `<tr><td>${l}</td><td class="n"${strong ? ' style="font-weight:700"' : ''}>${v}</td></tr>`;
+    const gjenst = R.innvilget - Math.round(R.disponert * (R.mvaOn ? R.gPct / 100 : 1));
+    let front = row('Søkt', this.fmt(R.sokt)) + row('Innvilget', this.fmt(R.innvilget)) + row('Brukt (fakturert)', this.fmt(R.invoiced), true) + row('Gjenstående', this.fmt(gjenst));
+    if (R.mvaOn) front += row(`Fra giver (${R.gPct} %)`, this.fmt(R.invoiced * R.gPct / 100)) + row(`Fra momskompensasjon (${R.pct} %) – forventes mottatt neste år`, this.fmt(R.invoiced * R.pct / 100));
+    const rows = S.fakturaer.map(f => `<tr><td>${f.nr}</td><td>${esc(f.invNo)}</td><td>${esc(f.date)}</td><td>${esc(f.supplier)}</td><td class="n">${this.fmt(f.amount)}</td><td>${esc(f.links.map(id => R.itemById[id] ? R.itemById[id].title : '').filter(Boolean).join(', '))}</td></tr>`).join('');
+    const pages = S.fakturaer.map(f => `<section class="page"><div class="stamp">${f.nr}</div><div class="ph">${f.file ? esc(f.file) : 'Vedlegg mangler'}<br><small>${esc(f.supplier)} · ${esc(f.invNo)} · ${this.fmt(f.amount)}</small></div></section>`).join('');
+    const html = `<!doctype html><html lang="nb"><head><meta charset="utf-8"><title>Revisjonsrapport – ${esc(F.title)}</title><style>body{font-family:Archivo,system-ui,sans-serif;color:#201e1d;margin:0;font-size:13px}.page{padding:22mm;page-break-after:always;min-height:250mm;position:relative;box-sizing:border-box}h1{font-size:26px;margin:0 0 6px}h2{font-size:16px;margin:0 0 12px}p{margin:0 0 24px;color:#605d5d}table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#605d5d;padding:8px 10px;border-bottom:2px solid #201e1d}td{padding:8px 10px;border-bottom:1px solid #d7d3d3}.n{text-align:right}tfoot td{border-top:2px solid #201e1d;border-bottom:0;font-weight:700}.stamp{position:absolute;top:14mm;right:14mm;border:2px solid #201e1d;font-weight:800;font-size:22px;padding:4px 12px}.ph{border:2px dashed #bab6b6;height:200mm;display:flex;align-items:center;justify-content:center;text-align:center;color:#605d5d;font-size:15px}@page{margin:0}</style></head><body>
+<section class="page"><h1>${esc(F.title)}</h1><p>Sparebankstiftelsen Nord · Revisjonsrapport · ${new Date().toLocaleDateString('nb-NO')}</p><table>${front}</table></section>
+<section class="page"><h2>Oversikt over fakturaer</h2><table><thead><tr><th>Nr</th><th>Fakturanr</th><th>Dato</th><th>Leverandør</th><th class="n">Beløp</th><th>Gjelder</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="4">Sum</td><td class="n">${this.fmt(R.invoiced)}</td><td></td></tr></tfoot></table></section>
+${pages}</body></html>`;
+    const w = window.open('', '_blank'); if (!w) return; w.document.write(html); w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
+  }
+
+  renderVals() {
+    const S = this.state, F = S.form, mvaOn = this.props.mvaOn ?? true;
+    const pct = F.mvaPct, gPct = 100 - pct;
+    const active = S.innkjop.find(i => i.id === S.active) || S.innkjop[0];
+    const P = {};
+    S.lines.forEach(l => { P[l.id] = {}; S.suppliers.forEach(s => { P[l.id][s.id] = this.parse((S.prices[l.id] || {})[s.id]); }); });
+
+    let combo = 0; const used = new Set();
+    S.lines.forEach(l => { const sid = S.sel[l.id], p = sid && P[l.id][sid]; if (p) { combo += l.qty * p.net; used.add(sid); } });
+    let freightCounted = 0; S.suppliers.forEach(s => { if (used.has(s.id)) freightCounted += s.freight; });
+    const comboTotal = combo + freightCounted;
+    const uniform = S.innkjop.find(i => i.id === 'unif').fixed;
+    const utgifter = S.utgifter.reduce((a, u) => a + u.amount, 0), innvilget = F.innvilget;
+    const allBehov = [...S.lines.map(l => ({ ...l, sq: l.applied, inMatrix: true })), ...S.unassigned.map(u => ({ ...u, sq: u.qty, inMatrix: false }))];
+    let estTotal = 0, fundedCount = 0;
+    allBehov.forEach(b => { estTotal += b.sq * b.est; if (b.funded) fundedCount++; });
+    const giverShare = Math.round(estTotal * gPct / 100);
+    const proposed = mvaOn ? giverShare : estTotal;
+    const sokt = F.soktOverride ?? proposed;
+    const disponert = comboTotal + uniform + utgifter;
+
+    const allItems = [];
+    S.lines.forEach(l => { const sid = S.sel[l.id], p = sid && P[l.id][sid]; if (p) { const s = S.suppliers.find(x => x.id === sid); allItems.push({ id: l.id, title: `${l.qty} × ${l.title}`, sub: s.name, expected: l.qty * p.net }); } });
+    S.utgifter.forEach(u => allItems.push({ id: u.id, title: u.desc, sub: `Løs utgift · ${u.date}`, expected: u.amount }));
+    const itemById = Object.fromEntries(allItems.map(i => [i.id, i]));
+    const invoiced = S.fakturaer.reduce((a, f) => a + f.amount, 0);
+    let devTotal = 0, devCount = 0;
+    const fakturaRows = S.fakturaer.map(f => {
+      const expected = f.links.reduce((a, id) => a + (itemById[id] ? itemById[id].expected : 0), 0);
+      const dev = f.links.length ? f.amount - expected : 0;
+      if (dev) { devTotal += dev; devCount++; }
+      const names = f.links.map(id => itemById[id] ? itemById[id].title : '').filter(Boolean);
+      return { nr: f.nr, supplier: f.supplier || '–', invNo: f.invNo || '–', date: f.date || '–', amount: this.fmt(f.amount),
+        gjelder: names.length ? names.join(', ') : 'Ikke koblet til noe', bg: S.panel && S.panel.type === 'faktura' && S.panel.id === f.id ? 'var(--color-surface)' : 'transparent',
+        dev: dev ? (dev > 0 ? '+' : '−') + this.fmt(Math.abs(dev)) : '', devColor: 'var(--color-accent-700)',
+        open: () => this.setState({ panel: { type: 'faktura', id: f.id } }) };
+    });
+    let missingCount = 0;
+    const items = allItems.map(it => {
+      const fs = S.fakturaer.filter(f => f.links.includes(it.id));
+      if (!fs.length) missingCount++;
+      return { title: it.title, sub: it.sub, expected: this.fmt(it.expected),
+        status: fs.length ? `Faktura ${fs.map(f => f.nr).join(', ')}` : 'Mangler faktura',
+        tagBg: fs.length ? 'var(--color-text)' : 'var(--color-accent-100)', tagColor: fs.length ? 'var(--color-neutral-100)' : 'var(--color-accent-700)' };
+    });
+    const rev = {
+      invoiced: this.fmt(invoiced), disponert: this.fmt(disponert),
+      missing: missingCount ? `${missingCount} ${missingCount === 1 ? 'linje' : 'linjer'} mangler faktura` : 'alt er fakturert',
+      deviations: devCount ? `${devCount} avvik fra tilbud` : 'ingen avvik',
+      devTotal: devTotal ? (devTotal > 0 ? '+' : '−') + this.fmt(Math.abs(devTotal)) : '', devTotalColor: 'var(--color-accent-700)',
+      newFaktura: () => { const nr = S.fakturaer.reduce((m, f) => Math.max(m, f.nr), 0) + 1; const id = 'f' + Date.now();
+        this.setState(st => ({ fakturaer: [...st.fakturaer, { id, nr, supplier: '', invNo: '', date: '', amount: 0, by: 'Lagt inn av Kari, i dag', links: [], file: '' }], panel: { type: 'faktura', id } })); this.flash(); },
+      report: () => this.printReport({ allItems, itemById, invoiced, disponert, innvilget, sokt, gPct, pct, mvaOn }),
+    };
+    const disponertGiver = mvaOn ? Math.round(disponert * gPct / 100) : disponert;
+    const affordBase = mvaOn ? giverShare : estTotal;
+
+    const behov = allBehov.map(b => {
+      const cost = b.sq * b.est;
+      return {
+        title: b.title, note: b.inMatrix ? '' : '· ikke i innkjøp', qty: String(b.sq), est: this.fmt(b.est),
+        cost: this.fmt(cost), giver: this.fmt(cost * gPct / 100), mva: this.fmt(cost * pct / 100),
+        funded: b.funded, fundedLabel: b.funded ? 'Ja' : 'Nei', boxBg: b.funded ? 'var(--color-text)' : 'transparent',
+        onQty: e => { const q = this.num(e.target.value); this.updBehov(b.id, b.inMatrix ? { applied: q } : { qty: q }); },
+        onEst: e => this.updBehov(b.id, { est: this.num(e.target.value) }),
+        toggleFunded: () => { this.updBehov(b.id, { funded: !b.funded }); this.flash(); },
+      };
+    });
+    const sums = { cost: this.fmt(estTotal), giver: this.fmt(giverShare), mva: this.fmt(estTotal - giverShare), funded: `${fundedCount} av ${allBehov.length} finansieres` };
+    const utgifterRows = S.utgifter.map(u => ({
+      desc: u.desc, date: u.date, amount: this.fmt(u.amount), by: u.by,
+      onDesc: e => this.setState(st => ({ utgifter: st.utgifter.map(x => x.id === u.id ? { ...x, desc: e.target.value } : x) })),
+      onDate: e => this.setState(st => ({ utgifter: st.utgifter.map(x => x.id === u.id ? { ...x, date: e.target.value } : x) })),
+      onAmount: e => { const v = this.num(e.target.value); this.setState(st => ({ utgifter: st.utgifter.map(x => x.id === u.id ? { ...x, amount: v } : x) })); },
+      onRemove: () => { this.setState(st => ({ utgifter: st.utgifter.filter(x => x.id !== u.id) })); this.flash(); },
+    }));
+    const N = S.newUtgift;
+    const newUtgift = {
+      desc: N.desc, date: N.date, amount: N.amount,
+      onDesc: e => this.setState(st => ({ newUtgift: { ...st.newUtgift, desc: e.target.value } })),
+      onDate: e => this.setState(st => ({ newUtgift: { ...st.newUtgift, date: e.target.value } })),
+      onAmount: e => this.setState(st => ({ newUtgift: { ...st.newUtgift, amount: e.target.value } })),
+      onBlur: () => { const amt = this.num(N.amount); if (N.desc.trim() && amt > 0) { this.setState(st => ({ utgifter: [...st.utgifter, { id: 'x' + Date.now(), desc: N.desc.trim(), date: N.date || new Date().toLocaleDateString('nb-NO'), amount: amt, by: 'Kari' }], newUtgift: { desc: '', date: '', amount: '' } })); this.flash(); } },
+    };
+
+    const statusList = ['Utkast', 'Sendt', 'Innvilget', 'Avslått', 'Avsluttet'];
+    const statusOpts = statusList.map(s => ({ label: s, bg: F.status === s ? 'var(--color-text)' : 'transparent', color: F.status === s ? 'var(--color-neutral-100)' : 'var(--color-text)', onClick: () => { this.setForm({ status: s }); this.flash(); } }));
+    const form = {
+      title: F.title, frist: F.frist, sendt: F.sendt, mvaPct: String(pct), revisjon: F.revisjon,
+      docs: F.docs, docCount: `${F.docs.length} filer`,
+      addDoc: () => { this.setForm({ docs: [...F.docs, { name: `Vedlegg ${F.docs.length + 1}.pdf`, meta: 'Kari · i dag' }] }); this.flash(); },
+      revBg: F.revisjon ? 'var(--color-text)' : 'transparent',
+      soktRaw: this.fmt(sokt), soktHint: F.soktOverride == null ? (mvaOn ? `Foreslått: giverens andel (${gPct} %) av estimatet` : 'Foreslått: sum av estimatene') : `Overstyrt. Foreslått ${this.fmt(proposed)}`,
+      innvilgetRaw: this.fmt(innvilget), innvilgetHint: affordBase > innvilget ? `Estimatet${mvaOn ? ' (giverandel)' : ''} er ${this.fmt(affordBase - innvilget)} over innvilget – juster antall` : `${this.fmt(innvilget - affordBase)} til overs mot estimatet`,
+      onSokt: e => this.setForm({ soktOverride: this.num(e.target.value) }),
+      onInnvilget: e => this.setForm({ innvilget: this.num(e.target.value) }),
+      onMva: e => this.setForm({ mvaPct: Math.min(100, this.num(e.target.value)) }),
+      onTitle: e => this.setForm({ title: e.target.value }), onFrist: e => this.setForm({ frist: e.target.value }), onSendt: e => this.setForm({ sendt: e.target.value }),
+      toggleRevisjon: () => { this.setForm({ revisjon: !F.revisjon }); this.flash(); },
+    };
+
+    const rows = S.lines.map((l, li) => {
+      const sid = S.sel[l.id], sp = sid && P[l.id][sid];
+      return {
+        title: l.title, qty: String(l.qty), applied: l.applied,
+        onQty: e => { const q = parseInt(e.target.value.replace(/\D/g, ''), 10); this.setState(s => ({ lines: s.lines.map(x => x.id === l.id ? { ...x, qty: isNaN(q) ? 0 : q } : x) })); },
+        onQtyBlur: () => this.flash(),
+        valgt: sp ? this.fmt(l.qty * sp.net) : '—', valgtColor: sp ? 'var(--color-text)' : 'var(--color-neutral-400)',
+        cells: S.suppliers.map((s, si) => {
+          const p = P[l.id][s.id], selected = sid === s.id && !!p, editing = S.editing === l.id + '|' + s.id;
+          return {
+            raw: (S.prices[l.id] || {})[s.id] || '', editing, selected,
+            showPrice: !!p && !editing, showEmpty: !p && !editing,
+            net: p ? this.fmt(p.net) : '', sub: p ? p.sub : '',
+            bg: selected ? 'var(--color-accent-100)' : 'transparent', ring: selected ? 'inset 0 0 0 2px var(--color-accent)' : 'none',
+            clip: !!p && s.attachments.length > 1,
+            onClick: () => { if (editing) return; if (!p) { this.setState({ editing: l.id + '|' + s.id }); return; } this.setState(st => ({ sel: { ...st.sel, [l.id]: st.sel[l.id] === s.id ? undefined : s.id } })); this.flash(); },
+            onDbl: () => this.setState({ editing: l.id + '|' + s.id }),
+            onCommit: e => this.commit(l.id, s.id, e.target.value),
+            onKey: e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') { e.stopPropagation(); this.setState({ editing: null }); } },
+            onPaste: e => { const t = e.clipboardData.getData('text'); if (/[\t\n]/.test(t)) { e.preventDefault(); this.pasteGrid(li, si, t); } },
+            onClip: e => { e.stopPropagation(); this.setState({ panel: { type: 'supplier', id: s.id } }); },
+          };
+        }),
+      };
+    });
+
+    const cols = S.suppliers.map(s => {
+      let total = s.freight, missing = 0;
+      S.lines.forEach(l => { const p = P[l.id][s.id]; if (p) total += l.qty * p.net; else missing++; });
+      return {
+        name: s.name, meta: `${s.attachments.length} vedlegg`,
+        freightRaw: this.fmt(s.freight), freightColor: used.has(s.id) ? 'var(--color-text)' : 'var(--color-neutral-500)',
+        onFreight: e => { const v = parseInt(e.target.value.replace(/\D/g, ''), 10) || 0; this.setState(st => ({ suppliers: st.suppliers.map(x => x.id === s.id ? { ...x, freight: v } : x) })); },
+        onFreightBlur: () => this.flash(),
+        total: this.fmt(total), totalColor: missing ? 'var(--color-neutral-500)' : 'var(--color-text)',
+        totalNote: missing ? `mangler ${missing} ${missing === 1 ? 'pris' : 'priser'}` : 'alle linjer priset',
+        selectAll: () => { this.setState(st => { const sel = { ...st.sel }; st.lines.forEach(l => { if (P[l.id][s.id]) sel[l.id] = s.id; }); return { sel }; }); this.flash(); },
+        openPanel: () => this.setState({ panel: { type: 'supplier', id: s.id } }),
+      };
+    });
+
+    const tabDefs = [['soknad', 'Søknad'], ['innkjop', 'Innkjøp'], ['utgifter', 'Utgifter'], ['revisjon', 'Revisjon']];
+    const tabs = tabDefs.map(([id, label]) => ({ label, bg: S.tab === id ? 'var(--color-surface)' : 'transparent', color: S.tab === id ? 'var(--color-text)' : 'var(--color-neutral-700)', onClick: () => this.setState({ tab: id }) }));
+
+    const chips = S.innkjop.map(i => ({
+      name: i.name, sum: this.fmt(i.id === 'instr' ? comboTotal : i.fixed),
+      border: i.id === active.id ? 'var(--color-accent)' : 'var(--color-neutral-300)', bg: i.id === active.id ? 'var(--color-accent-100)' : 'transparent',
+      onClick: () => this.setState({ active: i.id }),
+    }));
+
+    let panel = { title: '', subtitle: '', isSupplier: false, isUnassigned: false, isFaktura: false, attachments: [], f: { links: [] } };
+    if (S.panel && S.panel.type === 'faktura') {
+      const f = S.fakturaer.find(x => x.id === S.panel.id);
+      if (f) {
+        const expected = f.links.reduce((a, id) => a + (itemById[id] ? itemById[id].expected : 0), 0);
+        const dev = f.amount - expected;
+        panel = { isSupplier: false, isUnassigned: false, isFaktura: true, title: `Faktura ${f.nr}`, subtitle: f.supplier ? `${f.supplier} · ${f.invNo || 'uten nummer'}` : 'Ny faktura – fyll inn feltene, de lagres fortløpende', attachments: [],
+          f: {
+            supplier: f.supplier, invNo: f.invNo, date: f.date, amount: f.amount ? this.fmt(f.amount) : '', by: f.by,
+            file: f.file, hasFile: !!f.file, noFile: !f.file,
+            expected: this.fmt(expected), dev: (dev > 0 ? '+' : dev < 0 ? '−' : '') + this.fmt(Math.abs(dev)), devColor: dev ? 'var(--color-accent-700)' : 'var(--color-text)',
+            onSupplier: e => this.updFaktura(f.id, { supplier: e.target.value }), onInvNo: e => this.updFaktura(f.id, { invNo: e.target.value }),
+            onDate: e => this.updFaktura(f.id, { date: e.target.value }), onAmount: e => this.updFaktura(f.id, { amount: this.num(e.target.value) }),
+            addFile: () => { this.updFaktura(f.id, { file: `faktura-${f.nr}.pdf` }); this.flash(); },
+            remove: () => { this.setState(st => ({ fakturaer: st.fakturaer.filter(x => x.id !== f.id), panel: null })); this.flash(); },
+            links: allItems.map(it => { const on = f.links.includes(it.id); const other = S.fakturaer.find(x => x.id !== f.id && x.links.includes(it.id));
+              return { title: it.title + (other ? ` (faktura ${other.nr})` : ''), expected: this.fmt(it.expected), on, boxBg: on ? 'var(--color-text)' : 'transparent', color: other && !on ? 'var(--color-neutral-500)' : 'var(--color-text)',
+                toggle: () => { this.updFaktura(f.id, { links: on ? f.links.filter(x => x !== it.id) : [...f.links, it.id] }); this.flash(); } }; }),
+          } };
+      }
+    } else if (S.panel && S.panel.type === 'supplier') {
+      const s = S.suppliers.find(x => x.id === S.panel.id);
+      const col = cols.find(c => c.name === s.name);
+      panel = { isSupplier: true, isUnassigned: false, title: s.name, subtitle: `Frakt ${this.kr(s.freight)} · alt hos én: ${this.kr(parseInt(col.total.replace(/\D/g, ''), 10))}`,
+        contact: s.contact, attachments: s.attachments,
+        attachNote: s.attachments.length === 1 ? 'Ett vedlegg: alle prisene fra denne leverandøren peker automatisk til dette dokumentet.' : 'Flere vedlegg: velg dokument og eventuelt side via binders-ikonet i hver celle.',
+        selectAll: col.selectAll, selectAllLabel: `Velg alt fra ${s.name}` };
+    } else if (S.panel && S.panel.type === 'unassigned') {
+      panel = { isSupplier: false, isUnassigned: true, title: 'Ikke fordelt', subtitle: 'Behov i søknaden som ennå ikke ligger i et innkjøp', attachments: [] };
+    }
+
+    const unassigned = S.unassigned.map(u => ({
+      title: u.title, meta: `${u.qty} stk i søknaden`, addLabel: `Legg i ${active.name}`,
+      onAdd: () => { this.setState(st => ({ unassigned: st.unassigned.filter(x => x.id !== u.id), lines: [...st.lines, { id: u.id, title: u.title, qty: u.qty, applied: u.qty, est: u.est, funded: u.funded }], prices: { ...st.prices, [u.id]: {} }, panel: st.unassigned.length > 1 ? st.panel : null })); this.flash(); },
+    }));
+
+    const statuses = ['Innhenter tilbud', 'Valgt', 'Fakturert'];
+    const otherNotes = { soknad: 'Søknad-fanen tegnes i neste runde.', utgifter: 'Utgifter-fanen tegnes i neste runde.', revisjon: 'Revisjon-fanen tegnes i neste runde.' };
+
+    return {
+      mvaOn, tabs, chips, rows, cols, unassigned, panel, behov, sums, statusOpts, form, sumSpan: 3, flashNow: () => this.flash(), statusLabel: F.status,
+      pott: { sokt: this.fmt(sokt), innvilget: this.fmt(innvilget), disponert: this.fmt(disponertGiver), disponertFull: this.fmt(disponert), disponertLabel: mvaOn ? 'Disponert (giverandel)' : 'Disponert', gjenstar: this.fmt(innvilget - disponertGiver), mva: this.fmt(disponert - disponertGiver), giverPct: gPct, mvaPct: pct },
+      comboGiver: this.fmt(comboTotal * gPct / 100),
+      utgifterRows, newUtgift, utgifterSum: this.fmt(utgifter), utgifterCount: `${S.utgifter.length} utgifter`,
+      isRevisjon: S.tab === 'revisjon', revisjonOn: F.revisjon, revisjonOff: !F.revisjon, rev, fakturaRows, items,
+      isInnkjop: S.tab === 'innkjop',
+      printBehov: () => {
+        const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+        const rows = allBehov.map(b => `<tr><td>${esc(b.title)}</td><td class="n">${b.sq}</td><td class="n">${this.fmt(b.est)}</td><td class="n">${this.fmt(b.sq * b.est)}</td></tr>`).join('');
+        const html = `<!doctype html><html lang="nb"><head><meta charset="utf-8"><title>Behov – ${esc(F.title)}</title><style>body{font-family:Archivo,system-ui,sans-serif;color:#201e1d;margin:40px;font-size:13px}h1{font-size:22px;margin:0 0 4px}p{margin:0 0 24px;color:#605d5d}table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#605d5d;padding:8px 10px;border-bottom:2px solid #201e1d}td{padding:8px 10px;border-bottom:1px solid #d7d3d3}.n,th.n{text-align:right}tfoot td{border-top:2px solid #201e1d;border-bottom:0;font-weight:700}@page{margin:18mm}</style></head><body><h1>${esc(F.title)}</h1><p>Sparebankstiftelsen Nord · Behovsliste · skrevet ut ${new Date().toLocaleDateString('nb-NO')}</p><table><thead><tr><th>Behov</th><th class="n">Antall</th><th class="n">Est. stk.pris</th><th class="n">Kostnad</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="3">Sum estimert</td><td class="n">${this.fmt(estTotal)}</td></tr></tfoot></table></body></html>`;
+        const w = window.open('', '_blank'); if (!w) return; w.document.write(html); w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
+      }, isSoknad: S.tab === 'soknad', isUtgifter: S.tab === 'utgifter', isOther: false, otherNote: otherNotes[S.tab] || '',
+      status: active.status,
+      cycleStatus: () => { this.setState(st => ({ innkjop: st.innkjop.map(i => i.id === active.id ? { ...i, status: statuses[(statuses.indexOf(i.status) + 1) % 3] } : i) })); this.flash(); },
+      saveIdle: !S.save, lastSavedLabel: S.lastSaved ? `Alle endringer lagret kl. ${S.lastSaved.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })}` : 'Alle endringer lagres automatisk',
+      saveSaving: S.save === 'saving', saveSaved: S.save === 'saved', saveError: S.save === 'error',
+      retrySave: () => this.flash(),
+      hasUnassigned: S.unassigned.length > 0,
+      unassignedLabel: `${S.unassigned.length} ${S.unassigned.length === 1 ? 'behov' : 'behov'} ikke fordelt`,
+      openUnassigned: () => this.setState({ panel: { type: 'unassigned' } }),
+      panelOpen: !!S.panel, closePanel: () => this.setState({ panel: null }), escKey: e => { if (e.key === 'Escape') { e.stopPropagation(); this.setState({ panel: null }); } }, asideRef: el => { if (el && !el.contains(document.activeElement)) el.focus(); },
+      pickCheapest: () => { this.setState(st => { const sel = {}; st.lines.forEach(l => { let best = null; st.suppliers.forEach(s => { const p = P[l.id][s.id]; if (p && (!best || p.net < best.net)) best = { net: p.net, id: s.id }; }); if (best) sel[l.id] = best.id; }); return { sel }; }); this.flash(); },
+      freightCounted: this.fmt(freightCounted), comboTotal: this.fmt(comboTotal),
+      stop: e => e.stopPropagation(), stopPrevent: e => { e.preventDefault(); e.stopPropagation(); },
+      switcherOpen: S.switcherOpen,
+      toggleSwitcher: e => { e.stopPropagation(); this.setState(st => ({ switcherOpen: !st.switcherOpen })); },
+      switcherApps: S.apps.map(a => ({ title: a.title, giver: a.giver, status: a.status, bg: a.title === F.title ? 'var(--color-surface)' : 'transparent',
+        onClick: e => { e.stopPropagation(); this.setState({ switcherOpen: false }); if (a.title !== F.title) this.setForm({ title: a.title, status: a.status }); } })),
+    };
+  }
+}
+</script>
+</body>
+</html>

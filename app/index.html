@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Søknadsportal</title>
+<link rel="stylesheet" href="design/modernist.css">
+<link rel="stylesheet" href="design/app.css">
+</head>
+<body>
+<div class="app">
+  <header class="toppmeny">
+    <span class="merke" id="merke">Søknadsportal</span>
+    <nav id="meny" hidden>
+      <a href="#/soknader" data-meny="soknader">Søknader</a>
+      <a href="#/behov" data-meny="behov">Behov</a>
+      <a href="#/givere" data-meny="givere">Givere</a>
+    </nav>
+    <div class="hoyre">
+      <div id="lagrestatus" hidden></div>
+      <div class="meg" id="meg" hidden></div>
+    </div>
+  </header>
+  <div id="side" class="app" style="height:auto; flex:1 1 auto; min-height:0"><div class="laster">Laster …</div></div>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

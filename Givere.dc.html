@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/modernist-0b23ad56-9b66-4ca9-9c86-e99fef79c546/styles.css">
+<script src="_ds/modernist-0b23ad56-9b66-4ca9-9c86-e99fef79c546/_ds_bundle.js"></script>
+<style>
+  html, body { margin:0; height:100%; background:var(--color-bg); color:var(--color-text); }
+  body { font-family: var(--font-body); }
+  * { box-sizing: border-box; }
+  a { color:var(--color-accent-700); text-underline-offset:3px; }
+  a:hover { color:var(--color-accent); }
+  button, input, textarea { font: inherit; color: inherit; }
+  :focus { outline: none; }
+  :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  ::selection { background: var(--color-accent-200); }
+  @keyframes savedIn { from { opacity:0; transform:translateY(2px);} to { opacity:1; transform:none;} }
+  @keyframes panelIn { from { transform:translateX(24px); opacity:0;} to { transform:none; opacity:1;} }
+</style>
+</helmet>
+<div data-screen-label="Givere og brukere" style="height:100vh; display:flex; flex-direction:column; overflow:hidden; background:var(--color-bg); color:var(--color-text); font-size:15px; line-height:1.45; position:relative">
+
+  <nav style="flex:0 0 auto; height:44px; padding:0 40px; display:flex; align-items:center; gap:4px; border-bottom:2px solid var(--color-divider)">
+    <span style="font-weight:800; font-size:14px; margin-right:20px">Søknadsportal</span>
+    <a href="Søknader.dc.html" style="height:44px; display:inline-flex; align-items:center; padding:0 12px; font-size:14px; font-weight:600; color:var(--color-neutral-700); text-decoration:none" style-hover="color:var(--color-text)">Søknader</a>
+    <a href="Behovsliste.dc.html" style="height:44px; display:inline-flex; align-items:center; padding:0 12px; font-size:14px; font-weight:600; color:var(--color-neutral-700); text-decoration:none" style-hover="color:var(--color-text)">Behov</a>
+    <span style="height:44px; display:inline-flex; align-items:center; padding:0 12px; font-size:14px; font-weight:600; color:var(--color-text); box-shadow:inset 0 -2px 0 var(--color-text)">Givere</span>
+    <div style="margin-left:auto; display:flex; align-items:center; min-height:32px">
+      <sc-if value="{{ saveIdle }}" hint-placeholder-val="{{ true }}"><span style="font-size:13px; color:var(--color-neutral-600)">{{ lastSavedLabel }}</span></sc-if>
+      <sc-if value="{{ saveSaving }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px; color:var(--color-neutral-600)">Lagrer …</span></sc-if>
+      <sc-if value="{{ saveSaved }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex; align-items:center; gap:5px; font-size:13px; color:var(--color-neutral-700); animation:savedIn .2s ease-out"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>Lagret</span></sc-if>
+    </div>
+  </nav>
+
+  <header style="flex:0 0 auto; padding:22px 40px 0; display:flex; justify-content:space-between; align-items:flex-end; gap:28px 48px; flex-wrap:wrap">
+    <div style="min-width:0">
+      <h1 style="font-family:var(--font-heading); font-weight:800; font-size:30px; line-height:1.1; margin:0; letter-spacing:-0.015em">Givere og brukere</h1>
+      <div style="margin-top:6px; color:var(--color-neutral-700); font-size:14px">Vedlikeholdes av administrator. Momsinnstillingen arves av nye søknader til giveren.</div>
+    </div>
+    <div style="display:flex; border:2px solid var(--color-divider)">
+      <sc-for list="{{ sections }}" as="s" hint-placeholder-count="2">
+        <button onClick="{{ s.onClick }}" style="height:34px; padding:0 18px; border:0; cursor:pointer; font-size:14px; font-weight:600; background:{{ s.bg }}; color:{{ s.color }}" style-hover="background:var(--color-surface)">{{ s.label }}</button>
+      </sc-for>
+    </div>
+  </header>
+
+  <main style="flex:1 1 auto; min-height:0; padding:18px 40px 20px; display:flex; flex-direction:column; gap:10px">
+
+    <sc-if value="{{ isGivere }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:0 0 auto; display:flex; justify-content:space-between; align-items:center; gap:12px">
+        <div style="font-size:13px; color:var(--color-neutral-700)">Klikk en giver for å endre kontaktinfo og momsinnstilling.</div>
+        <button onClick="{{ addGiver }}" style="height:34px; padding:0 14px; border:0; background:var(--color-accent); color:var(--color-neutral-100); cursor:pointer; font-size:14px; font-weight:600" style-hover="background:var(--color-accent-600)">+ Ny giver</button>
+      </div>
+      <div style="flex:1 1 auto; min-height:0; overflow:auto; border:2px solid var(--color-divider); background:var(--color-neutral-100)">
+        <table style="border-collapse:separate; border-spacing:0; width:100%; font-variant-numeric:tabular-nums">
+          <thead>
+            <tr>
+              <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:left; padding:10px 12px 8px 16px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider)">Giver</th>
+              <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:left; padding:10px 12px 8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider)">Kontakt</th>
+              <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:left; padding:10px 12px 8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider); white-space:nowrap">Momskompensasjon</th>
+              <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:right; padding:10px 16px 8px 12px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider)">Søknader</th>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{ giverRows }}" as="g" hint-placeholder-count="4">
+              <tr onClick="{{ g.open }}" style="cursor:pointer; background:{{ g.bg }}" style-hover="background:var(--color-surface)">
+                <td style="padding:10px 12px 10px 16px; border-bottom:1px solid var(--color-neutral-300); font-weight:600">{{ g.name }}</td>
+                <td style="padding:10px 12px; border-bottom:1px solid var(--color-neutral-300); font-size:14px; color:var(--color-neutral-700); max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ g.contact }}</td>
+                <td style="padding:10px 12px; border-bottom:1px solid var(--color-neutral-300); white-space:nowrap"><span style="display:inline-flex; align-items:center; height:22px; padding:0 8px; font-size:12px; font-weight:600; background:{{ g.tagBg }}; color:{{ g.tagColor }}">{{ g.mvaLabel }}</span></td>
+                <td style="padding:10px 16px 10px 12px; border-bottom:1px solid var(--color-neutral-300); text-align:right">{{ g.apps }}</td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isBrukere }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:0 0 auto; display:flex; justify-content:space-between; align-items:center; gap:12px">
+        <div style="font-size:13px; color:var(--color-neutral-700)">Alle brukere kan gjøre alt i søknadene. Administratorer kan i tillegg invitere og fjerne brukere og vedlikeholde givere.</div>
+        <button onClick="{{ openInvite }}" style="height:34px; padding:0 14px; border:0; background:var(--color-accent); color:var(--color-neutral-100); cursor:pointer; font-size:14px; font-weight:600; white-space:nowrap" style-hover="background:var(--color-accent-600)">+ Inviter bruker</button>
+      </div>
+      <div style="flex:1 1 auto; min-height:0; overflow:auto; border:2px solid var(--color-divider); background:var(--color-neutral-100)">
+        <table style="border-collapse:separate; border-spacing:0; width:100%">
+          <thead>
+            <tr>
+              <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:left; padding:10px 12px 8px 16px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider)">Navn</th>
+              <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:left; padding:10px 12px 8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider)">E-post</th>
+              <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:left; padding:10px 12px 8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider)">Rolle</th>
+              <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); text-align:left; padding:10px 12px 8px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600; border-bottom:2px solid var(--color-divider)">Status</th>
+              <th style="position:sticky; top:0; z-index:2; background:var(--color-neutral-100); border-bottom:2px solid var(--color-divider); width:120px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{ userRows }}" as="u" hint-placeholder-count="4">
+              <tr>
+                <td style="padding:10px 12px 10px 16px; border-bottom:1px solid var(--color-neutral-300); font-weight:600">{{ u.name }}</td>
+                <td style="padding:10px 12px; border-bottom:1px solid var(--color-neutral-300); font-size:14px; color:var(--color-neutral-700)">{{ u.email }}</td>
+                <td style="padding:8px 12px; border-bottom:1px solid var(--color-neutral-300)">
+                  <div style="display:inline-flex; border:2px solid var(--color-divider)">
+                    <button onClick="{{ u.setBruker }}" style="height:26px; padding:0 10px; border:0; cursor:pointer; font-size:12px; font-weight:600; background:{{ u.brukerBg }}; color:{{ u.brukerColor }}" style-hover="background:var(--color-surface)">Bruker</button>
+                    <button onClick="{{ u.setAdmin }}" style="height:26px; padding:0 10px; border:0; cursor:pointer; font-size:12px; font-weight:600; background:{{ u.adminBg }}; color:{{ u.adminColor }}" style-hover="background:var(--color-surface)">Administrator</button>
+                  </div>
+                </td>
+                <td style="padding:10px 12px; border-bottom:1px solid var(--color-neutral-300); font-size:13px; color:{{ u.statusColor }}; white-space:nowrap">{{ u.status }}</td>
+                <td style="padding:8px 16px 8px 12px; border-bottom:1px solid var(--color-neutral-300); text-align:right; white-space:nowrap">
+                  <sc-if value="{{ u.invited }}" hint-placeholder-val="{{ false }}"><button onClick="{{ u.resend }}" style="height:28px; padding:0 10px; border:0; background:transparent; cursor:pointer; font-size:12px; font-weight:600; color:var(--color-text)" style-hover="background:var(--color-surface)">Send igjen</button></sc-if>
+                  <sc-if value="{{ u.removable }}" hint-placeholder-val="{{ true }}"><button onClick="{{ u.remove }}" style="height:28px; padding:0 10px; border:0; background:transparent; cursor:pointer; font-size:12px; font-weight:600; color:var(--color-accent-700)" style-hover="background:var(--color-accent-100)">Fjern</button></sc-if>
+                  <sc-if value="{{ u.isMe }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px; color:var(--color-neutral-500)">deg</span></sc-if>
+                </td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+    </sc-if>
+  </main>
+
+  <sc-if value="{{ giverOpen }}" hint-placeholder-val="{{ false }}">
+    <aside tabIndex="-1" onKeyDown="{{ escKey }}" ref="{{ asideRef }}" style="position:absolute; top:0; right:0; bottom:0; outline:none; width:400px; max-width:calc(100% - 32px); background:var(--color-neutral-100); border-left:2px solid var(--color-divider); box-shadow:var(--shadow-lg); padding:24px 26px; overflow:auto; z-index:20; animation:panelIn .18s ease-out; display:flex; flex-direction:column; gap:18px">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px">
+        <div style="min-width:0; flex:1">
+          <div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Giver</div>
+          <input value="{{ p.name }}" onChange="{{ p.onName }}" onBlur="{{ flashNow }}" placeholder="Navn" style="width:100%; min-width:0; height:38px; padding:0 8px; margin:2px 0 0 -8px; border:2px solid transparent; background:transparent; font-family:var(--font-heading); font-weight:800; font-size:22px; color:var(--color-text)" style-hover="border-color:var(--color-neutral-400)" style-focus="border-color:var(--color-accent); background:var(--color-neutral-100)">
+        </div>
+        <button onClick="{{ closePanel }}" title="Lukk" style="width:32px; height:32px; border:0; background:transparent; cursor:pointer; color:var(--color-neutral-700); display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto" style-hover="background:var(--color-surface); color:var(--color-text)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></button>
+      </div>
+      <label style="display:flex; flex-direction:column; gap:4px"><span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Kontaktinfo og notat</span><textarea value="{{ p.contact }}" onChange="{{ p.onContact }}" onBlur="{{ flashNow }}" rows="4" placeholder="Kontaktperson, e-post, telefon, søknadsfrister …" style="width:100%; padding:8px 10px; border:2px solid var(--color-divider); background:var(--color-neutral-100); font-size:14px; line-height:1.45; color:var(--color-text); resize:vertical" style-focus="border-color:var(--color-accent)"></textarea></label>
+      <div style="display:flex; flex-direction:column; gap:8px; padding:14px; border:2px solid var(--color-divider)">
+        <button onClick="{{ p.toggleMva }}" style="display:flex; align-items:center; gap:10px; padding:0; border:0; background:transparent; cursor:pointer; font-size:14px; font-weight:600; color:var(--color-text); text-align:left"><span style="width:18px; height:18px; flex:0 0 auto; border:2px solid var(--color-text); display:inline-flex; align-items:center; justify-content:center; background:{{ p.mvaBoxBg }}"><sc-if value="{{ p.mvaOn }}" hint-placeholder-val="{{ true }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-100)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></sc-if></span>Trekk ut momskompensasjon</button>
+        <sc-if value="{{ p.mvaOn }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex; align-items:center; gap:10px; padding-left:28px"><span style="font-size:13px; color:var(--color-neutral-700)">Standardprosent</span><input value="{{ p.mvaPct }}" onChange="{{ p.onMvaPct }}" onBlur="{{ flashNow }}" inputMode="numeric" style="width:64px; height:32px; padding:0 8px; border:2px solid var(--color-divider); background:var(--color-neutral-100); font-size:15px; font-weight:600; color:var(--color-text); text-align:right" style-focus="border-color:var(--color-accent)"><span>%</span></div>
+          <div style="padding-left:28px; font-size:12px; color:var(--color-neutral-600)">Eksempel: en vare til 1 000 kr dekkes med {{ p.example }} kr fra giveren; resten dekkes av momskompensasjonen året etter. Kan justeres per søknad.</div>
+        </sc-if>
+        <sc-if value="{{ p.mvaOff }}" hint-placeholder-val="{{ false }}"><div style="padding-left:28px; font-size:12px; color:var(--color-neutral-600)">Søknader til denne giveren viser ingen ekstra kolonner.</div></sc-if>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px">
+        <span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Søknader</span>
+        <div style="display:flex; flex-direction:column; border:2px solid var(--color-divider)">
+          <sc-for list="{{ p.apps }}" as="a" hint-placeholder-count="2">
+            <a href="Søknad.dc.html" style="display:flex; align-items:center; gap:10px; padding:9px 10px; border-bottom:1px solid var(--color-neutral-300); color:var(--color-text); text-decoration:none; font-size:13px" style-hover="background:var(--color-surface)"><span style="flex:1; min-width:0; font-weight:600">{{ a.title }}</span><span style="color:var(--color-neutral-600); white-space:nowrap">{{ a.status }}</span></a>
+          </sc-for>
+          <sc-if value="{{ p.noApps }}" hint-placeholder-val="{{ false }}"><div style="padding:10px; font-size:13px; color:var(--color-neutral-600)">Ingen søknader enda.</div></sc-if>
+        </div>
+      </div>
+      <div style="margin-top:auto; display:flex; justify-content:flex-end"><sc-if value="{{ p.noApps }}" hint-placeholder-val="{{ false }}"><button onClick="{{ p.remove }}" style="height:28px; padding:0 10px; border:0; background:transparent; cursor:pointer; font-size:12px; font-weight:600; color:var(--color-accent-700)" style-hover="background:var(--color-accent-100)">Slett giver</button></sc-if></div>
+    </aside>
+  </sc-if>
+
+  <sc-if value="{{ inviteOpen }}" hint-placeholder-val="{{ false }}">
+    <aside tabIndex="-1" onKeyDown="{{ escKey }}" ref="{{ asideRef }}" style="position:absolute; top:0; right:0; bottom:0; outline:none; width:400px; max-width:calc(100% - 32px); background:var(--color-neutral-100); border-left:2px solid var(--color-divider); box-shadow:var(--shadow-lg); padding:24px 26px; overflow:auto; z-index:20; animation:panelIn .18s ease-out; display:flex; flex-direction:column; gap:18px">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px">
+        <div><h2 style="font-family:var(--font-heading); font-weight:800; font-size:22px; margin:0; line-height:1.15">Inviter bruker</h2><div style="color:var(--color-neutral-700); font-size:14px; margin-top:4px">Brukeren får en e-post med lenke for å logge inn.</div></div>
+        <button onClick="{{ closePanel }}" title="Lukk" style="width:32px; height:32px; border:0; background:transparent; cursor:pointer; color:var(--color-neutral-700); display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto" style-hover="background:var(--color-surface); color:var(--color-text)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></button>
+      </div>
+      <label style="display:flex; flex-direction:column; gap:4px"><span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">E-post</span><input value="{{ inv.email }}" onChange="{{ inv.onEmail }}" placeholder="navn@korpset.no" inputMode="email" style="width:100%; min-width:0; height:36px; padding:0 10px; border:2px solid var(--color-divider); background:var(--color-neutral-100); font-size:15px; color:var(--color-text)" style-focus="border-color:var(--color-accent)"></label>
+      <div style="display:flex; flex-direction:column; gap:4px"><span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Rolle</span>
+        <div style="display:flex; border:2px solid var(--color-divider)">
+          <button onClick="{{ inv.setBruker }}" style="flex:1; height:32px; border:0; cursor:pointer; font-size:13px; font-weight:600; background:{{ inv.brukerBg }}; color:{{ inv.brukerColor }}" style-hover="background:var(--color-surface)">Bruker</button>
+          <button onClick="{{ inv.setAdmin }}" style="flex:1; height:32px; border:0; cursor:pointer; font-size:13px; font-weight:600; background:{{ inv.adminBg }}; color:{{ inv.adminColor }}" style-hover="background:var(--color-surface)">Administrator</button>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px">
+        <button onClick="{{ inv.send }}" disabled="{{ inv.disabled }}" style="flex:0 0 auto; white-space:nowrap; height:36px; padding:0 16px; border:0; background:var(--color-accent); color:var(--color-neutral-100); cursor:{{ inv.cursor }}; opacity:{{ inv.opacity }}; font-size:14px; font-weight:600" style-hover="background:var(--color-accent-600)">Send invitasjon</button>
+        <span style="min-width:0; font-size:12px; color:var(--color-neutral-600)">{{ inv.hint }}</span>
+      </div>
+    </aside>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    section: 'givere', panel: null, save: null, lastSaved: null, invite: { email: '', role: 'Bruker' },
+    givere: [
+      { id: 'g1', name: 'Sparebankstiftelsen Nord', contact: 'Søknadsportal på nett. Frister 15. mars og 15. september.\nKontakt: Nina Hauge, nina@sbnord.no', mva: true, mvaPct: 8 },
+      { id: 'g2', name: 'Kulturrådet', contact: 'Instrumentfondet. Frist 1. juni.', mva: false, mvaPct: 8 },
+      { id: 'g3', name: 'Gjensidigestiftelsen', contact: 'Løpende søknader. Krever revisjonsrapport ved avslutning.', mva: true, mvaPct: 8 },
+      { id: 'g4', name: 'Kommunen – kulturmidler', contact: 'Kultursjef Ole Vik, ole.vik@kommune.no', mva: false, mvaPct: 8 },
+    ],
+    apps: [
+      { gid: 'g1', title: 'Instrumenter til aspirantkorpset 2026', status: 'Innvilget' }, { gid: 'g1', title: 'Slagverk 2025', status: 'Avsluttet' },
+      { gid: 'g2', title: 'Klarinetter og kornetter', status: 'Sendt' }, { gid: 'g2', title: 'Nye noter og arrangementer', status: 'Avslått' },
+      { gid: 'g3', title: 'Uniformer 2026', status: 'Innvilget' }, { gid: 'g4', title: 'Seminarhelg høsten 2026', status: 'Utkast' },
+    ],
+    users: [
+      { id: 'u1', name: 'Kari Nordmann', email: 'kari@korpset.no', role: 'Administrator', status: 'Aktiv', me: true },
+      { id: 'u2', name: 'Per Hansen', email: 'per@korpset.no', role: 'Bruker', status: 'Aktiv' },
+      { id: 'u3', name: 'Anne Lie', email: 'anne@korpset.no', role: 'Bruker', status: 'Aktiv' },
+      { id: 'u4', name: '', email: 'kasserer@korpset.no', role: 'Bruker', status: 'Invitert 20. september' },
+    ],
+  };
+  num(v) { const n = parseInt(String(v).replace(/\D/g, ''), 10); return isNaN(n) ? 0 : n; }
+  flash() {
+    clearTimeout(this._t1); clearTimeout(this._t2);
+    this.setState({ save: 'saving' });
+    this._t1 = setTimeout(() => { this.setState({ save: 'saved', lastSaved: new Date() }); this._t2 = setTimeout(() => this.setState({ save: null }), 2000); }, 350);
+  }
+  componentDidMount() { this._esc = e => { if (e.key === 'Escape') this.setState({ panel: null }); }; document.addEventListener('keydown', this._esc, true); window.addEventListener('keydown', this._esc, true); }
+  componentWillUnmount() { document.removeEventListener('keydown', this._esc, true); window.removeEventListener('keydown', this._esc, true); clearTimeout(this._t1); clearTimeout(this._t2); }
+  updGiver(id, patch) { this.setState(s => ({ givere: s.givere.map(g => g.id === id ? { ...g, ...patch } : g) })); }
+  updUser(id, patch) { this.setState(s => ({ users: s.users.map(u => u.id === id ? { ...u, ...patch } : u) })); }
+
+  renderVals() {
+    const S = this.state, on = ['var(--color-text)', 'var(--color-neutral-100)'], off = ['transparent', 'var(--color-text)'];
+    const sections = [['givere', `Givere (${S.givere.length})`], ['brukere', `Brukere (${S.users.length})`]].map(([id, label]) => ({ label, bg: S.section === id ? on[0] : off[0], color: S.section === id ? on[1] : off[1], onClick: () => this.setState({ section: id, panel: null }) }));
+    const giverRows = S.givere.map(g => {
+      const n = S.apps.filter(a => a.gid === g.id).length;
+      return { name: g.name || 'Uten navn', contact: (g.contact || '–').split('\n')[0], apps: String(n),
+        mvaLabel: g.mva ? `Trekkes ut, ${g.mvaPct} %` : 'Nei', tagBg: g.mva ? 'var(--color-text)' : 'var(--color-neutral-300)', tagColor: g.mva ? 'var(--color-neutral-100)' : 'var(--color-text)',
+        bg: S.panel && S.panel.type === 'giver' && S.panel.id === g.id ? 'var(--color-surface)' : 'transparent',
+        open: () => this.setState({ panel: { type: 'giver', id: g.id } }) };
+    });
+    const userRows = S.users.map(u => {
+      const invited = u.status.startsWith('Invitert'), admin = u.role === 'Administrator';
+      return { name: u.name || '–', email: u.email, status: u.status, statusColor: invited ? 'var(--color-accent-700)' : 'var(--color-neutral-700)', invited, isMe: !!u.me, removable: !u.me,
+        brukerBg: admin ? off[0] : on[0], brukerColor: admin ? off[1] : on[1], adminBg: admin ? on[0] : off[0], adminColor: admin ? on[1] : off[1],
+        setBruker: () => { if (u.me) return; this.updUser(u.id, { role: 'Bruker' }); this.flash(); }, setAdmin: () => { this.updUser(u.id, { role: 'Administrator' }); this.flash(); },
+        resend: () => { this.updUser(u.id, { status: 'Invitert i dag' }); this.flash(); },
+        remove: () => { this.setState(s => ({ users: s.users.filter(x => x.id !== u.id) })); this.flash(); } };
+    });
+    let p = { apps: [] };
+    const g = S.panel && S.panel.type === 'giver' ? S.givere.find(x => x.id === S.panel.id) : null;
+    if (g) {
+      const apps = S.apps.filter(a => a.gid === g.id);
+      p = { name: g.name, contact: g.contact, mvaOn: g.mva, mvaOff: !g.mva, mvaPct: String(g.mvaPct), mvaBoxBg: g.mva ? 'var(--color-text)' : 'transparent', example: String(Math.round(1000 * (100 - g.mvaPct) / 100)),
+        apps: apps.map(a => ({ title: a.title, status: a.status })), noApps: !apps.length,
+        onName: e => this.updGiver(g.id, { name: e.target.value }), onContact: e => this.updGiver(g.id, { contact: e.target.value }),
+        toggleMva: () => { this.updGiver(g.id, { mva: !g.mva }); this.flash(); }, onMvaPct: e => this.updGiver(g.id, { mvaPct: Math.min(100, this.num(e.target.value)) }),
+        remove: () => { this.setState(s => ({ givere: s.givere.filter(x => x.id !== g.id), panel: null })); this.flash(); } };
+    }
+    const I = S.invite, ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(I.email), adm = I.role === 'Administrator';
+    const inv = { email: I.email, disabled: !ok, cursor: ok ? 'pointer' : 'default', opacity: ok ? 1 : 0.45, hint: ok ? `Inviteres som ${I.role.toLowerCase()}.` : 'Skriv inn en gyldig e-postadresse.',
+      brukerBg: adm ? off[0] : on[0], brukerColor: adm ? off[1] : on[1], adminBg: adm ? on[0] : off[0], adminColor: adm ? on[1] : off[1],
+      onEmail: e => this.setState(s => ({ invite: { ...s.invite, email: e.target.value } })),
+      setBruker: () => this.setState(s => ({ invite: { ...s.invite, role: 'Bruker' } })), setAdmin: () => this.setState(s => ({ invite: { ...s.invite, role: 'Administrator' } })),
+      send: () => { if (!ok) return; this.setState(s => ({ users: [...s.users, { id: 'u' + Date.now(), name: '', email: I.email.trim(), role: I.role, status: 'Invitert i dag' }], invite: { email: '', role: 'Bruker' }, panel: null })); this.flash(); } };
+    return {
+      sections, giverRows, userRows, p, inv,
+      isGivere: S.section === 'givere', isBrukere: S.section === 'brukere',
+      giverOpen: !!g, inviteOpen: !!(S.panel && S.panel.type === 'invite'),
+      closePanel: () => this.setState({ panel: null }), escKey: e => { if (e.key === 'Escape') { e.stopPropagation(); this.setState({ panel: null }); } }, asideRef: el => { if (el && !el.contains(document.activeElement)) el.focus(); }, flashNow: () => this.flash(),
+      addGiver: () => { const id = 'g' + Date.now(); this.setState(s => ({ givere: [...s.givere, { id, name: '', contact: '', mva: false, mvaPct: 8 }], panel: { type: 'giver', id } })); this.flash(); },
+      openInvite: () => this.setState({ panel: { type: 'invite' } }),
+      saveIdle: !S.save, lastSavedLabel: S.lastSaved ? `Alle endringer lagret kl. ${S.lastSaved.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })}` : 'Alle endringer lagres automatisk',
+      saveSaving: S.save === 'saving', saveSaved: S.save === 'saved',
+    };
+  }
+}
+</script>
+</body>
+</html>

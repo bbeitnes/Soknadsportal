@@ -1,0 +1,75 @@
+rules_version = '2';
+// Søknadsportal — gjelder BEGGE de navngitte databasene «soknadsportal» (prod)
+// og «soknadsportal-test». Limes inn som HELE filen i Firebase Console →
+// Firestore → (velg database) → Rules. Databasene deles ikke med KorpsApp
+// eller Bestillingsportal, så ingen andre regler skal flettes inn her.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function innlogget() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function epost() {
+      return request.auth.token.email.lower();
+    }
+
+    function minRad() {
+      return /databases/$(database)/documents/brukere/$(epost());
+    }
+
+    // Tilgang = e-posten ligger i brukere (invitert eller aktiv).
+    function erMedlem() {
+      return innlogget() && exists(minRad());
+    }
+
+    function erAdmin() {
+      return erMedlem() && get(minRad()).data.rolle == 'administrator';
+    }
+
+    function riktigOrg() {
+      return request.resource.data.organisasjonId == 'skiens-skolemusikk';
+    }
+
+    // organisasjonId kan ikke endres etter at dokumentet er opprettet.
+    function orgUendret() {
+      return request.resource.data.organisasjonId == resource.data.organisasjonId;
+    }
+
+    // Dokument-ID er e-postadressen med små bokstaver.
+    match /brukere/{id} {
+      // Egen rad kan alltid leses — også når den ikke finnes, så appen
+      // kan svare «ingen tilgang» i stedet for en tilgangsfeil.
+      allow read: if erMedlem() || (innlogget() && id == epost());
+      // Første innlogging: en invitert bruker gjør seg selv aktiv og kan
+      // sette navnet sitt. Rolle og alt annet kan bare administrator endre.
+      allow update: if erAdmin()
+        || (innlogget() && id == epost()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'navn'])
+            && request.resource.data.status == 'aktiv');
+      allow create: if erAdmin() && riktigOrg();
+      allow delete: if erAdmin() && id != epost();
+    }
+
+    match /givere/{id} {
+      allow read: if erMedlem();
+      allow create: if erAdmin() && riktigOrg();
+      allow update: if erAdmin() && orgUendret();
+      allow delete: if erAdmin();
+    }
+
+    match /behov/{id} {
+      allow read: if erMedlem();
+      allow create: if erMedlem() && riktigOrg();
+      allow update: if erMedlem() && orgUendret();
+      allow delete: if erMedlem();
+    }
+
+    match /soknader/{id} {
+      allow read: if erMedlem();
+      allow create: if erMedlem() && riktigOrg();
+      allow update: if erMedlem() && orgUendret();
+      allow delete: if erMedlem();
+    }
+  }
+}

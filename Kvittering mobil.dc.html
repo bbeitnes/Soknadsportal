@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/modernist-0b23ad56-9b66-4ca9-9c86-e99fef79c546/styles.css">
+<script src="_ds/modernist-0b23ad56-9b66-4ca9-9c86-e99fef79c546/_ds_bundle.js"></script>
+<style>
+  html, body { margin:0; background:var(--color-surface); color:var(--color-text); }
+  body { font-family: var(--font-body); }
+  * { box-sizing: border-box; }
+  a { color:var(--color-accent-700); }
+  a:hover { color:var(--color-accent); }
+</style>
+</helmet>
+<div data-screen-label="Kvittering mobil" style="padding:48px 56px; display:flex; flex-direction:column; gap:28px; background:var(--color-surface); min-height:100vh">
+  <div>
+    <h1 style="font-family:var(--font-heading); font-weight:800; font-size:30px; line-height:1.1; margin:0; letter-spacing:-0.015em">Kvittering fra mobil</h1>
+    <div style="margin-top:6px; color:var(--color-neutral-700); font-size:14px; max-width:720px">Rask vei for å få kvitteringen inn i riktig søknad: velg søknad → ta bilde → beløp og fakturanummer → ferdig. Kobling til tilbudslinjer og utgifter gjøres på PC under Revisjon.</div>
+  </div>
+
+  <div style="display:flex; gap:40px; flex-wrap:wrap; align-items:flex-start">
+
+    <div style="display:flex; flex-direction:column; gap:12px">
+      <div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">1 · Velg søknad</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%; display:flex; flex-direction:column; background:var(--color-bg); color:var(--color-text); font-family:var(--font-body); padding-top:62px">
+          <div style="padding:8px 20px 14px; border-bottom:2px solid var(--color-divider)">
+            <div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Søknadsportal</div>
+            <div style="font-family:var(--font-heading); font-weight:800; font-size:26px; line-height:1.1; margin-top:2px">Ny kvittering</div>
+          </div>
+          <div style="padding:14px 20px 6px; font-size:14px; color:var(--color-neutral-700)">Hvilken søknad gjelder den?</div>
+          <div style="display:flex; flex-direction:column">
+            <div style="display:flex; align-items:center; gap:12px; padding:14px 20px; border-bottom:1px solid var(--color-neutral-300); background:var(--color-neutral-100)">
+              <div style="flex:1; min-width:0"><div style="font-weight:600; font-size:16px">Instrumenter til aspirantkorpset 2026</div><div style="font-size:13px; color:var(--color-neutral-700)">Sparebankstiftelsen Nord · gjenstår 10 576</div></div>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; padding:14px 20px; border-bottom:1px solid var(--color-neutral-300)">
+              <div style="flex:1; min-width:0"><div style="font-weight:600; font-size:16px">Uniformer 2026</div><div style="font-size:13px; color:var(--color-neutral-700)">Gjensidigestiftelsen · gjenstår −300</div></div>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
+            </div>
+          </div>
+          <div style="padding:16px 20px; font-size:13px; color:var(--color-neutral-600)">Bare innvilgede søknader vises.</div>
+        </div>
+      </x-import>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:12px">
+      <div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">2 · Ta bilde</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+        <div style="height:100%; display:flex; flex-direction:column; background:#111; color:#fff; font-family:var(--font-body); padding-top:62px">
+          <div style="padding:8px 20px 12px; display:flex; justify-content:space-between; align-items:center">
+            <span style="font-size:15px; color:rgba(255,255,255,0.7)">Avbryt</span>
+            <span style="font-size:15px; font-weight:600">Instrumenter til aspirantkorpset 2026</span>
+            <span style="width:48px"></span>
+          </div>
+          <div style="flex:1; margin:0 0 24px; background:repeating-linear-gradient(135deg, #1c1c1c 0 12px, #232323 12px 24px); display:flex; align-items:center; justify-content:center; text-align:center; color:rgba(255,255,255,0.55); font-family:ui-monospace, Menlo, monospace; font-size:13px; padding:20px">kamerabilde<br>kvittering eller faktura</div>
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:0 40px 70px">
+            <div style="width:56px; height:56px; border:2px solid rgba(255,255,255,0.4); display:flex; align-items:center; justify-content:center; font-size:11px; color:rgba(255,255,255,0.7); text-align:center; line-height:1.2">Fra bilder</div>
+            <div style="width:78px; height:78px; border-radius:999px; border:4px solid #fff; display:flex; align-items:center; justify-content:center"><div style="width:62px; height:62px; border-radius:999px; background:#fff"></div></div>
+            <div style="width:56px; height:56px; border:2px solid rgba(255,255,255,0.4); display:flex; align-items:center; justify-content:center; font-size:11px; color:rgba(255,255,255,0.7); text-align:center; line-height:1.2">PDF fra filer</div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:12px">
+      <div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">3 · Beløp og fakturanummer</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" keyboard="{{ true }}" hint-size="402px,874px">
+        <div style="height:100%; display:flex; flex-direction:column; background:var(--color-bg); color:var(--color-text); font-family:var(--font-body); padding-top:62px">
+          <div style="padding:8px 20px 14px; border-bottom:2px solid var(--color-divider); display:flex; align-items:center; gap:14px">
+            <div style="width:54px; height:72px; flex:0 0 auto; background:repeating-linear-gradient(135deg, var(--color-neutral-300) 0 6px, var(--color-neutral-200) 6px 12px); border:2px solid var(--color-divider)"></div>
+            <div style="min-width:0"><div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Kvittering til</div><div style="font-weight:600; font-size:15px; line-height:1.25">Instrumenter til aspirantkorpset 2026</div><div style="font-size:13px; color:var(--color-accent-700); margin-top:2px">Ta bildet på nytt</div></div>
+          </div>
+          <div style="padding:18px 20px 0; display:flex; flex-direction:column; gap:16px">
+            <div style="display:flex; flex-direction:column; gap:4px">
+              <span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Beløp</span>
+              <div style="display:flex; align-items:baseline; gap:8px; border:2px solid var(--color-accent); background:var(--color-neutral-100); padding:8px 14px"><span style="font-family:var(--font-heading); font-weight:800; font-size:34px; line-height:1.1; font-variant-numeric:tabular-nums">2 490</span><span style="font-size:16px; color:var(--color-neutral-600)">kr</span></div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px">
+              <span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">Fakturanummer</span>
+              <div style="border:2px solid var(--color-divider); background:var(--color-neutral-100); padding:10px 14px; font-size:17px; color:var(--color-neutral-500)">Valgfritt</div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--color-neutral-700)"><span>Leverandør og kobling gjøres på PC.</span></div>
+            <div style="display:flex; align-items:center; justify-content:flex-start; padding:12px 16px; background:var(--color-accent); color:var(--color-neutral-100); font-weight:600; font-size:16px">Legg inn kvittering</div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:12px">
+      <div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); font-weight:600">4 · Ferdig</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%; display:flex; flex-direction:column; background:var(--color-bg); color:var(--color-text); font-family:var(--font-body); padding:62px 20px 0">
+          <div style="flex:1; display:flex; flex-direction:column; justify-content:center; gap:18px">
+            <div style="width:56px; height:56px; background:var(--color-text); display:flex; align-items:center; justify-content:center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-100)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></div>
+            <div style="font-family:var(--font-heading); font-weight:800; font-size:28px; line-height:1.1">Kvittering 4 er lagt inn</div>
+            <div style="font-size:15px; color:var(--color-neutral-700); line-height:1.45">2 490 kr på <span style="color:var(--color-text); font-weight:600">Instrumenter til aspirantkorpset 2026</span>. Den ligger nå under Revisjon som «ikke koblet», klar til å kobles mot linjer eller utgifter på PC.</div>
+            <div style="border-top:2px solid var(--color-divider); padding-top:14px; font-size:13px; color:var(--color-neutral-600)">Lagt inn av Kari, i dag 16:12</div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:10px; padding-bottom:56px">
+            <div style="display:flex; align-items:center; padding:14px 16px; background:var(--color-accent); color:var(--color-neutral-100); font-weight:600; font-size:16px">Ny kvittering til samme søknad</div>
+            <div style="display:flex; align-items:center; padding:14px 16px; border:2px solid var(--color-divider); font-weight:600; font-size:16px">Ferdig</div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

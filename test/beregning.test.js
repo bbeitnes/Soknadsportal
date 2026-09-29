@@ -1,0 +1,113 @@
+// Kjøres med: node --test test/
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { kr, tolkTall, tolkDato, datoFelt, tidspunkt, fornavn } from '../app/ui/format.js';
+import {
+  linjeliste, sumEstimert, soktBelop, behovsinfo, velgbareBehov, SOKNADSFILTRE, nesteRekkefolge,
+} from '../app/data/beregning.js';
+
+test('kr bruker hardt mellomrom som tusenskille', () => {
+  assert.equal(kr(12000), '12 000');
+  assert.equal(kr(1234567), '1 234 567');
+  assert.equal(kr(0), '0');
+  assert.equal(kr(-1500), '−1 500');
+  assert.equal(kr(999.6), '1 000');
+});
+
+test('tolkTall tåler tusenskille og kr', () => {
+  assert.equal(tolkTall('12 000'), 12000);
+  assert.equal(tolkTall('12 000 kr'), 12000);
+  assert.equal(tolkTall(''), null);
+  assert.ok(Number.isNaN(tolkTall('abc')));
+  assert.ok(Number.isNaN(tolkTall('-5')));
+});
+
+test('tolkDato godtar norske formater', () => {
+  assert.equal(tolkDato('15.03.2026'), '2026-03-15');
+  assert.equal(tolkDato('15.3.26'), '2026-03-15');
+  assert.equal(tolkDato('2026-03-15'), '2026-03-15');
+  assert.equal(tolkDato(''), null);
+  assert.ok(Number.isNaN(tolkDato('31.02.2026')));
+  assert.ok(Number.isNaN(tolkDato('i morgen')));
+  assert.equal(datoFelt('2026-03-15'), '15.03.2026');
+});
+
+test('tidspunkt viser i dag / i går / dato', () => {
+  const naa = new Date(2026, 8, 29, 15, 0).getTime();
+  assert.equal(tidspunkt(new Date(2026, 8, 29, 14, 2).getTime(), naa), 'i dag 14:02');
+  assert.equal(tidspunkt(new Date(2026, 8, 28, 9, 5).getTime(), naa), 'i går 09:05');
+  assert.equal(tidspunkt(new Date(2026, 5, 12).getTime(), naa), '12. juni');
+  assert.equal(tidspunkt(new Date(2025, 11, 3).getTime(), naa), '3. desember 2025');
+  assert.equal(fornavn('Kari Nordmann', 'k@x.no'), 'Kari');
+  assert.equal(fornavn('', 'kasserer@korpset.no'), 'kasserer');
+});
+
+const soknad = (id, status, linjer, ekstra = {}) => ({ id, status, linjer, ...ekstra });
+
+test('linjer sorteres og summeres', () => {
+  const s = soknad('s1', 'utkast', {
+    b: { tittel: 'B', antall: 2, estPris: 1000, rekkefolge: 2 },
+    a: { tittel: 'A', antall: 4, estPris: 8500, rekkefolge: 1 },
+  });
+  assert.deepEqual(linjeliste(s).map(l => l.id), ['a', 'b']);
+  assert.equal(sumEstimert(s), 36000);
+  assert.equal(soktBelop(s), 36000);
+  assert.equal(soktBelop({ ...s, soktOverstyrt: 30000 }), 30000);
+  assert.equal(soktBelop({ ...s, soktOverstyrt: 0 }), 0);
+  assert.equal(nesteRekkefolge(s), 3);
+  assert.equal(nesteRekkefolge({}), 1);
+});
+
+test('behovsstatus følger søknadene', () => {
+  const behov = { id: 'k', antall: 6, estPris: 8500 };
+  assert.equal(behovsinfo(behov, []).status, 'Ikke søkt');
+  assert.equal(behovsinfo(behov, []).gjenstarKr, 51000);
+
+  const sendt = soknad('s1', 'sendt', { l: { behovId: 'k', antall: 4, finansieres: true } });
+  const info = behovsinfo(behov, [sendt]);
+  assert.equal(info.status, 'Søkt'); // finansieres teller først når søknaden er innvilget
+  assert.equal(info.iSoknader, 4);
+
+  const innvilget = { ...sendt, status: 'innvilget' };
+  assert.equal(behovsinfo(behov, [innvilget]).status, 'Finansiert');
+
+  const avslatt = soknad('s2', 'avslatt', { l: { behovId: 'k', antall: 6 } });
+  const iAvslatt = behovsinfo(behov, [avslatt]);
+  assert.equal(iAvslatt.status, 'Ikke søkt');
+  assert.equal(iAvslatt.iSoknader, 0);
+  assert.equal(iAvslatt.bruk.length, 1); // vises fortsatt
+});
+
+test('anskaffet og overstyring', () => {
+  const behov = { id: 'k', antall: 6, estPris: 100 };
+  assert.equal(behovsinfo(behov, [], 4).status, 'Delvis anskaffet');
+  assert.equal(behovsinfo(behov, [], 4).gjenstar, 2);
+  const ferdig = behovsinfo(behov, [], 6);
+  assert.equal(ferdig.status, 'Anskaffet');
+  assert.equal(ferdig.erApent, false);
+
+  const trengsIkke = behovsinfo({ ...behov, statusOverstyring: 'trengs-ikke' }, []);
+  assert.equal(trengsIkke.status, 'Trengs ikke');
+  assert.equal(trengsIkke.autostatus, 'Ikke søkt');
+  assert.equal(trengsIkke.erApent, false);
+});
+
+test('velgbare behov: åpne og ikke allerede i søknaden', () => {
+  const behov = [
+    { id: 'a', antall: 2, estPris: 1 },
+    { id: 'b', antall: 1, estPris: 1 },
+    { id: 'c', antall: 1, estPris: 1, statusOverstyring: 'trengs-ikke' },
+  ];
+  const s = soknad('s1', 'utkast', { l: { behovId: 'a', antall: 2 } });
+  assert.deepEqual(velgbareBehov(behov, [s], s).map(x => x.behov.id), ['b']);
+});
+
+test('søknadsfiltre', () => {
+  const alle = ['utkast', 'sendt', 'innvilget', 'avslatt', 'avsluttet'].map(status => ({ status }));
+  const tell = f => alle.filter(SOKNADSFILTRE[f]).length;
+  assert.equal(tell('aktive'), 3);
+  assert.equal(tell('innvilget'), 1);
+  assert.equal(tell('venter'), 2);
+  assert.equal(tell('lukket'), 2);
+  assert.equal(tell('alle'), 5);
+});

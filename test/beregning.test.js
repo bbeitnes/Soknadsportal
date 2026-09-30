@@ -510,3 +510,11 @@ test('delt linje: to innkjøpslinjer fra samme søknadslinje, hver sin leverand�
   assert.equal(anskaffetPerBehov([s], [i], []).get('kornett'), 4);
   assert.deepEqual(ikkeFordelte(s, [i]), []);
 });
+
+test('linjer uten valgt leverandør er ikke poster, men listes for seg', async () => {
+  const { linjerUtenValg, revisjonsposter } = await import('../app/data/beregning.js');
+  const i = { id: 'i1', linjer: { a: { antall: 1 }, b: { antall: 1 }, c: { antall: 1 } }, leverandorer: { x: {} }, priser: { a: { x: { raa: '100' } }, b: { x: { raa: '100' } } }, valgt: { a: 'x', c: 'x' } };
+  // c peker på en leverandør uten pris – da er ingenting valgt.
+  assert.deepEqual(linjerUtenValg([i]).map(x => x.linje.id), ['b', 'c']);
+  assert.deepEqual(revisjonsposter({}, [i], { tittelFor: (_, l) => l.id, levNavn: () => '' }).map(p => p.id), ['i1/a']);
+});

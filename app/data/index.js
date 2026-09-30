@@ -437,8 +437,10 @@ export function settTilbudspriser(innkjop, sid, vedleggId, rader) {
   rader.forEach((r, nr) => {
     let linjeId = r.linjeId;
     if (r.ny) {
+      // Linjen finnes bare fordi vi tar imot dette tilbudet, så prisen velges med én gang.
       linjeId = nyId('l') + nr;
       felt[`linjer.${linjeId}`] = { soknadLinjeId: null, tittel: r.ny.tittel, antall: r.ny.antall, rekkefolge: rekkefolge++ };
+      felt[`valgt.${linjeId}`] = sid;
     }
     const sti = `priser.${linjeId}.${sid}`;
     felt[`${sti}.raa`] = r.raa;

@@ -6,7 +6,7 @@ import {
 } from '../data/index.js';
 import {
   revisjonsposter, fakturaavvik, fakturaDekker, revisjonsoppsummering, pott, sumFakturert,
-  leverandorNavn, posttittel,
+  leverandorNavn, posttittel, linjerUtenValg,
 } from '../data/beregning.js';
 import { escapeHtml, kr, datoFelt, tidspunkt, fornavn } from '../ui/format.js';
 import { feltAttr } from '../ui/felt.js';
@@ -23,6 +23,15 @@ function tittelFor(s) {
     if (sl) return sl.behovId ? (tilstand.behov.find(b => b.id === sl.behovId)?.tittel || l.tittel) : sl.tittel;
     return l.tittel || 'Uten tittel';
   };
+}
+
+// Linjer i innkjøpene som ikke har fått valgt leverandør: de er ikke med i
+// postene, og nevnes så de ikke blir glemt.
+function utenValgTekst(s) {
+  const uten = linjerUtenValg(innkjopFor(s.id));
+  if (!uten.length) return '';
+  const navn = uten.map(x => tittelFor(s)(x.innkjop, x.linje));
+  return `<div class="hint" title="${escapeHtml(navn.join('\n'))}">${uten.length} ${uten.length === 1 ? 'linje' : 'linjer'} i innkjøpene har ingen valgt leverandør og er ikke med: ${escapeHtml(navn.slice(0, 3).join(', '))}${uten.length > 3 ? ' …' : ''}. Velg pris i <a href="#/soknad/${s.id}/innkjop">Innkjøp</a>.</div>`;
 }
 
 export function posterFor(s) {
@@ -69,6 +78,7 @@ function fakturaPanel(s, f, poster) {
         }).join('') || '<div class="tomt">Ingen valgte tilbudslinjer eller utgifter enda.</div>'}
       </div>
       <span class="undertekst">En faktura kan dekke flere linjer. Sjekk av det den gjelder.</span>
+      ${utenValgTekst(s)}
     </div>
     <div class="panelbunn"><span>Lagt inn av ${escapeHtml(fornavn(f.lagtInnAv?.navn, f.lagtInnAv?.epost))}, ${tidspunkt(f.tid)}</span><button type="button" class="knapp knapp-fare" data-handling="slett-faktura">Slett faktura</button></div>`, { nytt: ui.nyttPanel });
 }
@@ -124,6 +134,7 @@ export const revisjonFane = {
               }).join('') || '<tr class="tom-rad"><td colspan="3">Ingen valgte tilbudslinjer eller utgifter enda.</td></tr>'}</tbody>
             </table>
           </div>
+          ${utenValgTekst(s)}
         </div>
       </div>
       ${valgt ? fakturaPanel(s, valgt, poster) : ''}`;

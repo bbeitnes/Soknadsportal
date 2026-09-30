@@ -647,6 +647,17 @@ export function revisjonsposter(soknad, innkjopListe, { tittelFor, levNavn }) {
   return poster;
 }
 
+// Innkjøpslinjer uten valgt leverandør. De er ikke «brukt» og vises ikke i
+// revisjonen – lista sier fra om dem, så ingen linje blir glemt.
+export function linjerUtenValg(innkjopListe) {
+  const ut = [];
+  for (const i of innkjopListe) {
+    const b = innkjopsberegning(i);
+    for (const l of b.linjer) if (b.perLinje[l.id].valgtSid == null) ut.push({ innkjop: i, linje: l });
+  }
+  return ut;
+}
+
 // Nøklene i `dekker` bruker «|» der post-ID-en har «/» (Firestore-feltstier
 // kan ikke inneholde skråstrek).
 // Posttittel til lister og rapport, med alternativt produkt når det er kjøpt.

@@ -271,3 +271,13 @@ body.mobilside .meny-kvittering { display: inline-flex; }
 .liste.tett .celleinn { width: 76px; }
 .liste.tett .celleinn.antall { width: 50px; }
 .liste.tett .celleinn.tekst { width: 100%; }
+
+/* Dra og slipp for rekkefølge */
+.dra { flex: 0 0 auto; cursor: grab; color: var(--color-neutral-400); margin: 0 8px 0 -6px; padding: 2px 2px; font-size: 14px; line-height: 1; user-select: none; }
+.dra:hover { color: var(--color-text); }
+.dra:active { cursor: grabbing; }
+tr.dras { opacity: 0.35; }
+tr.slipp-over td { box-shadow: inset 0 2px 0 var(--color-accent); }
+tr.slipp-under td { box-shadow: inset 0 -2px 0 var(--color-accent); }
+.liste tr.gruppe .dra { margin-left: 0; }
+@media print { .dra { display: none; } }

@@ -285,3 +285,26 @@ test('type: arv fra behov, overstyring per søknadslinje og gruppering', async (
   assert.deepEqual(g.map(x => [x.type, x.elementer.map(e => e.n)]), [['Instrument', [3]], ['Utstyr', [1, 4]], ['', [2]]]);
   assert.deepEqual(typeliste(behov, [{ linjer: { l: { type: 'Uniform' }, m: { type: 'Instrument' } } }]), ['Instrument', 'Uniform']);
 });
+
+test('manuell rekkefølge: grupper, elementer og flytting', async () => {
+  const { grupperPerType, etterRekkefolgeOgTittel, flyttIListe, typerekkefolgeFor } = await import('../app/data/beregning.js');
+  const el = [{ t: 'Utstyr' }, { t: '' }, { t: 'Instrument' }, { t: 'Uniform' }];
+  const typer = rekkefolge => grupperPerType(el, x => x.t, rekkefolge).map(g => g.type);
+  assert.deepEqual(typer([]), ['Instrument', 'Uniform', 'Utstyr', '']);
+  assert.deepEqual(typer(['Utstyr', 'Instrument']), ['Utstyr', 'Instrument', 'Uniform', '']);
+  assert.deepEqual(typer(['', 'Uniform']), ['', 'Uniform', 'Instrument', 'Utstyr']);
+
+  const behov = [{ tittel: 'Tuba' }, { tittel: 'Kornett', rekkefolge: 2 }, { tittel: 'Althorn' }, { tittel: 'Baryton', rekkefolge: 1 }];
+  assert.deepEqual([...behov].sort(etterRekkefolgeOgTittel).map(b => b.tittel), ['Baryton', 'Kornett', 'Althorn', 'Tuba']);
+
+  const l = ['a', 'b', 'c', 'd'];
+  assert.deepEqual(flyttIListe(l, 'd', 'b', 'for'), ['a', 'd', 'b', 'c']);
+  assert.deepEqual(flyttIListe(l, 'a', 'c', 'etter'), ['b', 'c', 'a', 'd']);
+  assert.deepEqual(flyttIListe(l, 'c', null), ['c', 'a', 'b', 'd']);
+  assert.deepEqual(flyttIListe(l, 'b', 'b', 'etter'), l);
+  assert.deepEqual(flyttIListe(l, 'x', 'b', 'etter'), ['a', 'b', 'x', 'c', 'd']);
+  assert.deepEqual(l, ['a', 'b', 'c', 'd']); // originalen er urørt
+
+  assert.deepEqual(typerekkefolgeFor({ typeRekkefolge: ['Uniform'] }, ['Instrument', 'Uniform', 'Utstyr']), ['Uniform', 'Instrument', 'Utstyr']);
+  assert.deepEqual(typerekkefolgeFor({}, ['A']), ['A']);
+});

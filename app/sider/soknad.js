@@ -5,11 +5,12 @@ import {
   tilstand, oppdaterSoknad, oppdaterLinje, leggBehovISoknad, leggFriLinjeISoknad, fjernLinje,
   lastOppDokument, slettDokument, dokumentUrl, slettSoknad, innkjopFor,
   leggTilUtgift, oppdaterUtgift, fjernUtgift,
+  fellesTyperekkefolge, settLinjerekkefolge, settSoknadTyperekkefolge,
 } from '../data/index.js';
 import {
   SOKNADSSTATUSER, statusNavn, linjeliste, linjekostnad, sumEstimert, soktBelop, soktForslag, velgbareBehov,
   pott, giverandel, momsProsent, utgiftsliste, sumUtgifter, sumFakturert,
-  linjetype, grupperPerType, typeliste,
+  linjetype, grupperPerType, typeliste, flyttIListe, typerekkefolgeFor,
 } from '../data/beregning.js';
 import { escapeHtml, kr, datoFelt, tidspunkt, fornavn, tolkTall, tolkDato } from '../ui/format.js';
 import { feltAttr } from '../ui/felt.js';
@@ -110,10 +111,10 @@ function behovstabell(s) {
     const kostnad = linjekostnad(l), fraGiver = giverandel(kostnad, prosent);
     const arvet = (b?.type || '').trim();
     return `
-      <tr>
-        <td>${l.behovId
+      <tr data-slippmal="linje:${l.id}">
+        <td><div style="display:flex; align-items:center"><span class="dra" draggable="true" data-dra="linje:${l.id}" title="Dra for å endre rekkefølge, eller flytt til en annen type">⠿</span><div style="min-width:0; flex:1">${l.behovId
           ? `<span class="fet">${escapeHtml(linjetittel(l))}</span>${b?.beskrivelse ? `<div class="celleunder">${escapeHtml(b.beskrivelse)}</div>` : ''}`
-          : `<input class="celleinn tekst" ${feltAttr(n(l, 'tittel'), l.tittel)} placeholder="Beskriv linjen">`}</td>
+          : `<input class="celleinn tekst" ${feltAttr(n(l, 'tittel'), l.tittel)} placeholder="Beskriv linjen">`}</div></div></td>
         <td><input class="celleinn tekst" style="min-width:0; width:104px; font-weight:400" list="typer" placeholder="${escapeHtml(arvet || 'Type')}" title="${arvet ? `Behovet har typen «${escapeHtml(arvet)}». Skriv en annen for denne søknaden, eller tøm feltet for å bruke behovets.` : 'Type for denne søknaden'}" ${feltAttr(n(l, 'type'), linjetype(l, tilstand.behov))}></td>
         <td class="tall"><input class="celleinn antall" inputmode="numeric" ${feltAttr(n(l, 'antall'), l.antall, 'tall')}></td>
         <td class="tall"><input class="celleinn" inputmode="numeric" ${feltAttr(n(l, 'estPris'), l.estPris, 'tall')}></td>
@@ -124,10 +125,10 @@ function behovstabell(s) {
       </tr>`;
   };
   // Gruppert på type med delsum per gruppe (giverens kategorier).
-  const rader = grupperPerType(linjer, l => linjetype(l, tilstand.behov)).map(g => {
+  const rader = grupperPerType(linjer, l => linjetype(l, tilstand.behov), typerekkefolgeFor(s, fellesTyperekkefolge())).map(g => {
     const delsum = g.elementer.reduce((a, l) => a + linjekostnad(l), 0), delGiver = giverandel(delsum, prosent);
     return `
-      <tr class="gruppe"><td colspan="4">${escapeHtml(g.type || 'Uten type')}</td><td class="tall">${kr(delsum)}</td>${moms ? `<td class="tall">${kr(delGiver)}</td><td class="tall">${kr(delsum - delGiver)}</td>` : ''}<td colspan="2">${g.elementer.length} ${g.elementer.length === 1 ? 'linje' : 'linjer'}</td></tr>
+      <tr class="gruppe" data-slippmal="type:${escapeHtml(g.type)}"><td colspan="4"><span class="dra" draggable="true" data-dra="type:${escapeHtml(g.type)}" title="Dra for å flytte hele typen i denne søknaden">⠿</span>${escapeHtml(g.type || 'Uten type')}</td><td class="tall">${kr(delsum)}</td>${moms ? `<td class="tall">${kr(delGiver)}</td><td class="tall">${kr(delsum - delGiver)}</td>` : ''}<td colspan="2">${g.elementer.length} ${g.elementer.length === 1 ? 'linje' : 'linjer'}</td></tr>
       ${g.elementer.map(rad).join('')}`;
   }).join('');
   const kolonner = moms ? 9 : 7;
@@ -317,7 +318,7 @@ function fraListenPanel(s) {
 
 function skrivUt(s) {
   const rad = l => `<tr><td>${escapeHtml(linjetittel(l))}</td><td class="n">${l.antall ?? 0}</td><td class="n">${kr(l.estPris)}</td><td class="n">${kr(linjekostnad(l))}</td></tr>`;
-  const grupper = grupperPerType(linjeliste(s), l => linjetype(l, tilstand.behov));
+  const grupper = grupperPerType(linjeliste(s), l => linjetype(l, tilstand.behov), typerekkefolgeFor(s, fellesTyperekkefolge()));
   // Er alt uten type, skrives lista ut som før, uten gruppeoverskrift.
   const rader = grupper.length === 1 && !grupper[0].type
     ? grupper[0].elementer.map(rad).join('')
@@ -375,6 +376,28 @@ export const soknadSide = {
 
   // Den tomme utgiftsraden har ikke data-felt; den lagres når man forlater
   // et av feltene i raden.
+  // Dra og slipp i behovstabellen. Rekkefølgen gjelder bare denne søknaden.
+  slipp(kilde, mal, posisjon) {
+    const s = gjeldende();
+    if (!s) return;
+    const del = nokkel => { const i = nokkel.indexOf(':'); return [nokkel.slice(0, i), nokkel.slice(i + 1)]; };
+    const [kHva, kId] = del(kilde), [mHva, mId] = del(mal);
+    const typeAv = l => linjetype(l, tilstand.behov);
+    const linjer = linjeliste(s);
+    const malLinje = mHva === 'linje' ? linjer.find(l => l.id === mId) : null;
+    const malType = mHva === 'type' ? mId : (malLinje ? typeAv(malLinje) : '');
+    if (kHva === 'type') {
+      if (kId === malType) return;
+      const typer = grupperPerType(linjer, typeAv, typerekkefolgeFor(s, fellesTyperekkefolge())).map(g => g.type);
+      lagre(() => settSoknadTyperekkefolge(s.id, flyttIListe(typer, kId, malType, posisjon)));
+      return;
+    }
+    if (kId === mId) return;
+    const gruppe = linjer.filter(l => typeAv(l) === malType).map(l => l.id);
+    const ny = mHva === 'type' ? flyttIListe(gruppe, kId, null) : flyttIListe(gruppe, kId, mId, posisjon);
+    lagre(() => settLinjerekkefolge(s, ny, { flyttetId: kId, nyType: malType }));
+  },
+
   dobbeltklikk(el, e) { const s = gjeldende(); if (s) innkjopFane.dobbeltklikk(el, e, s); },
   limInn(el, tekst, e) { const s = gjeldende(); if (s) innkjopFane.limInn(el, tekst, e, s); },
 

@@ -81,7 +81,7 @@ function tegn() {
   planlagt = true;
   setTimeout(() => {
     planlagt = false;
-    if (redigerer() || pekerNede) { ventendeTegning = true; return; }
+    if (redigerer() || pekerNede || drar) { ventendeTegning = true; return; }
     tegnNaa();
   }, 0);
 }
@@ -154,8 +154,65 @@ function fokuser(nokkel) {
 registrerSkall({ tegn, fokuser });
 
 function tegnHvisVentende() {
-  if (ventendeTegning && !redigerer() && !pekerNede) tegnNaa();
+  if (ventendeTegning && !redigerer() && !pekerNede && !drar) tegnNaa();
 }
+
+// ——— Dra og slipp for rekkefølge ———
+// Et håndtak merket data-dra="hva:id" kan dras; rader merket
+// data-slippmal="hva:id" tar imot. Siden får slipp(kilde, mal, 'for'|'etter').
+// Mens noe dras tegnes ikke siden på nytt (det ville avbrutt dragningen).
+let drar = null;
+
+function ryddSlippmerker() {
+  rot.querySelectorAll('.slipp-over, .slipp-under, .dras').forEach(el => el.classList.remove('slipp-over', 'slipp-under', 'dras'));
+}
+
+function slippmal(e) {
+  const mal = e.target.closest?.('[data-slippmal]');
+  if (!mal || !rot.contains(mal)) return null;
+  const r = mal.getBoundingClientRect();
+  return { mal, etter: e.clientY > r.top + r.height / 2 };
+}
+
+rot.addEventListener('dragstart', e => {
+  const handtak = e.target.closest?.('[data-dra]');
+  if (!handtak) return;
+  drar = handtak.dataset.dra;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', drar);
+  const rad = handtak.closest('tr');
+  if (rad) { e.dataTransfer.setDragImage(rad, 20, 16); setTimeout(() => rad.classList.add('dras'), 0); }
+});
+
+rot.addEventListener('dragover', e => {
+  if (!drar) return;
+  const treff = slippmal(e);
+  if (!treff || gjeldende?.side.kanSlippe?.(drar, treff.mal.dataset.slippmal) === false) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const klasse = treff.etter ? 'slipp-under' : 'slipp-over';
+  if (!treff.mal.classList.contains(klasse)) {
+    rot.querySelectorAll('.slipp-over, .slipp-under').forEach(el => el.classList.remove('slipp-over', 'slipp-under'));
+    treff.mal.classList.add(klasse);
+  }
+});
+
+rot.addEventListener('drop', e => {
+  if (!drar) return;
+  const treff = slippmal(e);
+  const kilde = drar;
+  drar = null;
+  ryddSlippmerker();
+  if (!treff) return;
+  e.preventDefault();
+  gjeldende?.side.slipp?.(kilde, treff.mal.dataset.slippmal, treff.etter ? 'etter' : 'for');
+});
+
+rot.addEventListener('dragend', () => {
+  drar = null;
+  ryddSlippmerker();
+  setTimeout(tegnHvisVentende, 0);
+});
 
 document.addEventListener('pointerdown', () => { pekerNede = true; }, true);
 document.addEventListener('pointerup', () => { pekerNede = false; setTimeout(tegnHvisVentende, 0); }, true);

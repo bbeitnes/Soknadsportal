@@ -6,7 +6,8 @@
 // stier for søknadslinjer), så to som redigerer samtidig bare overskriver
 // hverandre på samme felt: siste lagring per felt vinner.
 import { lager, innlogging, SLETT } from './lager.js';
-import { linjeliste, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer } from './beregning.js';
+import { ORGANISASJON_ID } from '../config/app-config.js';
+import { linjeliste, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer, linjetype } from './beregning.js';
 
 export { innlogging };
 
@@ -19,10 +20,11 @@ export const tilstand = {
   leverandorer: [],
   fakturaer: [],
   brukere: [],
+  innstillinger: [],
   lastet: new Set(),
 };
 
-const SAMLINGER = ['givere', 'behov', 'soknader', 'innkjop', 'leverandorer', 'fakturaer', 'brukere'];
+const SAMLINGER = ['givere', 'behov', 'soknader', 'innkjop', 'leverandorer', 'fakturaer', 'brukere', 'innstillinger'];
 
 export function erAdmin() {
   return tilstand.meg?.rolle === 'administrator';
@@ -43,12 +45,23 @@ export async function hentTilgang(bruker) {
   return tilstand.meg;
 }
 
+// Samlinger portalen klarer seg uten. Feiler lesingen (typisk fordi de nye
+// reglene ikke er limt inn i Firebase ennå), fortsetter vi med tom liste i
+// stedet for å stoppe hele portalen.
+const VALGFRIE = new Set(['innstillinger']);
+
 export function startLytting(vedEndring, vedFeil) {
   const avmeld = SAMLINGER.map(samling => lager.lytt(samling, liste => {
     tilstand[samling] = liste;
     tilstand.lastet.add(samling);
     vedEndring(samling);
-  }, vedFeil));
+  }, feil => {
+    if (!VALGFRIE.has(samling)) return vedFeil?.(feil);
+    console.warn(`Kunne ikke lese «${samling}» – fortsetter uten. Er firestore.rules oppdatert?`, feil);
+    tilstand[samling] = [];
+    tilstand.lastet.add(samling);
+    vedEndring(samling);
+  }));
   return () => avmeld.forEach(f => f());
 }
 
@@ -446,4 +459,60 @@ export function fjernBruker(id) {
 export function invitasjonstekst(bruker) {
   const url = location.origin + location.pathname;
   return `Du er invitert til Søknadsportal.\n\nGå til ${url} og logg inn med Google-kontoen din, eller be om en innloggingslenke på e-post. Bruk adressen ${bruker.epost}.`;
+}
+
+// ——— Manuell rekkefølge (dra og slipp) ———
+// Felles typerekkefølge ligger i ett innstillingsdokument for
+// organisasjonen. Behov har `rekkefolge` innenfor typen sin. Søknader har
+// sin egen `typeRekkefolge`, og linjene har `rekkefolge` fra før.
+
+export function fellesTyperekkefolge() {
+  return tilstand.innstillinger.find(i => i.id === ORGANISASJON_ID)?.typeRekkefolge || [];
+}
+
+export function settFellesTyperekkefolge(typer) {
+  return lager.sett('innstillinger', ORGANISASJON_ID, { typeRekkefolge: typer });
+}
+
+// Skriver ny rekkefølge for behovene i én type (og ny type for behovet som
+// ble flyttet dit). Rører ikke «sist endret» — rekkefølge er ikke innhold.
+export function settBehovrekkefolge(ordnetIder, { flyttetId = null, nyType = null } = {}) {
+  const skrivinger = [];
+  for (const [i, id] of ordnetIder.entries()) {
+    const b = tilstand.behov.find(x => x.id === id);
+    if (!b) continue;
+    const felt = {};
+    if (b.rekkefolge !== i + 1) felt.rekkefolge = i + 1;
+    if (id === flyttetId && nyType != null && (b.type || '') !== nyType) felt.type = nyType;
+    if (Object.keys(felt).length) skrivinger.push(lager.oppdater('behov', id, felt));
+  }
+  return Promise.all(skrivinger);
+}
+
+// Ny rekkefølge for linjene i én typegruppe i en søknad. Linjene bytter på
+// rekkefølgetallene gruppen allerede har, så resten av søknaden er urørt.
+// Flyttes en linje til en annen type, overstyres typen i søknaden (eller
+// nullstilles hvis den nye typen er behovets egen).
+export function settLinjerekkefolge(soknad, ordnetIder, { flyttetId = null, nyType = null } = {}) {
+  const felt = {};
+  const tall = ordnetIder.map(id => soknad.linjer?.[id]?.rekkefolge ?? 0).sort((a, b) => a - b);
+  // Like tall (eller en linje fra en annen gruppe) → gi gruppen nye, stigende tall.
+  const unike = new Set(tall).size === tall.length;
+  const start = Math.max(0, ...Object.values(soknad.linjer || {}).map(l => l.rekkefolge ?? 0));
+  ordnetIder.forEach((id, i) => {
+    const ny = unike ? tall[i] : start + i + 1;
+    if (soknad.linjer?.[id]?.rekkefolge !== ny) felt[`linjer.${id}.rekkefolge`] = ny;
+  });
+  if (flyttetId && nyType != null) {
+    const l = soknad.linjer?.[flyttetId];
+    if (l && linjetype(l, tilstand.behov) !== nyType) {
+      const arvet = l.behovId ? (tilstand.behov.find(b => b.id === l.behovId)?.type || '').trim() : '';
+      felt[`linjer.${flyttetId}.type`] = nyType === arvet || nyType === '' ? null : nyType;
+    }
+  }
+  return Object.keys(felt).length ? oppdaterSoknad(soknad.id, felt) : Promise.resolve();
+}
+
+export function settSoknadTyperekkefolge(soknadId, typer) {
+  return oppdaterSoknad(soknadId, { typeRekkefolge: typer });
 }

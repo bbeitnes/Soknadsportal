@@ -45,6 +45,10 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
 - Behov har `type` (fritekst: Instrument, Uniform …). En søknadslinje kan overstyre med
   `linjer.<id>.type`; null = arv fra behovet (`linjetype()`). Behovslisten og søknadens
   behovstabell grupperes på type med delsum (`grupperPerType()`).
+- Manuell rekkefølge med dra og slipp (`data-dra` / `data-slippmal`, håndteres i `app.js` →
+  sidens `slipp()`): behov har `rekkefolge` innen typen; felles typerekkefølge ligger i
+  `innstillinger/<orgId>.typeRekkefolge`; søknader har egen `typeRekkefolge` og linjenes
+  `rekkefolge`. `innstillinger` er valgfri ved oppstart (tom liste hvis reglene mangler).
 - Import av behov fra regneark: `tolkBehovimport()`; `IMPORTFELT` er det panelet viser og
   testes mot det som faktisk gjenkjennes.
 - Mobil: `#/kvittering` (default-rute på smal skjerm). `ui/bilde.js` gjør om store bilder til JPEG.

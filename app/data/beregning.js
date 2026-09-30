@@ -32,17 +32,43 @@ export function linjetype(linje, behovliste) {
   return (b?.type || '').trim();
 }
 
-// Grupperer på type, alfabetisk, med «uten type» til slutt.
-export function grupperPerType(elementer, typeAv) {
+// Grupperer på type. Typene kommer i den manuelle rekkefølgen som er satt
+// (dra og slipp); typer som ikke står der kommer etterpå, alfabetisk, med
+// «uten type» helt til slutt.
+export function grupperPerType(elementer, typeAv, rekkefolge = []) {
   const grupper = new Map();
   for (const e of elementer) {
     const t = (typeAv(e) || '').trim();
     if (!grupper.has(t)) grupper.set(t, []);
     grupper.get(t).push(e);
   }
+  const plass = t => { const i = rekkefolge.indexOf(t); return i === -1 ? Infinity : i; };
   return [...grupper.entries()]
-    .sort(([a], [b]) => (a === '') - (b === '') || a.localeCompare(b, 'nb'))
+    .sort(([a], [b]) => plass(a) - plass(b) || (a === '') - (b === '') || a.localeCompare(b, 'nb'))
     .map(([type, elementer]) => ({ type, elementer }));
+}
+
+// Manuell rekkefølge først (de som har fått en), så resten alfabetisk.
+export function etterRekkefolgeOgTittel(a, b) {
+  return (a.rekkefolge ?? Infinity) - (b.rekkefolge ?? Infinity) || (a.tittel || '').localeCompare(b.tittel || '', 'nb');
+}
+
+// Flytter `kilde` til rett før eller etter `mal` i en liste (dra og slipp).
+// Uten `mal` legges den først. Gir en ny liste.
+export function flyttIListe(liste, kilde, mal, posisjon = 'for') {
+  const ut = liste.filter(x => x !== kilde);
+  if (mal == null || mal === kilde) { if (mal == null) ut.unshift(kilde); else return [...liste]; return ut; }
+  const i = ut.indexOf(mal);
+  if (i === -1) { ut.push(kilde); return ut; }
+  ut.splice(posisjon === 'etter' ? i + 1 : i, 0, kilde);
+  return ut;
+}
+
+// Typerekkefølgen i en søknad: søknadens egen først, så den felles fra
+// behovslisten for typer søknaden ikke har plassert selv.
+export function typerekkefolgeFor(soknad, felles = []) {
+  const egen = soknad?.typeRekkefolge || [];
+  return [...egen, ...felles.filter(t => !egen.includes(t))];
 }
 
 // Alle typer som er i bruk — forslag når man skriver i et typefelt.

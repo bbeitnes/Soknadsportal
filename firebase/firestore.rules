@@ -86,6 +86,14 @@ service cloud.firestore {
       allow delete: if erMedlem();
     }
 
+    // Felles innstillinger (f.eks. rekkefølgen på typer). Dokument-ID er
+    // organisasjonens ID.
+    match /innstillinger/{id} {
+      allow read: if erMedlem();
+      allow create, update: if erMedlem() && riktigOrg();
+      allow delete: if false;
+    }
+
     // Leverandørregisteret: alle kan legge til og endre, bare
     // administrator kan slette.
     match /leverandorer/{id} {

@@ -1,6 +1,6 @@
 // Behovslisten: alt korpset trenger, uavhengig av søknad.
-import { tilstand, opprettBehov, oppdaterBehov, slettBehov, importerBehov } from '../data/index.js';
-import { behovsinfo, statusNavn, tolkBehovimport, IMPORTFELT, grupperPerType, typeliste } from '../data/beregning.js';
+import { tilstand, opprettBehov, oppdaterBehov, slettBehov, importerBehov, fellesTyperekkefolge, settFellesTyperekkefolge, settBehovrekkefolge } from '../data/index.js';
+import { behovsinfo, statusNavn, tolkBehovimport, IMPORTFELT, grupperPerType, typeliste, etterRekkefolgeOgTittel, flyttIListe } from '../data/beregning.js';
 import { escapeHtml, kr, tidspunkt, fornavn } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
 import { lagre } from '../ui/lagring.js';
@@ -27,9 +27,13 @@ function endretTekst(b) {
   return `Sist endret av ${fornavn(b.endretAv.navn, b.endretAv.epost)}, ${tidspunkt(b.endretTid)}`;
 }
 
+// Manuell rekkefølge (dra og slipp) innenfor typen, ellers alfabetisk.
 function sortert() {
-  return [...tilstand.behov].sort((a, b) => (a.tittel || '').localeCompare(b.tittel || '', 'nb'));
+  return [...tilstand.behov].sort(etterRekkefolgeOgTittel);
 }
+
+const typeAv = b => (b.type || '').trim();
+const del = nokkel => { const i = nokkel.indexOf(':'); return [nokkel.slice(0, i), nokkel.slice(i + 1)]; };
 
 function beregn() {
   const alle = sortert().map(b => ({ b, info: behovsinfo(b, tilstand.soknader) }));
@@ -55,8 +59,8 @@ function soknadsbrikker(info) {
 function rad({ b, info }) {
   const prosent = info.total ? Math.min(100, Math.round(info.anskaffet / info.total * 100)) : 0;
   return `
-    <tr class="klikkbar ${b.id === ui.panel ? 'valgt' : ''}" data-handling="apne" data-id="${b.id}">
-      <td><div class="celletittel">${escapeHtml(b.tittel || 'Uten tittel')}</div><div class="celleunder">${escapeHtml(b.beskrivelse || '') || '&nbsp;'}</div></td>
+    <tr class="klikkbar ${b.id === ui.panel ? 'valgt' : ''}" data-handling="apne" data-id="${b.id}" data-slippmal="behov:${b.id}">
+      <td><div style="display:flex; align-items:center"><span class="dra" draggable="true" data-dra="behov:${b.id}" data-handling="ingen" title="Dra for å endre rekkefølge, eller flytt til en annen type">⠿</span><div style="min-width:0"><div class="celletittel">${escapeHtml(b.tittel || 'Uten tittel')}</div><div class="celleunder">${escapeHtml(b.beskrivelse || '') || '&nbsp;'}</div></div></div></td>
       <td style="width:200px"><div class="fremdrift"><span class="smal fet">${info.erApent ? `${info.gjenstar} av ${info.total}` : `${info.anskaffet} av ${info.total}`}</span><span class="stolpe"><span style="width:${prosent}%"></span></span></div></td>
       <td class="tall">${kr(b.estPris)}</td>
       <td class="tall fet">${info.erApent ? kr(info.gjenstarKr) : '–'}</td>
@@ -171,7 +175,7 @@ document.addEventListener('input', e => {
 function skrivUt(d) {
   const navn = { apne: 'Åpne behov', lukket: 'Anskaffede og lukkede behov', alle: 'Alle behov' }[ui.filter];
   const rad = ({ b, info }) => `<tr><td>${escapeHtml(b.tittel)}${b.beskrivelse ? `<div class="d">${escapeHtml(b.beskrivelse)}</div>` : ''}</td><td class="n">${info.anskaffet} / ${info.total}</td><td class="n">${kr(b.estPris)}</td><td class="n">${info.erApent ? kr(info.gjenstarKr) : '–'}</td><td>${escapeHtml(info.bruk.map(x => `${giverNavn(x.soknad.giverId)} (${x.linje.antall ?? 0})`).join(', ')) || '–'}</td><td>${escapeHtml(info.status)}</td></tr>`;
-  const rader = grupperPerType(d.synlig, x => x.b.type).map(g => `<tr class="g"><td colspan="3">${escapeHtml(g.type || 'Uten type')}</td><td class="n">${kr(g.elementer.reduce((sum, x) => sum + (x.info.erApent ? x.info.gjenstarKr : 0), 0))}</td><td colspan="2"></td></tr>${g.elementer.map(rad).join('')}`).join('');
+  const rader = grupperPerType(d.synlig, x => x.b.type, fellesTyperekkefolge()).map(g => `<tr class="g"><td colspan="3">${escapeHtml(g.type || 'Uten type')}</td><td class="n">${kr(g.elementer.reduce((sum, x) => sum + (x.info.erApent ? x.info.gjenstarKr : 0), 0))}</td><td colspan="2"></td></tr>${g.elementer.map(rad).join('')}`).join('');
   utskrift(navn, `<p>Behovsliste · skrevet ut ${new Date().toLocaleDateString('nb-NO')} · ${d.synlig.length} behov</p>
     <table><thead><tr><th>Behov</th><th class="n">Anskaffet / totalt</th><th class="n">Est. stk.pris</th><th class="n">Gjenstår, kr</th><th>Søknader</th><th>Status</th></tr></thead>
     <tbody>${rader}</tbody><tfoot><tr><td colspan="3">Gjenstående estimert</td><td class="n">${kr(d.synligKr)}</td><td colspan="2"></td></tr></tfoot></table>`, 'landscape');
@@ -207,8 +211,8 @@ export const behovSide = {
         <div class="tabellramme" data-rull="behov">
           <table class="liste">
             <thead><tr><th>Behov</th><th>Gjenstår</th><th class="tall">Est. stk.pris</th><th class="tall">Gjenstår, kr</th><th>Søknader</th><th>Status</th></tr></thead>
-            <tbody>${grupperPerType(d.synlig, x => x.b.type).map(g => `
-              <tr class="gruppe"><td colspan="3">${escapeHtml(g.type || 'Uten type')}</td><td class="tall">${kr(g.elementer.reduce((sum, x) => sum + (x.info.erApent ? x.info.gjenstarKr : 0), 0))}</td><td colspan="2">${g.elementer.length} behov</td></tr>
+            <tbody>${grupperPerType(d.synlig, x => x.b.type, fellesTyperekkefolge()).map(g => `
+              <tr class="gruppe" data-slippmal="type:${escapeHtml(g.type)}"><td colspan="3"><span class="dra" draggable="true" data-dra="type:${escapeHtml(g.type)}" title="Dra for å flytte hele typen">⠿</span>${escapeHtml(g.type || 'Uten type')}</td><td class="tall">${kr(g.elementer.reduce((sum, x) => sum + (x.info.erApent ? x.info.gjenstarKr : 0), 0))}</td><td colspan="2">${g.elementer.length} behov</td></tr>
               ${g.elementer.map(rad).join('')}`).join('') || '<tr class="tom-rad"><td colspan="6">Ingen behov i dette utvalget.</td></tr>'}</tbody>
             <tfoot><tr><td colspan="3" class="dempet">${d.synlig.length} behov vist · gjenstående estimert</td><td class="tall sum">${kr(d.synligKr)}</td><td colspan="2"></td></tr></tfoot>
           </table>
@@ -253,6 +257,24 @@ export const behovSide = {
       ui.panel = null;
       lagre(() => slettBehov(b.id));
     }
+  },
+
+  // Dra og slipp: et behov flyttes innenfor typen eller over i en annen
+  // type (da bytter det type). En typeoverskrift flytter hele gruppen.
+  slipp(kilde, mal, posisjon) {
+    const [kHva, kId] = del(kilde), [mHva, mId] = del(mal);
+    const malBehov = mHva === 'behov' ? tilstand.behov.find(b => b.id === mId) : null;
+    const malType = mHva === 'type' ? mId : typeAv(malBehov || {});
+    if (kHva === 'type') {
+      if (kId === malType) return;
+      const typer = grupperPerType(tilstand.behov, typeAv, fellesTyperekkefolge()).map(g => g.type);
+      lagre(() => settFellesTyperekkefolge(flyttIListe(typer, kId, malType, posisjon)));
+      return;
+    }
+    if (kId === mId) return;
+    const gruppe = sortert().filter(b => typeAv(b) === malType).map(b => b.id);
+    const ny = mHva === 'type' ? flyttIListe(gruppe, kId, null) : flyttIListe(gruppe, kId, mId, posisjon);
+    lagre(() => settBehovrekkefolge(ny, { flyttetId: kId, nyType: malType }));
   },
 
   async filer(el, filer) {

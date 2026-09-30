@@ -121,5 +121,11 @@ export function lagDemodata() {
     },
   };
 
-  return { brukere, givere, behov, soknader, innkjop, leverandorer };
+  const fakturaer = {
+    f1: { organisasjonId: org, soknadId: 's1', lopenummer: 1, leverandor: 'Nordic Brass', fakturanr: '2026-118', dato: '2026-05-12', belop: 30600, fil: null, dekker: { 'i1|k1': true }, lagtInnAv: { epost: kari[0], navn: kari[1] }, tid: dagerSiden(20), ...av(...kari, 20) },
+    f2: { organisasjonId: org, soknadId: 's1', lopenummer: 2, leverandor: 'Clas Ohlson', fakturanr: 'Kvittering', dato: '2026-05-20', belop: 1850, fil: null, dekker: { 'utgift|u2': true }, lagtInnAv: { epost: per[0], navn: per[1] }, tid: dagerSiden(12), ...av(...per, 12) },
+    f3: { organisasjonId: org, soknadId: 's1', lopenummer: 3, leverandor: 'Tono Instrumenter', fakturanr: '88123', dato: '2026-05-28', belop: 5900, fil: null, dekker: {}, lagtInnAv: { epost: kari[0], navn: kari[1] }, tid: dagerSiden(4), ...av(...kari, 4) },
+  };
+
+  return { brukere, givere, behov, soknader, innkjop, leverandorer, fakturaer };
 }

@@ -9,7 +9,7 @@
 // og markøren, utvalget og det som er skrevet flyttes over til det nye feltet.
 // Da oppdateres f.eks. kostnaden med én gang man tabber fra antall til pris.
 import { APPNAVN, MILJO } from './config/app-config.js';
-import { tilstand, innlogging, hentTilgang, startLytting, alleLastet, oppdaterGiver, oppdaterBehov, oppdaterSoknad, oppdaterInnkjop, oppdaterLeverandor } from './data/index.js';
+import { tilstand, innlogging, hentTilgang, startLytting, alleLastet, oppdaterGiver, oppdaterBehov, oppdaterSoknad, oppdaterInnkjop, oppdaterLeverandor, oppdaterFaktura } from './data/index.js';
 import { escapeHtml } from './ui/format.js';
 import { kobleLagringsstatus, lagre, visMelding } from './ui/lagring.js';
 import { tolkFelt, tolkNokkel } from './ui/felt.js';
@@ -201,7 +201,7 @@ rot.addEventListener('focusout', e => {
   setTimeout(tegnHvisVentende, 0);
 });
 
-const OPPDATER = { givere: oppdaterGiver, behov: oppdaterBehov, soknader: oppdaterSoknad, innkjop: oppdaterInnkjop, leverandorer: oppdaterLeverandor };
+const OPPDATER = { givere: oppdaterGiver, behov: oppdaterBehov, soknader: oppdaterSoknad, innkjop: oppdaterInnkjop, leverandorer: oppdaterLeverandor, fakturaer: oppdaterFaktura };
 
 function lagreFelt(el) {
   if (el.value === el.dataset.verdi) return;

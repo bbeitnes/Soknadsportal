@@ -54,8 +54,15 @@ async function leggInnInnkjop(data, soknadId = null) {
     if (!id || innkjop.some(x => x.soknadId === id)) continue;
     const leverandorer = {};
     for (const [sid, lev] of Object.entries(i.leverandorer)) leverandorer[sid] = { ...lev, leverandorId: leverandorId[lev.leverandorId] || null, vedlegg: {} };
-    await lager.opprett('innkjop', { ...i, soknadId: id, leverandorer });
+    const innkjopId = await lager.opprett('innkjop', { ...i, soknadId: id, leverandorer });
     antall++;
+    // Fakturaene til denne søknaden, med koblinger oversatt til de nye ID-ene.
+    const gammelInnkjopId = Object.keys(data.innkjop).find(k => data.innkjop[k] === i);
+    for (const f of Object.values(data.fakturaer || {}).filter(x => x.soknadId === i.soknadId)) {
+      const dekker = {};
+      for (const k of Object.keys(f.dekker || {})) dekker[k.startsWith(gammelInnkjopId + '|') ? k.replace(gammelInnkjopId + '|', innkjopId + '|') : k] = true;
+      await lager.opprett('fakturaer', { ...f, soknadId: id, dekker });
+    }
   }
   if (!soknadId) console.log(`Lagt inn ${antall} innkjøp.`);
 }

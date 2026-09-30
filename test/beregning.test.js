@@ -205,3 +205,30 @@ test('pott tar med innkjøp, ikkeFordelte og rutenett', async () => {
   assert.deepEqual(ikkeFordelte(s, [{ linjer: { q: { soknadLinjeId: 'x' } } }]).map(l => l.id), ['y']);
   assert.deepEqual(tolkRutenett('1200\t1300\r\n\n 900 -5%\t\n'), [['1200', '1300'], ['900 -5%', '']]);
 });
+
+test('fakturaer: løpenummer, poster, avvik og oppsummering', async () => {
+  const { nesteLopenummer, revisjonsposter, fakturaavvik, revisjonsoppsummering, sumFakturert } = await import('../app/data/beregning.js');
+  const s = soknad('s1', 'innvilget', {}, { utgifter: { u1: { beskrivelse: 'Parkering', belop: 800, dato: '2026-06-02', rekkefolge: 1 } } });
+  const i = { id: 'i1', navn: 'Instrumenter', ...innkjop };
+  const poster = revisjonsposter(s, [i], { tittelFor: (_, l) => 'Linje ' + l.id, levNavn: (_, sid) => 'Lev ' + sid });
+  assert.deepEqual(poster.map(p => [p.id, p.tilbudt]), [['i1/l1', 3800], ['i1/l2', 1000], ['utgift/u1', 800]]);
+  assert.equal(poster[0].tittel, '4 × Linje l1');
+  assert.equal(poster[0].under, 'Lev b · Instrumenter');
+  const fakturaer = [
+    { soknadId: 's1', lopenummer: 1, belop: 3900, dekker: { 'i1/l1': true } },
+    { soknadId: 's1', lopenummer: 2, belop: 500, dekker: {} },
+    { soknadId: 's2', lopenummer: 1, belop: 1, dekker: {} },
+  ];
+  assert.equal(nesteLopenummer(fakturaer, 's1'), 3);
+  assert.equal(nesteLopenummer(fakturaer, 's9'), 1);
+  assert.deepEqual(fakturaavvik(fakturaer[0], poster), { tilbudt: 3800, avvik: 100, koblet: true });
+  assert.equal(fakturaavvik(fakturaer[1], poster).koblet, false);
+  assert.equal(sumFakturert(fakturaer, 's1'), 4400);
+  const o = revisjonsoppsummering(fakturaer.slice(0, 2), poster);
+  assert.equal(o.fakturert, 4400);
+  assert.equal(o.manglerFaktura, 2);
+  assert.equal(o.avvikSum, 100);
+  assert.equal(o.avvikAntall, 1);
+  assert.equal(o.ikkeKoblet, 1);
+  assert.deepEqual(o.perPost['i1/l1'], [1]);
+});

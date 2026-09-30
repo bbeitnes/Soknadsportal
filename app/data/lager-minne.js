@@ -72,6 +72,11 @@ export const lager = {
   async filUrl(sti) {
     return filer.get(sti) || 'data:text/plain;charset=utf-8,' + encodeURIComponent('Demofil: ' + sti);
   },
+  async hentBytes(sti) {
+    const url = filer.get(sti);
+    if (!url) throw new Error('Demofilen finnes ikke: ' + sti);
+    return (await fetch(url)).arrayBuffer();
+  },
   async slettFil(sti) {
     filer.delete(sti);
   },

@@ -6,7 +6,7 @@
 // stier for søknadslinjer), så to som redigerer samtidig bare overskriver
 // hverandre på samme felt: siste lagring per felt vinner.
 import { lager, innlogging, SLETT } from './lager.js';
-import { linjeliste, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste } from './beregning.js';
+import { linjeliste, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer } from './beregning.js';
 
 export { innlogging };
 
@@ -17,10 +17,11 @@ export const tilstand = {
   soknader: [],
   innkjop: [],
   leverandorer: [],
+  fakturaer: [],
   lastet: new Set(),
 };
 
-const SAMLINGER = ['givere', 'behov', 'soknader', 'innkjop', 'leverandorer'];
+const SAMLINGER = ['givere', 'behov', 'soknader', 'innkjop', 'leverandorer', 'fakturaer'];
 
 export function erAdmin() {
   return tilstand.meg?.rolle === 'administrator';
@@ -144,6 +145,7 @@ export function fjernLinje(soknadId, linjeId) {
 // Sletter søknaden, innkjøpene dens og filene de eier. Kan ikke angres.
 export async function slettSoknad(soknad) {
   for (const i of tilstand.innkjop.filter(x => x.soknadId === soknad.id)) await slettInnkjop(i);
+  for (const f of tilstand.fakturaer.filter(x => x.soknadId === soknad.id)) await slettFaktura(f);
   await lager.slett('soknader', soknad.id);
   for (const d of Object.values(soknad.dokumenter || {})) {
     await lager.slettFil(d.sti).catch(err => console.error('Kunne ikke slette fil', d.sti, err));
@@ -339,4 +341,51 @@ export async function slettVedlegg(innkjop, sid, vid, sti) {
   }
   await oppdaterInnkjop(innkjop.id, felt);
   await lager.slettFil(sti);
+}
+
+// ——— Fakturaer ———
+// Løpenummeret tildeles som høyeste + 1 blant søknadens fakturaer. To som
+// oppretter samtidig kan i teorien få samme nummer; da rettes det for hånd.
+
+export function fakturaerFor(soknadId) {
+  return tilstand.fakturaer.filter(f => f.soknadId === soknadId).sort((a, b) => (a.lopenummer ?? 0) - (b.lopenummer ?? 0));
+}
+
+export function opprettFaktura(soknadId, felt = {}) {
+  return lager.opprett('fakturaer', {
+    soknadId, lopenummer: nesteLopenummer(tilstand.fakturaer, soknadId),
+    leverandor: '', fakturanr: '', dato: null, belop: null, fil: null, dekker: {},
+    lagtInnAv: { epost: tilstand.meg.epost, navn: tilstand.meg.navn }, tid: Date.now(),
+    ...felt, ...signatur(),
+  });
+}
+
+export function oppdaterFaktura(id, felt) {
+  return lager.oppdater('fakturaer', id, { ...felt, ...signatur() });
+}
+
+export async function slettFaktura(faktura) {
+  await lager.slett('fakturaer', faktura.id);
+  if (faktura.fil?.sti) await lager.slettFil(faktura.fil.sti).catch(err => console.error('Kunne ikke slette fil', err));
+}
+
+// Post-ID-ene har «/» (innkjopId/linjeId), som ikke kan stå i en
+// Firestore-feltsti. I `dekker` lagres de derfor med «|» i stedet.
+export const dekkerNokkel = postId => postId.replaceAll('/', '|');
+export const dekkerPostId = nokkel => nokkel.replaceAll('|', '/');
+
+export function settDekker(faktura, postId, pa) {
+  return oppdaterFaktura(faktura.id, { [`dekker.${dekkerNokkel(postId)}`]: pa ? true : SLETT });
+}
+
+export async function lastOppFakturafil(faktura, fil) {
+  const trygtNavn = fil.name.replace(/[^\w.\-æøåÆØÅ ]/g, '_');
+  const sti = await lager.lastOpp(`fakturaer/${faktura.id}/${Date.now()}-${trygtNavn}`, fil);
+  const gammel = faktura.fil?.sti;
+  await oppdaterFaktura(faktura.id, { fil: { navn: fil.name, sti, type: fil.type || '' } });
+  if (gammel) await lager.slettFil(gammel).catch(() => {});
+}
+
+export function filBytes(sti) {
+  return lager.hentBytes(sti);
 }

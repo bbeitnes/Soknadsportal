@@ -333,3 +333,75 @@ export function leverandorKontakt(lev, register) {
 export function innkjopMedLeverandor(leverandorId, innkjopListe) {
   return innkjopListe.filter(i => leverandorer(i).some(l => l.leverandorId === leverandorId));
 }
+
+// ——— Fakturaer og revisjon ———
+// En faktura hører til én søknad, får et løpenummer der, og kan dekke
+// flere «poster»: valgte tilbudslinjer (innkjopId/linjeId) og løse
+// utgifter (utgift/utgiftId). Avvik = fakturabeløp − tilbudt for postene.
+
+export function fakturaliste(fakturaer, soknadId) {
+  return fakturaer.filter(f => f.soknadId === soknadId).sort((a, b) => (a.lopenummer ?? 0) - (b.lopenummer ?? 0));
+}
+
+export function nesteLopenummer(fakturaer, soknadId) {
+  return fakturaliste(fakturaer, soknadId).reduce((m, f) => Math.max(m, f.lopenummer ?? 0), 0) + 1;
+}
+
+// Alt potten er brukt på: valgte linjer i alle innkjøp + løse utgifter.
+// `tittelFor(innkjop, linje)` og `levNavn(innkjop, sid)` gir tekstene,
+// slik at beregningslaget slipper å kjenne søknaden og registeret.
+export function revisjonsposter(soknad, innkjopListe, { tittelFor, levNavn }) {
+  const poster = [];
+  for (const i of innkjopListe) {
+    const b = innkjopsberegning(i);
+    for (const l of b.linjer) {
+      const v = b.perLinje[l.id];
+      if (v.valgtSid == null) continue;
+      poster.push({
+        id: `${i.id}/${l.id}`, type: 'linje', innkjopId: i.id, linjeId: l.id,
+        tittel: `${Number(l.antall) || 0} × ${tittelFor(i, l)}`,
+        under: `${levNavn(i, v.valgtSid)} · ${i.navn || 'Innkjøp'}`,
+        tilbudt: v.sum,
+      });
+    }
+  }
+  for (const u of utgiftsliste(soknad)) {
+    poster.push({ id: `utgift/${u.id}`, type: 'utgift', utgiftId: u.id, tittel: u.beskrivelse || 'Uten beskrivelse', under: `Løs utgift${u.dato ? ` · ${u.dato.split('-').reverse().join('.')}` : ''}`, tilbudt: Number(u.belop) || 0 });
+  }
+  return poster;
+}
+
+// Nøklene i `dekker` bruker «|» der post-ID-en har «/» (Firestore-feltstier
+// kan ikke inneholde skråstrek).
+export function fakturaDekker(faktura) {
+  return Object.keys(faktura?.dekker || {}).map(k => k.replaceAll('|', '/'));
+}
+
+export function fakturaavvik(faktura, poster) {
+  const ider = fakturaDekker(faktura);
+  const tilbudt = ider.reduce((s, id) => s + (poster.find(p => p.id === id)?.tilbudt || 0), 0);
+  return { tilbudt, avvik: ider.length ? (Number(faktura.belop) || 0) - tilbudt : 0, koblet: ider.length > 0 };
+}
+
+export function sumFakturert(fakturaer, soknadId) {
+  return fakturaliste(fakturaer, soknadId).reduce((s, f) => s + (Number(f.belop) || 0), 0);
+}
+
+// Oppsummeringen øverst i Revisjon: hva som er fakturert, hva som mangler
+// faktura, og hva som avviker fra tilbud.
+export function revisjonsoppsummering(fakturaer, poster) {
+  let manglerFaktura = 0;
+  const perPost = {};
+  for (const p of poster) {
+    const fs = fakturaer.filter(f => fakturaDekker(f).includes(p.id));
+    perPost[p.id] = fs.map(f => f.lopenummer);
+    if (!fs.length) manglerFaktura++;
+  }
+  let avvikSum = 0, avvikAntall = 0, ikkeKoblet = 0;
+  for (const f of fakturaer) {
+    const a = fakturaavvik(f, poster);
+    if (!a.koblet) ikkeKoblet++;
+    else if (a.avvik) { avvikSum += a.avvik; avvikAntall++; }
+  }
+  return { fakturert: fakturaer.reduce((s, f) => s + (Number(f.belop) || 0), 0), manglerFaktura, avvikSum, avvikAntall, ikkeKoblet, perPost };
+}

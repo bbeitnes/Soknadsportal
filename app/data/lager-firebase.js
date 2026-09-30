@@ -10,7 +10,7 @@ import {
   deleteDoc, deleteField,
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 import {
-  getStorage, ref, uploadBytes, getDownloadURL, deleteObject,
+  getStorage, ref, uploadBytes, getDownloadURL, deleteObject, getBytes,
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js';
 import { firebaseConfig } from '../config/firebase-config.js';
 import { DATABASE_ID, ORGANISASJON_ID, STORAGE_PREFIKS } from '../config/app-config.js';
@@ -65,6 +65,9 @@ export const lager = {
   },
   filUrl(sti) {
     return getDownloadURL(ref(storage, sti));
+  },
+  hentBytes(sti) {
+    return medTidsfrist(getBytes(ref(storage, sti)), 120000);
   },
   slettFil(sti) {
     return deleteObject(ref(storage, sti)).catch(feil => {

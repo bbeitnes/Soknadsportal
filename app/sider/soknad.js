@@ -8,7 +8,7 @@ import {
 } from '../data/index.js';
 import {
   SOKNADSSTATUSER, statusNavn, linjeliste, linjekostnad, sumEstimert, soktBelop, soktForslag, velgbareBehov,
-  pott, giverandel, momsProsent, utgiftsliste, sumUtgifter,
+  pott, giverandel, momsProsent, utgiftsliste, sumUtgifter, sumFakturert,
 } from '../data/beregning.js';
 import { escapeHtml, kr, datoFelt, tidspunkt, fornavn, tolkTall, tolkDato } from '../ui/format.js';
 import { feltAttr } from '../ui/felt.js';
@@ -16,9 +16,9 @@ import { lagre, visMelding } from '../ui/lagring.js';
 import { tegn, fokuser, gaaTil, avkryss, sidepanel, lukkeknapp, IKON } from '../ui/visning.js';
 import { utskrift } from '../ui/utskrift.js';
 import { innkjopFane } from './innkjop.js';
+import { revisjonFane } from './revisjon.js';
 
 const FANER = [['soknad', 'Søknad'], ['innkjop', 'Innkjøp'], ['utgifter', 'Utgifter'], ['revisjon', 'Revisjon']];
-const KOMMER = { revisjon: 'Fakturaer og revisjon kommer i trinn d.' };
 
 const ui = { soknadId: null, panel: null, nyttPanel: false, velger: false, laster: 0 };
 
@@ -88,6 +88,7 @@ function pottlinje(s) {
         <div><div class="etikett">Søkt</div><div class="tall">${kr(p.sokt)}</div></div>
         <div><div class="etikett">Innvilget</div><div class="tall">${p.innvilget == null ? strek : kr(p.innvilget)}</div></div>
         <div><div class="etikett">${p.harMoms ? 'Disponert (giverandel)' : 'Disponert'}</div><div class="tall">${kr(p.disponert)}</div></div>
+        <div><div class="etikett">Fakturert</div><div class="tall">${kr(sumFakturert(tilstand.fakturaer, s.id))}</div></div>
         <div><div class="etikett">Gjenstår</div><div class="tall ${negativ ? 'aksent' : ''}">${p.gjenstar == null ? strek : kr(p.gjenstar)}</div></div>
       </div>
       ${p.harMoms ? `<div class="hint" style="margin-top:8px">Giver dekker ${p.giverProsent} % av det vi faktisk betaler (${kr(p.disponertFull)}). Momskompensasjon ${p.prosent} %: <span style="color:var(--color-text); font-variant-numeric:tabular-nums">${kr(p.moms)}</span>, forventes mottatt neste år.</div>` : ''}
@@ -318,15 +319,16 @@ export const soknadSide = {
   meny: 'soknader',
 
   tegn([id, fane = 'soknad'] = []) {
-    if (id !== ui.soknadId) { ui.soknadId = id; ui.panel = null; ui.velger = false; innkjopFane.forlat(); }
+    if (id !== ui.soknadId) { ui.soknadId = id; ui.panel = null; ui.velger = false; innkjopFane.forlat(); revisjonFane.forlat(); }
     if (fane !== 'innkjop') innkjopFane.forlat();
+    if (fane !== 'revisjon') revisjonFane.forlat();
     const s = gjeldende();
     if (!s) return `<div class="laster">Fant ikke søknaden. <a href="#/soknader" style="margin-left:6px">Til alle søknader</a></div>`;
     const aktivFane = FANER.some(([f]) => f === fane) ? fane : 'soknad';
     const html = `
       ${topp(s, aktivFane)}
       <main class="innhold" style="padding-top:12px">
-        ${aktivFane === 'soknad' ? soknadsfane(s) : aktivFane === 'utgifter' ? utgiftsfane(s) : aktivFane === 'innkjop' ? innkjopFane.tegn(s) : `<div class="laster">${KOMMER[aktivFane]}</div>`}
+        ${aktivFane === 'soknad' ? soknadsfane(s) : aktivFane === 'utgifter' ? utgiftsfane(s) : aktivFane === 'innkjop' ? innkjopFane.tegn(s) : revisjonFane.tegn(s)}
       </main>
       ${ui.panel === 'fra-listen' ? fraListenPanel(s) : ''}`;
     ui.nyttPanel = false;
@@ -371,6 +373,7 @@ export const soknadSide = {
     const s = gjeldende();
     if (!s) return;
     if (location.hash.includes('/innkjop') && await innkjopFane.klikk(handling, el, e, s)) return;
+    if (location.hash.includes('/revisjon') && await revisjonFane.klikk(handling, el, e, s)) return;
     const linje = el.dataset.linje;
     switch (handling) {
       case 'velger': ui.velger = !ui.velger; tegn(); break;
@@ -393,7 +396,8 @@ export const soknadSide = {
       case 'fjern-utgift': lagre(() => fjernUtgift(s.id, el.dataset.id)); break;
       case 'slett-soknad': {
         const antallUtgifter = utgiftsliste(s).length;
-        const hva = [linjeliste(s).length && `${linjeliste(s).length} behov`, antallUtgifter && `${antallUtgifter} utgifter`, Object.keys(s.dokumenter || {}).length && `${Object.keys(s.dokumenter).length} dokumenter`].filter(Boolean).join(', ');
+        const antallFakturaer = tilstand.fakturaer.filter(f => f.soknadId === s.id).length;
+        const hva = [linjeliste(s).length && `${linjeliste(s).length} behov`, antallUtgifter && `${antallUtgifter} utgifter`, Object.keys(s.dokumenter || {}).length && `${Object.keys(s.dokumenter).length} dokumenter`, antallFakturaer && `${antallFakturaer} fakturaer`].filter(Boolean).join(', ');
         if (!confirm(`Slette søknaden «${s.tittel || 'Uten tittel'}»?${hva ? `\n\nDen har ${hva}. Behovene forblir i behovslisten.` : ''}\n\nDette kan ikke angres.`)) break;
         const ok = await lagre(() => slettSoknad(s).then(() => true));
         if (ok) gaaTil('#/soknader');
@@ -422,6 +426,7 @@ export const soknadSide = {
     const s = gjeldende();
     if (!s || !filer.length) return;
     if (await innkjopFane.filer(el, filer, s)) return;
+    if (await revisjonFane.filer(el, filer, s)) return;
     ui.laster++;
     tegn();
     for (const fil of filer) await lagre(() => lastOppDokument(s.id, fil));
@@ -432,6 +437,7 @@ export const soknadSide = {
 
   escape() {
     if (innkjopFane.escape()) return true;
+    if (revisjonFane.escape()) return true;
     if (ui.velger) { ui.velger = false; return true; }
     if (ui.panel) { ui.panel = null; return true; }
     return false;

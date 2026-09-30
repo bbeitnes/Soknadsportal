@@ -59,7 +59,7 @@ function stegBelop() {
     </div>
     <form class="kv-skjema" id="kv-skjema">
       <label class="felt"><span class="etikett">Beløp</span><div class="kv-belop"><input id="kv-belop" inputmode="numeric" autocomplete="off" value="${escapeHtml(ui.belop)}" placeholder="0"><span>kr</span></div></label>
-      <label class="felt"><span class="etikett">Fakturanummer</span><input class="inndata" id="kv-fakturanr" autocomplete="off" value="${escapeHtml(ui.fakturanr)}" placeholder="Valgfritt" style="height:44px; font-size:17px"></label>
+      <label class="felt"><span class="etikett">Fakturanummer</span><input class="inndata" id="kv-fakturanr" inputmode="numeric" autocomplete="off" value="${escapeHtml(ui.fakturanr)}" placeholder="Valgfritt" style="height:44px; font-size:17px"></label>
       <div class="hint">Leverandør og kobling gjøres på PC.</div>
       <button type="submit" class="kv-stor primar" ${ui.lagrer ? 'disabled' : ''}>${ui.lagrer ? 'Legger inn …' : 'Legg inn kvittering'}</button>
     </form>`;

@@ -12,7 +12,7 @@ import { kr, datoFelt } from './format.js';
 const PDF_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
 let lasting = null;
 
-function hentPdfLib() {
+export function hentPdfLib() {
   if (window.PDFLib) return Promise.resolve(window.PDFLib);
   lasting ||= new Promise((ok, feil) => {
     const s = document.createElement('script');
@@ -26,7 +26,7 @@ function hentPdfLib() {
 
 // Standardfontene i PDF dekker WinAnsi (æøå er med), men ikke f.eks. «−»
 // og «→». Vi bytter til tegn som finnes.
-const trygg = t => String(t ?? '').replace(/−/g, '-').replace(/→/g, '->').replace(/ /g, ' ').replace(/[^\x20-\x7e -ÿ]/g, '?');
+export const trygg = t => String(t ?? '').replace(/[−–—]/g, '-').replace(/→/g, '->').replace(/ /g, ' ').replace(/[^\x20-\x7e -ÿ]/g, '?');
 
 const A4 = [595.28, 841.89];
 const MARG = 56;

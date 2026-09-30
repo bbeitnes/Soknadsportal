@@ -7,6 +7,7 @@ import { escapeHtml, tidspunkt, fornavn } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
 import { lagre } from '../ui/lagring.js';
 import { tegn, fokuser, sidepanel, lukkeknapp } from '../ui/visning.js';
+import { innstillingsmeny } from './innstillinger.js';
 
 const ui = { panel: null, nyttPanel: false };
 
@@ -37,6 +38,8 @@ function panel(lev) {
 }
 
 export const leverandorerSide = {
+  meny: 'innstillinger',
+
   tegn() {
     const liste = sortert();
     const valgt = liste.find(l => l.id === ui.panel);
@@ -48,6 +51,7 @@ export const leverandorerSide = {
           <div class="ingress">Leverandører dere henter tilbud fra. Velges inn i innkjøpene fra denne listen.</div>
         </div>
       </header>
+      ${innstillingsmeny('leverandorer')}
       <main class="innhold">
         <div class="verktoyrad">
           <div class="hint">Klikk en leverandør for å endre kontaktinfo.</div>

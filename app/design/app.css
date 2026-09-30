@@ -47,6 +47,10 @@ a:hover { color: var(--color-accent); }
 .verktoyrad { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .verktoyrad .grupper { display: flex; gap: 8px; }
 .hint { font-size: 13px; color: var(--color-neutral-700); }
+/* Faner under sidehodet (innstillingssidene) */
+.faner { flex: 0 0 auto; padding: 14px 40px 0; display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.faner a { height: 36px; display: inline-flex; align-items: center; padding: 0 18px; font-weight: 600; font-size: 15px; text-decoration: none; color: var(--color-neutral-700); }
+.faner a[aria-current="page"] { background: var(--color-surface); color: var(--color-text); }
 .undertekst { font-size: 12px; color: var(--color-neutral-600); }
 
 /* ——— Knapper ——— */
@@ -72,8 +76,8 @@ a:hover { color: var(--color-accent); }
 /* ——— Tabeller: faste overskrifter og sumrader, bare tabellen scroller ——— */
 .tabellramme { flex: 1 1 auto; min-height: 0; overflow: auto; border: 2px solid var(--color-divider); background: var(--color-neutral-100); }
 table.liste { border-collapse: separate; border-spacing: 0; width: 100%; font-variant-numeric: tabular-nums; }
-.liste th { position: sticky; top: 0; z-index: 2; background: var(--color-neutral-100); text-align: left; padding: 10px 12px 8px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-neutral-600); font-weight: 600; border-bottom: 2px solid var(--color-divider); white-space: nowrap; }
-.liste td { padding: 9px 12px; border-bottom: 1px solid var(--color-neutral-300); vertical-align: middle; }
+.liste th { position: sticky; top: 0; z-index: 2; background: var(--color-neutral-100); text-align: left; padding: 7px 12px 6px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-neutral-600); font-weight: 600; border-bottom: 2px solid var(--color-divider); white-space: nowrap; }
+.liste td { padding: 5px 12px; border-bottom: 1px solid var(--color-neutral-300); vertical-align: middle; }
 .liste th:first-child, .liste td:first-child { padding-left: 16px; }
 .liste th:last-child, .liste td:last-child { padding-right: 16px; }
 .liste .tall { text-align: right; }
@@ -81,7 +85,7 @@ table.liste { border-collapse: separate; border-spacing: 0; width: 100%; font-va
 .liste .fet { font-weight: 600; }
 .liste tbody tr.klikkbar { cursor: pointer; }
 .liste tbody tr.klikkbar:hover, .liste tbody tr.valgt { background: var(--color-surface); }
-.liste tfoot td { position: sticky; bottom: 0; z-index: 1; background: var(--color-neutral-100); padding: 10px 12px; border-top: 2px solid var(--color-divider); border-bottom: 0; }
+.liste tfoot td { position: sticky; bottom: 0; z-index: 1; background: var(--color-neutral-100); padding: 7px 12px; border-top: 2px solid var(--color-divider); border-bottom: 0; }
 .liste tfoot .sum { font-weight: 700; font-size: 16px; }
 .liste .tom-rad td { color: var(--color-neutral-600); font-size: 14px; padding: 24px 16px; }
 .celletittel { font-weight: 600; }
@@ -89,7 +93,7 @@ table.liste { border-collapse: separate; border-spacing: 0; width: 100%; font-va
 .dempet { color: var(--color-neutral-700); font-size: 13px; }
 
 /* Redigerbart felt inne i en tabellcelle */
-.celleinn { width: 84px; height: 28px; padding: 0 8px; border: 2px solid transparent; background: var(--color-surface); text-align: right; font-size: 14px; color: var(--color-text); }
+.celleinn { width: 84px; height: 26px; padding: 0 8px; border: 2px solid transparent; background: var(--color-surface); text-align: right; font-size: 14px; color: var(--color-text); }
 .celleinn.antall { width: 60px; font-weight: 600; }
 .celleinn.tekst { width: 100%; min-width: 160px; text-align: left; font-weight: 600; }
 .celleinn:hover { border-color: var(--color-neutral-400); }
@@ -185,36 +189,41 @@ code { font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
 
 table.matrise { border-collapse: separate; border-spacing: 0; min-width: 100%; font-variant-numeric: tabular-nums; }
 .matrise th, .matrise td { background: var(--color-neutral-100); }
-.matrise thead th { position: sticky; top: 0; z-index: 3; border-bottom: 2px solid var(--color-divider); vertical-align: bottom; text-align: right; padding: 10px 16px 10px 12px; min-width: 200px; white-space: nowrap; font-weight: 400; }
+.matrise thead th { position: sticky; top: 0; z-index: 3; border-bottom: 2px solid var(--color-divider); vertical-align: bottom; text-align: right; padding: 7px 16px 6px 12px; min-width: 200px; white-space: nowrap; font-weight: 400; }
 .matrise .m-th { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-neutral-600); font-weight: 600; }
-.matrise th.m-linje { text-align: left; min-width: 250px; padding: 12px 20px 10px 24px; z-index: 4; }
+.matrise th.m-linje { text-align: left; min-width: 300px; padding: 8px 16px 6px 20px; z-index: 4; }
 .matrise .m-linje { position: sticky; left: 0; z-index: 2; }
-.matrise .m-valgt { position: sticky; right: 0; z-index: 2; text-align: right; box-shadow: -2px 0 0 var(--color-divider); font-weight: 600; font-size: 16px; padding: 10px 24px 10px 16px; min-width: 176px; white-space: nowrap; }
+.matrise .m-valgt { position: sticky; right: 0; z-index: 2; text-align: right; box-shadow: -2px 0 0 var(--color-divider); font-weight: 600; font-size: 16px; padding: 5px 24px 5px 16px; min-width: 176px; white-space: nowrap; }
 .matrise thead .m-valgt { z-index: 4; }
 .matrise tbody td { border-bottom: 1px solid var(--color-neutral-300); vertical-align: middle; }
-.matrise td.m-linje { padding: 10px 20px 10px 24px; }
-.m-antall { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 13px; color: var(--color-neutral-700); }
+.matrise td.m-linje { padding: 5px 16px 5px 20px; }
+/* Navn og beskrivelse til venstre, antall til høyre – én lav rad per linje */
+.m-rad { display: flex; align-items: center; gap: 12px; }
+.m-navn { flex: 1 1 auto; min-width: 0; }
+.m-antall { flex: 0 0 auto; display: flex; flex-direction: column; gap: 1px; font-size: 13px; color: var(--color-neutral-700); }
+.m-antall > div:first-child { display: flex; align-items: center; gap: 6px; }
+.m-antall .undertekst { line-height: 1.2; }
 .m-fjern { width: 24px; height: 24px; opacity: 0; }
 .m-linje:hover .m-fjern, .m-fjern:focus-visible { opacity: 1; }
 .m-levnavn { height: 30px; padding: 0 12px; border: 0; background: transparent; cursor: pointer; font-weight: 600; font-size: 15px; color: var(--color-text); }
 .m-levnavn:hover { background: var(--color-accent-100); color: var(--color-accent-700); }
 .m-td { padding: 0; cursor: pointer; user-select: none; }
-.m-celle { position: relative; margin: 5px 6px; padding: 8px 12px 8px 30px; min-height: 52px; text-align: right; }
+.m-celle { position: relative; margin: 3px 6px; padding: 4px 12px 4px 30px; min-height: 44px; text-align: right; }
 .m-celle:hover { background: var(--color-neutral-200); }
 .m-celle.valgt { background: var(--color-accent-100); box-shadow: inset 0 0 0 2px var(--color-accent); }
-.m-celle.redigerer { padding: 8px 6px; }
+.m-celle.redigerer { padding: 4px 6px; }
 .m-netto { font-size: 16px; font-weight: 600; line-height: 1.2; }
-.m-under { font-size: 12px; color: var(--color-neutral-600); margin-top: 2px; min-height: 16px; }
+.m-under { font-size: 12px; color: var(--color-neutral-600); margin-top: 1px; min-height: 16px; }
 .m-tom { font-size: 13px; color: var(--color-neutral-400); line-height: 36px; }
-.m-hak { position: absolute; top: 6px; left: 8px; width: 18px; height: 18px; background: var(--color-accent); color: var(--color-neutral-100); display: inline-flex; align-items: center; justify-content: center; }
-.m-klips { position: absolute; bottom: 6px; left: 8px; width: 22px; height: 22px; border: 0; background: transparent; color: var(--color-neutral-500); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.m-hak { position: absolute; top: 4px; left: 8px; width: 18px; height: 18px; background: var(--color-accent); color: var(--color-neutral-100); display: inline-flex; align-items: center; justify-content: center; }
+.m-klips { position: absolute; bottom: 2px; left: 8px; width: 22px; height: 22px; border: 0; background: transparent; color: var(--color-neutral-500); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .m-klips:hover { background: var(--color-accent-100); color: var(--color-accent-700); }
 /* ••• åpner tilbudspanelet for cellen; vises når man peker på cellen */
-.m-mer { position: absolute; top: 4px; left: 30px; width: 22px; height: 22px; border: 0; background: transparent; color: var(--color-neutral-600); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; opacity: 0; }
+.m-mer { position: absolute; top: 2px; left: 30px; width: 22px; height: 22px; border: 0; background: transparent; color: var(--color-neutral-600); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; opacity: 0; }
 .m-celle:hover .m-mer, .m-mer:focus-visible { opacity: 1; }
 .m-mer:hover { background: var(--color-accent-100); color: var(--color-accent-700); }
 .m-alt { font-size: 12px; font-weight: 600; color: var(--color-accent-700); margin-top: 2px; max-width: 190px; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.matrise .m-linje .celleunder { max-width: 300px; }
+.matrise .m-linje .celleunder { max-width: 260px; }
 /* Les priser fra tilbudet: tilbudslinjer som ikke kobles til noe, dempes */
 .tilbudsrader td { vertical-align: top; }
 .tilbudsrader tr.ikke-med td:first-child, .tilbudsrader tr.ikke-med .celleinn { color: var(--color-neutral-600); }
@@ -225,7 +234,7 @@ table.matrise { border-collapse: separate; border-spacing: 0; min-width: 100%; f
 .matrise tfoot .m-linje, .matrise tfoot .m-valgt { z-index: 4; }
 .matrise .m-frakt td { bottom: 74px; border-top: 2px solid var(--color-divider); padding: 6px 18px 2px 12px; text-align: right; }
 .matrise .m-sum td { bottom: 0; height: 74px; padding: 4px 28px 12px 12px; vertical-align: top; text-align: right; }
-.matrise .m-sum .m-linje, .matrise .m-frakt .m-linje { text-align: left; padding-left: 24px; white-space: nowrap; }
+.matrise .m-sum .m-linje, .matrise .m-frakt .m-linje { text-align: left; padding-left: 20px; white-space: nowrap; }
 .matrise .m-kombo { background: var(--color-accent-100); padding: 6px 24px 10px 16px; }
 
 /* Faktura-panelet: avkryssede poster */
@@ -272,12 +281,12 @@ body.mobilside .toppmeny nav a:not(.meny-kvittering) { display: none; }
 body.mobilside .meny-kvittering { display: inline-flex; }
 
 /* Gruppeoverskrift i tabeller (type med delsum) */
-.liste tr.gruppe td { background: var(--color-surface); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding-top: 7px; padding-bottom: 6px; color: var(--color-neutral-800); border-bottom: 1px solid var(--color-neutral-400); }
+.liste tr.gruppe td { background: var(--color-surface); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding-top: 5px; padding-bottom: 4px; color: var(--color-neutral-800); border-bottom: 1px solid var(--color-neutral-400); }
 .liste tr.gruppe td.tall { font-size: 13px; letter-spacing: 0; }
 /* Linjer lagt til etter søknaden: egen bolk nederst, utenfor det vi søkte om */
 .liste tr.gruppe.tillegg td { background: var(--color-accent-100); color: var(--color-accent-800); border-top: 2px solid var(--color-divider); }
 .liste tr.gruppe.tillegg td span { font-weight: 400; letter-spacing: 0; text-transform: none; font-size: 12px; }
-.celleinn.notat { display: block; height: 24px; margin-top: 3px; font-size: 12px; font-weight: 400; }
+.celleinn.notat { display: block; height: 22px; margin-top: 2px; font-size: 12px; font-weight: 400; }
 
 /* Tett tabell: søknadens behovstabell har mange kolonner (type + moms) */
 .liste.tett th, .liste.tett td { padding-left: 7px; padding-right: 7px; }
@@ -297,6 +306,6 @@ tr.slipp-under td { box-shadow: inset 0 -2px 0 var(--color-accent); }
 @media print { .dra { display: none; } }
 
 /* Typeoverskrift i matrisen (samme grupper som i søknaden) */
-.matrise tr.m-gruppe td { background: var(--color-surface); border-bottom: 1px solid var(--color-neutral-400); padding-top: 6px; padding-bottom: 5px; }
+.matrise tr.m-gruppe td { background: var(--color-surface); border-bottom: 1px solid var(--color-neutral-400); padding-top: 4px; padding-bottom: 3px; }
 .matrise tr.m-gruppe .m-linje { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-neutral-800); }
 .matrise tr.m-gruppe .m-valgt { font-size: 13px; font-weight: 700; color: var(--color-neutral-800); }

@@ -9,7 +9,7 @@
 // og markøren, utvalget og det som er skrevet flyttes over til det nye feltet.
 // Da oppdateres f.eks. kostnaden med én gang man tabber fra antall til pris.
 import { APPNAVN, MILJO } from './config/app-config.js';
-import { tilstand, innlogging, hentTilgang, startLytting, alleLastet, oppdaterGiver, oppdaterBehov, oppdaterSoknad, oppdaterInnkjop, oppdaterLeverandor, oppdaterFaktura } from './data/index.js';
+import { tilstand, innlogging, hentTilgang, startLytting, alleLastet, oppdaterGiver, oppdaterBehov, oppdaterSoknad, oppdaterInnkjop, oppdaterLeverandor, oppdaterFaktura, oppdaterInnstillinger } from './data/index.js';
 import { escapeHtml } from './ui/format.js';
 import { kobleLagringsstatus, lagre, visMelding } from './ui/lagring.js';
 import { tolkFelt, tolkNokkel } from './ui/felt.js';
@@ -21,9 +21,10 @@ import { behovSide } from './sider/behov.js';
 import { givereSide } from './sider/givere.js';
 import { leverandorerSide } from './sider/leverandorer.js';
 import { kvitteringSide } from './sider/kvittering.js';
+import { innstillingerSide } from './sider/innstillinger.js';
 
 const rot = document.getElementById('side');
-const SIDER = { soknader: soknaderSide, soknad: soknadSide, behov: behovSide, givere: givereSide, leverandorer: leverandorerSide, kvittering: kvitteringSide };
+const SIDER = { soknader: soknaderSide, soknad: soknadSide, behov: behovSide, givere: givereSide, leverandorer: leverandorerSide, kvittering: kvitteringSide, innstillinger: innstillingerSide };
 
 document.title = APPNAVN;
 document.getElementById('merke').innerHTML = MILJO === 'prod' ? 'Søknadsportal' : `Søknadsportal<small>${MILJO.toUpperCase()}</small>`;
@@ -263,7 +264,7 @@ rot.addEventListener('focusout', e => {
   setTimeout(tegnHvisVentende, 0);
 });
 
-const OPPDATER = { givere: oppdaterGiver, behov: oppdaterBehov, soknader: oppdaterSoknad, innkjop: oppdaterInnkjop, leverandorer: oppdaterLeverandor, fakturaer: oppdaterFaktura };
+const OPPDATER = { givere: oppdaterGiver, behov: oppdaterBehov, soknader: oppdaterSoknad, innkjop: oppdaterInnkjop, leverandorer: oppdaterLeverandor, fakturaer: oppdaterFaktura, innstillinger: oppdaterInnstillinger };
 
 function lagreFelt(el) {
   if (el.value === el.dataset.verdi) return;

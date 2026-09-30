@@ -63,6 +63,9 @@ export const lager = {
       for (const [k, v] of Object.entries(felt)) settSti(s[id], k, v);
     });
   },
+  flett(samling, id, felt) {
+    return skriv(samling, s => { s[id] = { ...(s[id] || {}), ...kopi(felt), organisasjonId: ORGANISASJON_ID }; });
+  },
   slett(samling, id) {
     return skriv(samling, s => { delete s[id]; });
   },

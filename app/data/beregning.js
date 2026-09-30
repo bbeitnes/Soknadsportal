@@ -313,13 +313,14 @@ export function tolkPris(raa) {
   if (!m) return null;
   const liste = parseFloat(m[1].replace(/[\s .]/g, '').replace(',', '.'));
   if (!Number.isFinite(liste)) return null;
-  let netto = liste, under = 'vår pris';
+  // `rabatt` er rabatten som tekst («10 %» eller «180»), tom uten rabatt.
+  let netto = liste, under = 'vår pris', rabattTekst = '';
   if (m[2]) {
     const rabatt = parseFloat(m[2].replace(',', '.'));
-    if (m[3]) { netto = liste * (1 - rabatt / 100); under = `Liste ${kr(liste)} −${m[2]} %`; }
-    else { netto = liste - rabatt; under = `Liste ${kr(liste)} −${kr(rabatt)}`; }
+    if (m[3]) { netto = liste * (1 - rabatt / 100); under = `Liste ${kr(liste)} −${m[2]} %`; rabattTekst = `${m[2]} %`; }
+    else { netto = liste - rabatt; under = `Liste ${kr(liste)} −${kr(rabatt)}`; rabattTekst = kr(rabatt); }
   }
-  return { liste, netto: Math.round(netto * 100) / 100, under };
+  return { liste, netto: Math.round(netto * 100) / 100, under, rabatt: rabattTekst };
 }
 
 // Tusenskille i undertekstene — samme som ui/format.js, gjentatt her så
@@ -418,6 +419,34 @@ export function ikkeFordelte(soknad, innkjopListe) {
 
 export function nesteRekkefolgeI(kart) {
   return Object.values(kart || {}).reduce((m, x) => Math.max(m, x.rekkefolge ?? 0), 0) + 1;
+}
+
+// ——— Bestilling ———
+// Det som bestilles hos én leverandør: linjene som er valgt hos den, med
+// antall, listepris, rabatt og sum, pluss frakt. `vare` er det leverandøren
+// kaller varen (alternativt produkt eller teksten fra tilbudet) når vi har
+// det, og da står vår egen betegnelse i `varLinje`. `rekkefolge` er
+// linje-ID-ene slik matrisen viser dem.
+export function bestilling(innkjop, sid, { tittelFor, rekkefolge = [] }) {
+  const b = innkjopsberegning(innkjop);
+  const lev = innkjop?.leverandorer?.[sid] || {};
+  const vedlegg = vedleggsliste(lev);
+  const plass = id => { const i = rekkefolge.indexOf(id); return i === -1 ? Infinity : i; };
+  const dokumenter = new Set();
+  const linjer = b.linjer
+    .filter(l => b.perLinje[l.id].valgtSid === sid)
+    .sort((x, y) => plass(x.id) - plass(y.id))
+    .map(l => {
+      const pris = innkjop.priser?.[l.id]?.[sid] || {}, p = b.celle[l.id][sid];
+      const dok = vedlegg.find(v => v.id === pris.vedleggId) || (vedlegg.length === 1 ? vedlegg[0] : null);
+      if (dok) dokumenter.add(dok.navn);
+      const antall = Number(l.antall) || 0;
+      const hos = (pris.alternativ || pris.tekst || '').trim();
+      return { vare: hos || tittelFor(l), varLinje: hos ? tittelFor(l) : '', antall, liste: p.liste, rabatt: p.rabatt, netto: p.netto, sum: antall * p.netto };
+    });
+  const sum = linjer.reduce((s, l) => s + l.sum, 0);
+  const frakt = linjer.length ? Number(lev.frakt) || 0 : 0;
+  return { linjer, sum, frakt, total: sum + frakt, dokumenter: [...dokumenter] };
 }
 
 // ——— Lese priser fra et tilbud ———

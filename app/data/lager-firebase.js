@@ -58,6 +58,11 @@ export const lager = {
   oppdater(samling, id, felt) {
     return medTidsfrist(updateDoc(doc(db, samling, id), tilFirestore(felt)));
   },
+  // Oppdaterer feltene, og oppretter dokumentet hvis det ikke finnes.
+  // Feltnavnene er toppnivåfelt (ikke punktum-stier).
+  flett(samling, id, felt) {
+    return medTidsfrist(setDoc(doc(db, samling, id), { ...felt, organisasjonId: ORGANISASJON_ID }, { merge: true }));
+  },
   slett(samling, id) {
     return medTidsfrist(deleteDoc(doc(db, samling, id)));
   },

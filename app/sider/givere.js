@@ -6,6 +6,7 @@ import { escapeHtml, kr, datoFelt } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
 import { lagre, visMelding } from '../ui/lagring.js';
 import { tegn, fokuser, avkryss, sidepanel, lukkeknapp } from '../ui/visning.js';
+import { innstillingsmeny } from './innstillinger.js';
 
 const ui = { seksjon: 'givere', panel: null, nyttPanel: false, invitasjon: { epost: '', rolle: 'bruker' }, kopiert: null, sender: null, sendt: null };
 
@@ -133,11 +134,15 @@ async function kopier(tekst) {
 }
 
 export const givereSide = {
-  tegn() {
+  meny: 'innstillinger',
+
+  // #/givere viser giverne, #/givere/brukere viser brukerne (bare administrator).
+  tegn([seksjon] = []) {
+    const onsket = seksjon === 'brukere' && erAdmin() ? 'brukere' : 'givere';
+    if (onsket !== ui.seksjon) { ui.seksjon = onsket; ui.panel = null; }
     const givere = sortert();
     const valgt = givere.find(g => g.id === ui.panel);
     if (ui.panel && !valgt && ui.panel !== 'inviter') ui.panel = null;
-    if (!erAdmin()) ui.seksjon = 'givere';
     const visBrukere = ui.seksjon === 'brukere';
     const html = `
       <header class="sidehode">
@@ -145,8 +150,8 @@ export const givereSide = {
           <h1>${visBrukere ? 'Brukere' : 'Givere'}</h1>
           <div class="ingress">${visBrukere ? 'Hvem som har tilgang til portalen.' : 'Vedlikeholdes av administrator. Momsinnstillingen arves av nye søknader til giveren.'}</div>
         </div>
-        ${erAdmin() ? `<div class="segment"><button type="button" data-handling="seksjon" data-id="givere" aria-pressed="${!visBrukere}" style="height:34px; padding:0 18px; font-size:14px">Givere (${givere.length})</button><button type="button" data-handling="seksjon" data-id="brukere" aria-pressed="${visBrukere}" style="height:34px; padding:0 18px; font-size:14px">Brukere (${tilstand.brukere.length})</button></div>` : ''}
       </header>
+      ${innstillingsmeny(visBrukere ? 'givere/brukere' : 'givere')}
       <main class="innhold">
         ${visBrukere ? brukere() : `
         <div class="verktoyrad">
@@ -175,8 +180,7 @@ export const givereSide = {
 
   async klikk(handling, el) {
     const g = tilstand.givere.find(x => x.id === ui.panel);
-    if (handling === 'seksjon') { ui.seksjon = el.dataset.id; ui.panel = null; tegn(); }
-    else if (handling === 'inviter') { ui.panel = 'inviter'; ui.nyttPanel = true; ui.invitasjon = { epost: '', rolle: 'bruker' }; tegn(); }
+    if (handling === 'inviter') { ui.panel = 'inviter'; ui.nyttPanel = true; ui.invitasjon = { epost: '', rolle: 'bruker' }; tegn(); }
     else if (handling === 'inv-rolle') { ui.invitasjon.epost = document.getElementById('inv-epost')?.value ?? ui.invitasjon.epost; ui.invitasjon.rolle = el.dataset.rolle; tegn(); }
     else if (handling === 'inv-send') {
       const epost = (document.getElementById('inv-epost')?.value || '').trim().toLowerCase();

@@ -52,6 +52,18 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   panelet, og `settTilbudspriser()` skriver `raa`, `vedleggId`, `side` og `tekst` (leverandørens
   varetekst) i én skriving. Ekte tilbud til utvikling ligger i `eksempler/` (i `.gitignore` –
   repoet er offentlig). Testene bruker oppdiktede tilbud.
+- I «Les priser» kan en tilbudslinje settes til «+ Ny linje» (noe leverandøren tilbyr som vi ikke
+  har spurt om): den blir en fri linje i innkjøpet. Leses tilbudet på nytt, gjenopprettes koblingene
+  fra `vedleggId` + `tekst` på prisene, og filteret «Ikke koblet» viser resten.
+- Toppmeny: Behov · Søknader · Innstillinger. Innstillinger samler Organisasjon (`#/innstillinger`),
+  Givere (`#/givere`), Leverandører (`#/leverandorer`) og Brukere (`#/givere/brukere`) med felles
+  faner (`innstillingsmeny()`); sidene har `meny: 'innstillinger'`.
+- `innstillinger/<orgId>` har `typeRekkefolge` og kontaktinfoen vår (orgNavn, orgNr, kontaktperson,
+  telefon, epost, adresse, leveringsadresse, fakturainfo) som flate felt. Skrives alltid med
+  `lager.flett()` (setDoc merge) – aldri `sett()`, som ville slettet de andre feltene.
+- Bestilling: `bestilling()` (beregning) gir linjene som er valgt hos én leverandør; `ui/bestilling.js`
+  lager PDF-en med pdf-lib. Knappen ligger i leverandørpanelet i Innkjøp. Portalen sender den ikke.
+- Tabellene er bevisst tette (lav radhøyde). I matrisen står antallet til høyre for varenavnet.
 - Linjer lagt til i en søknad som ikke lenger er utkast får `etterSoknad: true` og `notat` (fritekst).
   De teller ikke i `sumEstimert()`/søkt beløp (`soktLinjer()` / `tilleggslinjer()`), men går i innkjøp,
   pott og revisjon. PDF-rapporten viser dem ikke spesielt (bare på skjerm).

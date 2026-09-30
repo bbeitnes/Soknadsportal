@@ -411,16 +411,24 @@ export async function lastOppVedlegg(innkjop, sid, fil, linjeId = null) {
 // Priser lest fra et tilbud, lagt inn i én skriving. Hver pris kobles til
 // dokumentet og siden den står på, og leverandørens egen varetekst tas med,
 // så det går an å se hva prisen gjaldt.
-// rader: [{ linjeId, raa, side, tekst }]
+// rader: [{ linjeId, raa, side, tekst }]. En rad med `ny: { tittel, antall }`
+// i stedet for linjeId er noe leverandøren tilbyr som vi ikke har spurt om:
+// den blir en ny fri linje i innkjøpet.
 export function settTilbudspriser(innkjop, sid, vedleggId, rader) {
   const felt = {};
-  for (const r of rader) {
-    const sti = `priser.${r.linjeId}.${sid}`;
+  let rekkefolge = nesteRekkefolgeI(innkjop.linjer);
+  rader.forEach((r, nr) => {
+    let linjeId = r.linjeId;
+    if (r.ny) {
+      linjeId = nyId('l') + nr;
+      felt[`linjer.${linjeId}`] = { soknadLinjeId: null, tittel: r.ny.tittel, antall: r.ny.antall, rekkefolge: rekkefolge++ };
+    }
+    const sti = `priser.${linjeId}.${sid}`;
     felt[`${sti}.raa`] = r.raa;
     felt[`${sti}.vedleggId`] = vedleggId;
     felt[`${sti}.side`] = r.side;
     felt[`${sti}.tekst`] = r.tekst;
-  }
+  });
   return Object.keys(felt).length ? oppdaterInnkjop(innkjop.id, felt).then(() => true) : Promise.resolve(true);
 }
 
@@ -537,12 +545,25 @@ export function invitasjonstekst(bruker) {
 // organisasjonen. Behov har `rekkefolge` innenfor typen sin. Søknader har
 // sin egen `typeRekkefolge`, og linjene har `rekkefolge` fra før.
 
+// Innstillingsdokumentet for organisasjonen: felles typerekkefølge og
+// kontaktinfoen som står på bestillinger (orgNavn, orgNr, kontaktperson,
+// telefon, epost, adresse, leveringsadresse, fakturainfo). Alt skrives med
+// flett(), så feltene ikke overskriver hverandre og dokumentet opprettes ved
+// første lagring.
+export function organisasjon() {
+  return tilstand.innstillinger.find(i => i.id === ORGANISASJON_ID) || {};
+}
+
+export function oppdaterInnstillinger(id, felt) {
+  return lager.flett('innstillinger', id, felt);
+}
+
 export function fellesTyperekkefolge() {
-  return tilstand.innstillinger.find(i => i.id === ORGANISASJON_ID)?.typeRekkefolge || [];
+  return organisasjon().typeRekkefolge || [];
 }
 
 export function settFellesTyperekkefolge(typer) {
-  return lager.sett('innstillinger', ORGANISASJON_ID, { typeRekkefolge: typer });
+  return lager.flett('innstillinger', ORGANISASJON_ID, { typeRekkefolge: typer });
 }
 
 // Skriver ny rekkefølge for behovene i én type (og ny type for behovet som

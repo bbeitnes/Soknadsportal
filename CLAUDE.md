@@ -41,7 +41,7 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   utgifter og dokumenter som kart på dokumentet), `innkjop` (én per
   tilbudsrunde: linjer, leverandorer{leverandorId,frakt,vedlegg}, priser[lid][sid]{raa,alternativ,vedleggId,side,tekst}, valgt[lid]),
   `leverandorer` (register), `fakturaer` (løpenummer per søknad, dekker{innkjopId|lid} eller
-  {utgift|uid}, fraMobil).
+  {utgift|uid}, fraMobil, merknad – fritekst som vises i fakturalisten og PDF-rapporten).
 - Alle beløp vises med to desimaler: `kr()` (= `belop()`) gir «8 060,80» / «12 000,00». `heltall()`
   er for antall og redigerbare `tall`-felt. Fakturaer, løse utgifter og kvitteringer lagres med øre
   (felttype `belop`, `tolkBelop()`); antall og estimater lagres som hele tall (`tall`, `tolkTall()`).

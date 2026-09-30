@@ -9,7 +9,7 @@ import {
   leverandorNavn, posttittel, linjerUtenValg,
 } from '../data/beregning.js';
 import { escapeHtml, kr, belop, datoFelt, tidspunkt, fornavn } from '../ui/format.js';
-import { feltAttr } from '../ui/felt.js';
+import { feltAttr, tekstomrade } from '../ui/felt.js';
 import { lagre, visMelding } from '../ui/lagring.js';
 import { tegn, fokuser, sidepanel, lukkeknapp, IKON } from '../ui/visning.js';
 import { lagRevisjonsrapport } from '../ui/rapport.js';
@@ -80,6 +80,7 @@ function fakturaPanel(s, f, poster) {
       <span class="undertekst">En faktura kan dekke flere linjer. Sjekk av det den gjelder.</span>
       ${utenValgTekst(s)}
     </div>
+    <label class="felt"><span class="etikett">Merknad</span>${tekstomrade(n('merknad'), f.merknad, 'class="inndata" rows="2" placeholder="F.eks. hvorfor beløpet avviker fra tilbudet, eller «delfaktura – resten kommer i oktober»"')}<span class="undertekst">Vises i fakturalisten og i revisjonsrapporten.</span></label>
     <div class="panelbunn"><span>Lagt inn av ${escapeHtml(fornavn(f.lagtInnAv?.navn, f.lagtInnAv?.epost))}, ${tidspunkt(f.tid)}</span><button type="button" class="knapp knapp-fare" data-handling="slett-faktura">Slett faktura</button></div>`, { nytt: ui.nyttPanel });
 }
 
@@ -117,7 +118,7 @@ export const revisjonFane = {
                   <td class="smal" style="font-size:13px">${escapeHtml(f.fakturanr || '–')}</td>
                   <td class="smal" style="font-size:13px">${f.dato ? datoFelt(f.dato) : '–'}</td>
                   <td class="tall fet">${f.belop == null ? '–' : belop(f.belop)}</td>
-                  <td class="tall fet smal aksent">${a.koblet ? avvikTekst(a.avvik) : ''}</td>
+                  <td class="tall fet smal aksent">${a.koblet ? avvikTekst(a.avvik) : ''}${f.merknad ? `<div class="celleunder" style="font-weight:400; max-width:220px; white-space:normal" title="${escapeHtml(f.merknad)}">${escapeHtml(f.merknad)}</div>` : ''}</td>
                 </tr>`; }).join('') || '<tr class="tom-rad"><td colspan="6">Ingen fakturaer enda. Kvitteringer fra mobil dukker også opp her.</td></tr>'}</tbody>
               <tfoot><tr><td colspan="4" class="dempet">Sum fakturert</td><td class="tall sum">${belop(o.fakturert)}</td><td class="tall fet aksent">${avvikTekst(o.avvikSum)}</td></tr></tfoot>
             </table>

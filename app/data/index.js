@@ -471,7 +471,7 @@ export function fakturaerFor(soknadId) {
 export function opprettFaktura(soknadId, felt = {}) {
   return lager.opprett('fakturaer', {
     soknadId, lopenummer: nesteLopenummer(tilstand.fakturaer, soknadId),
-    leverandor: '', fakturanr: '', dato: null, belop: null, fil: null, dekker: {},
+    leverandor: '', fakturanr: '', dato: null, belop: null, fil: null, dekker: {}, merknad: '',
     lagtInnAv: { epost: tilstand.meg.epost, navn: tilstand.meg.navn }, tid: Date.now(),
     ...felt, ...signatur(),
   });

@@ -105,7 +105,9 @@ export async function lagRevisjonsrapport(s) {
   for (const f of fakturaer) {
     const gjelder = fakturaDekker(f).map(id => poster.find(x => x.id === id)).filter(Boolean).map(posttittel).join(', ') || 'Ikke koblet';
     const linjer = brytTekst(gjelder, 9, gjelderBredde);
-    const hoyde = Math.max(1, linjer.length) * 12 + 8;
+    // Merknaden (f.eks. forklaring på et avvik) står under «Gjelder», i grått.
+    const merknad = (f.merknad || '').trim() ? brytTekst(`Merknad: ${f.merknad.trim()}`, 8.5, gjelderBredde) : [];
+    const hoyde = Math.max(1, linjer.length) * 12 + merknad.length * 11 + 8;
     if (y - hoyde < MARG + 40) { nySide(); tabellhode(); }
     tekst(String(f.lopenummer), kol.nr, 10, fet);
     tekst(f.fakturanr || '–', kol.fnr, 9);
@@ -114,6 +116,7 @@ export async function lagRevisjonsrapport(s) {
     hoyre(f.belop == null ? '–' : belop(f.belop), kol.belop, 10, fet);
     let yy = y;
     for (const l of linjer) { side.drawText(trygg(l), { x: kol.gjelder, y: yy, size: 9, font, color: svart }); yy -= 12; }
+    for (const l of merknad) { side.drawText(trygg(l), { x: kol.gjelder, y: yy, size: 8.5, font, color: graa }); yy -= 11; }
     y -= hoyde - 8; strek(); y -= 16;
   }
   y -= 4; strek(1.5, svart); y -= 16;

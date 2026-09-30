@@ -1,13 +1,13 @@
 // Givere. Vedlikeholdes av administrator; andre brukere ser dem lesbart.
 // (Brukerlisten og invitasjoner kommer i trinn e.)
-import { tilstand, erAdmin, opprettGiver, oppdaterGiver, slettGiver, inviterBruker, oppdaterBruker, fjernBruker, invitasjonstekst } from '../data/index.js';
+import { tilstand, erAdmin, opprettGiver, oppdaterGiver, slettGiver, inviterBruker, oppdaterBruker, fjernBruker, invitasjonstekst, sendInnloggingslenkeTil } from '../data/index.js';
 import { statusNavn } from '../data/beregning.js';
 import { escapeHtml, kr, datoFelt } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
 import { lagre, visMelding } from '../ui/lagring.js';
 import { tegn, fokuser, avkryss, sidepanel, lukkeknapp } from '../ui/visning.js';
 
-const ui = { seksjon: 'givere', panel: null, nyttPanel: false, invitasjon: { epost: '', rolle: 'bruker' }, kopiert: null };
+const ui = { seksjon: 'givere', panel: null, nyttPanel: false, invitasjon: { epost: '', rolle: 'bruker' }, kopiert: null, sender: null, sendt: null };
 
 function momsTekst(g) {
   return g.momsTrekk ? `Trekkes ut, ${g.momsProsent ?? 0} %` : 'Nei';
@@ -73,7 +73,8 @@ function brukerRad(b) {
       </div></td>
       <td class="smal" style="font-size:13px; ${invitert ? 'color:var(--color-accent-700)' : 'color:var(--color-neutral-700)'}">${invitert ? `Invitert${b.invitertTid ? ' ' + datoFelt(new Date(b.invitertTid).toISOString().slice(0, 10)) : ''}` : 'Aktiv'}</td>
       <td class="tall smal" style="padding-top:8px; padding-bottom:8px">
-        ${ui.kopiert === b.id ? '<span class="undertekst">Lenke kopiert</span>' : invitert ? `<button type="button" class="knapp knapp-liten" style="height:28px; font-size:12px" data-handling="kopier" data-id="${b.id}">Send igjen</button>` : ''}
+        ${ui.kopiert === b.id ? '<span class="undertekst">Invitasjon kopiert</span>' : invitert ? `<button type="button" class="knapp knapp-liten" style="height:28px; font-size:12px" data-handling="kopier" data-id="${b.id}" title="Kopierer invitasjonsteksten, så du kan sende den selv">Kopier invitasjon</button>` : ''}
+        ${meg ? '' : ui.sendt === b.id ? '<span class="undertekst">Lenke sendt</span>' : `<button type="button" class="knapp knapp-liten" style="height:28px; font-size:12px" data-handling="send-lenke" data-id="${b.id}" title="Sender en innloggingslenke på e-post – for brukere uten Google-konto" ${ui.sender === b.id ? 'disabled' : ''}>${ui.sender === b.id ? 'Sender …' : 'Send innloggingslenke'}</button>`}
         ${meg ? '<span class="undertekst">deg</span>' : `<button type="button" class="knapp knapp-fare" data-handling="fjern" data-id="${b.id}">Fjern</button>`}
       </td>
     </tr>`;
@@ -88,7 +89,7 @@ function brukere() {
     </div>
     <div class="tabellramme" data-rull="brukere">
       <table class="liste">
-        <thead><tr><th>Navn</th><th>E-post</th><th>Rolle</th><th>Status</th><th style="width:170px"></th></tr></thead>
+        <thead><tr><th>Navn</th><th>E-post</th><th>Rolle</th><th>Status</th><th style="width:380px"></th></tr></thead>
         <tbody>${liste.map(brukerRad).join('')}</tbody>
       </table>
     </div>`;
@@ -113,7 +114,7 @@ function inviterPanel() {
       <button type="button" class="knapp knapp-primar" data-handling="inv-send" ${gyldig ? '' : 'disabled'}>Inviter og kopier tekst</button>
       <span class="undertekst" id="inv-hint">${gyldig ? `Inviteres som ${i.rolle}.` : 'Skriv inn en gyldig e-postadresse.'}</span>
     </div>
-    <div class="undertekst">Personen logger inn med Google eller innloggingslenke på e-post, med den adressen du inviterer. Status blir «Aktiv» ved første innlogging.</div>`, { nytt: ui.nyttPanel });
+    <div class="undertekst">Personen logger inn med Google eller innloggingslenke på e-post, med den adressen du inviterer. Status blir «Aktiv» ved første innlogging. Har personen ikke Google-konto, kan du sende en innloggingslenke fra brukerlisten etterpå.</div>`, { nytt: ui.nyttPanel });
 }
 
 document.addEventListener('input', e => {
@@ -191,6 +192,20 @@ export const givereSide = {
     else if (handling === 'kopier') {
       const b = tilstand.brukere.find(x => x.id === el.dataset.id);
       if (b) { await kopier(invitasjonstekst(b)); ui.kopiert = b.id; tegn(); setTimeout(() => { ui.kopiert = null; tegn(); }, 4000); }
+    }
+    else if (handling === 'send-lenke') {
+      const b = tilstand.brukere.find(x => x.id === el.dataset.id);
+      if (!b || ui.sender) return;
+      if (!confirm(`Sende innloggingslenke på e-post til ${b.epost}?\n\nLenken virker én gang. Mottakeren skriver inn e-postadressen sin når den åpnes.`)) return;
+      ui.sender = b.id; tegn();
+      try {
+        if (await sendInnloggingslenkeTil(b) === 'demo') visMelding('Demo: ingen e-post sendes. Åpne portalen uten ?demo for å sende på ordentlig.');
+        else { ui.sendt = b.id; setTimeout(() => { ui.sendt = null; tegn(); }, 4000); }
+      } catch (err) {
+        console.error(err);
+        visMelding('Kunne ikke sende lenken: ' + (err.code || err.message || err));
+      }
+      ui.sender = null; tegn();
     }
     else if (handling === 'rolle') lagre(() => oppdaterBruker(el.dataset.id, { rolle: el.dataset.rolle }));
     else if (handling === 'fjern') {

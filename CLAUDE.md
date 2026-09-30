@@ -60,6 +60,8 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   `rekkefolge`. `innstillinger` er valgfri ved oppstart (tom liste hvis reglene mangler).
 - Import av behov fra regneark: `tolkBehovimport()`; `IMPORTFELT` er det panelet viser og
   testes mot det som faktisk gjenkjennes.
+- Innlogging: Google eller Firebase e-postlenke. Administrator kan sende lenken til en bruker fra
+  brukerlisten (`sendInnloggingslenkeTil()`); Firebase sender e-posten, portalen ser aldri lenken.
 - Mobil: `#/kvittering` (default-rute på smal skjerm). `ui/bilde.js` gjør om store bilder til JPEG.
 - Revisjonsrapporten (`ui/rapport.js`) bruker pdf-lib fra cdnjs og `getBytes` fra Storage — krever CORS på bøtta (OPPSETT.md §6).
 - Endres `firebase/firestore.rules`, må HELE filen limes inn i Console for

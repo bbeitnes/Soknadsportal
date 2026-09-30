@@ -503,6 +503,13 @@ export function fjernBruker(id) {
   return lager.slett('brukere', id);
 }
 
+// Administrator sender en innloggingslenke på e-post til en bruker (for dem
+// uten Google-konto). Firebase sender e-posten; portalen ser aldri lenken.
+// Mottakeren skriver inn adressen sin én gang når lenken åpnes.
+export function sendInnloggingslenkeTil(bruker) {
+  return innlogging.sendInnloggingslenke(bruker.epost, { husk: false });
+}
+
 // Teksten administrator sender til den inviterte.
 export function invitasjonstekst(bruker) {
   const url = location.origin + location.pathname;

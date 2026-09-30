@@ -93,7 +93,12 @@ export const innlogging = {
     return () => {};
   },
   async loggInnMedGoogle() {},
-  async sendInnloggingslenke() {},
+  // Demo sender aldri e-post. Svaret 'demo' lar siden si fra om det.
+  async sendInnloggingslenke() {
+    await vent(300);
+    if (window.demoFeil) throw new Error('Simulert feil (demoFeil = true)');
+    return 'demo';
+  },
   async fullforLenke() { return 'ingen-lenke'; },
   async loggUt() { location.reload(); },
 };

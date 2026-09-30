@@ -90,10 +90,13 @@ export const innlogging = {
   loggInnMedGoogle() {
     return signInWithPopup(auth, new GoogleAuthProvider());
   },
-  async sendInnloggingslenke(epost) {
+  // `husk` lagrer adressen i denne nettleseren, så lenken kan fullføres uten
+  // å spørre om e-posten igjen. Slås av når en administrator sender lenken
+  // til en annen: da er det mottakerens nettleser som skal fullføre.
+  async sendInnloggingslenke(epost, { husk = true } = {}) {
     const url = location.origin + location.pathname;
     await sendSignInLinkToEmail(auth, epost, { url, handleCodeInApp: true });
-    localStorage.setItem(LENKE_EPOST, epost);
+    if (husk) localStorage.setItem(LENKE_EPOST, epost);
   },
   // Kalles ved oppstart. Er adressen en innloggingslenke, fullføres den.
   // Åpnes lenken i en annen nettleser enn den ble bestilt fra, må brukeren

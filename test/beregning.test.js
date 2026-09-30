@@ -308,3 +308,20 @@ test('manuell rekkefølge: grupper, elementer og flytting', async () => {
   assert.deepEqual(typerekkefolgeFor({ typeRekkefolge: ['Uniform'] }, ['Instrument', 'Uniform', 'Utstyr']), ['Uniform', 'Instrument', 'Utstyr']);
   assert.deepEqual(typerekkefolgeFor({}, ['A']), ['A']);
 });
+
+test('innkjøpet speiler søknadens typer og rekkefølge', async () => {
+  const { grupperInnkjopslinjer } = await import('../app/data/beregning.js');
+  const behov = [{ id: 'sax', type: 'Instrument' }, { id: 'kornett', type: 'Instrument' }, { id: 'jakke', type: 'Uniform' }];
+  const s = { typeRekkefolge: ['Uniform', 'Instrument'], linjer: {
+    a: { behovId: 'kornett', rekkefolge: 2 }, b: { behovId: 'sax', rekkefolge: 1 },
+    c: { behovId: 'jakke', rekkefolge: 3 }, d: { behovId: 'sax', type: 'Slagverk', rekkefolge: 4 },
+  } };
+  // Lagt inn i innkjøpet i «tilfeldig» rekkefølge, pluss en fri linje og en linje som er fjernet fra søknaden.
+  const i = { linjer: {
+    k1: { soknadLinjeId: 'a', rekkefolge: 1 }, k2: { soknadLinjeId: 'c', rekkefolge: 2 }, k3: { soknadLinjeId: null, rekkefolge: 3 },
+    k4: { soknadLinjeId: 'b', rekkefolge: 4 }, k5: { soknadLinjeId: 'd', rekkefolge: 5 }, k6: { soknadLinjeId: 'borte', rekkefolge: 6 },
+  } };
+  const g = grupperInnkjopslinjer(i, s, behov, s.typeRekkefolge);
+  assert.deepEqual(g.map(x => [x.type, x.linjer.map(l => l.id)]), [['Uniform', ['k2']], ['Instrument', ['k4', 'k1']], ['Slagverk', ['k5']], ['', ['k3', 'k6']]]);
+  assert.deepEqual(grupperInnkjopslinjer({}, s, behov), []);
+});

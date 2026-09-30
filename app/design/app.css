@@ -281,3 +281,8 @@ tr.slipp-over td { box-shadow: inset 0 2px 0 var(--color-accent); }
 tr.slipp-under td { box-shadow: inset 0 -2px 0 var(--color-accent); }
 .liste tr.gruppe .dra { margin-left: 0; }
 @media print { .dra { display: none; } }
+
+/* Typeoverskrift i matrisen (samme grupper som i søknaden) */
+.matrise tr.m-gruppe td { background: var(--color-surface); border-bottom: 1px solid var(--color-neutral-400); padding-top: 6px; padding-bottom: 5px; }
+.matrise tr.m-gruppe .m-linje { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-neutral-800); }
+.matrise tr.m-gruppe .m-valgt { font-size: 13px; font-weight: 700; color: var(--color-neutral-800); }

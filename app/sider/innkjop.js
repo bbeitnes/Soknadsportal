@@ -10,10 +10,12 @@ import {
   leggSoknadslinjeIInnkjop, leggFriLinjeIInnkjop, fjernInnkjopslinje,
   leggTilLeverandor, fjernLeverandor, settPris, settPriser, velgPris, settValgt,
   lastOppVedlegg, slettVedlegg, dokumentUrl, opprettLeverandor,
+  leggSoknadslinjerIInnkjop, fellesTyperekkefolge,
 } from '../data/index.js';
 import {
   INNKJOPSSTATUSER, innkjopsstatusNavn, innkjopsberegning, billigstPerLinje, tolkRutenett,
   ikkeFordelte, vedleggsliste, momsProsent, giverandel, leverandorNavn, leverandorKontakt,
+  grupperInnkjopslinjer, grupperPerType, linjetype, typerekkefolgeFor,
 } from '../data/beregning.js';
 import { escapeHtml, kr, tidspunkt, fornavn } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
@@ -45,6 +47,12 @@ function linjetittel(s, l) {
 function soktAntall(s, l) {
   return l.soknadLinjeId ? s.linjer?.[l.soknadLinjeId]?.antall ?? null : null;
 }
+
+// Innkjøpet viser linjene slik de står i søknaden: samme typer og samme
+// rekkefølge. Typen hentes fra søknaden og endres der, ikke her.
+const typerekkefolge = s => typerekkefolgeFor(s, fellesTyperekkefolge());
+const linjegrupper = (s, i) => grupperInnkjopslinjer(i, s, tilstand.behov, typerekkefolge(s));
+const soknadslinjeTittel = l => l.behovId ? (tilstand.behov.find(b => b.id === l.behovId)?.tittel || 'Slettet behov') : l.tittel;
 
 // ——— Tegning ———
 
@@ -90,7 +98,7 @@ function matrise(s, i) {
   const b = innkjopsberegning(i);
   const n = f => `innkjop/${i.id}/${f}`;
   const prosent = momsProsent(s);
-  const rader = b.linjer.map(l => `
+  const rad = l => `
     <tr>
       <td class="m-linje">
         ${l.soknadLinjeId
@@ -104,7 +112,14 @@ function matrise(s, i) {
       </td>
       ${b.leverandorer.map(lev => celle(s, i, b, l, lev)).join('')}
       <td class="m-valgt ${b.perLinje[l.id].sum == null ? 'dempet' : ''}">${b.perLinje[l.id].sum == null ? '—' : kr(b.perLinje[l.id].sum)}</td>
-    </tr>`).join('');
+    </tr>`;
+  // Gruppert som i søknaden. Har ingen linjer type, vises ingen overskrift.
+  const grupper = linjegrupper(s, i);
+  const visOverskrift = grupper.length > 1 || (grupper[0]?.type ?? '') !== '';
+  const rader = grupper.map(g => {
+    const valgtSum = g.linjer.reduce((sum, l) => sum + (b.perLinje[l.id].sum || 0), 0);
+    return `${visOverskrift ? `<tr class="m-gruppe"><td class="m-linje">${escapeHtml(g.type || 'Uten type')}</td>${b.leverandorer.map(() => '<td></td>').join('')}${!b.leverandorer.length ? '<td></td>' : ''}<td class="m-valgt">${kr(valgtSum)}</td></tr>` : ''}${g.linjer.map(rad).join('')}`;
+  }).join('');
   const tomt = !b.linjer.length
     ? `<tr><td class="m-linje dempet" style="padding:24px 24px">Ingen linjer enda. Bruk «behov ikke fordelt» eller «+ Fri linje».</td>${b.leverandorer.map(() => '<td></td>').join('')}<td class="m-valgt"></td></tr>` : '';
   return `
@@ -190,20 +205,24 @@ function innkjopPanel(s, i) {
 }
 
 function ikkeFordeltPanel(s, i, liste) {
+  const navn = escapeHtml(i.navn || 'innkjøpet');
+  const grupper = grupperPerType(liste, l => linjetype(l, tilstand.behov), typerekkefolge(s));
+  const visOverskrift = grupper.length > 1 || (grupper[0]?.type ?? '') !== '';
   return sidepanel(`
     <div class="panelhode">
-      <div><h2>Ikke fordelt</h2><div class="ingress" style="margin-top:4px">Behov i søknaden som ennå ikke ligger i et innkjøp.</div></div>
+      <div><h2>Ikke fordelt</h2><div class="ingress" style="margin-top:4px">Behov i søknaden som ennå ikke ligger i et innkjøp – gruppert som i søknaden.</div></div>
       ${lukkeknapp()}
     </div>
-    <div style="display:flex; flex-direction:column; gap:8px">
-      ${liste.map(l => {
-        const tittel = l.behovId ? (tilstand.behov.find(b => b.id === l.behovId)?.tittel || 'Slettet behov') : l.tittel;
-        return `<div style="display:flex; align-items:center; gap:12px; padding:12px 14px; background:var(--color-neutral-200)">
-          <div style="flex:1; min-width:0"><div class="fet">${escapeHtml(tittel || 'Uten tittel')}</div><div class="dempet">${l.antall ?? 0} stk i søknaden${l.finansieres ? ' · finansieres' : ''}</div></div>
-          <button type="button" class="knapp knapp-primar knapp-liten" data-handling="legg-i-innkjop" data-lid="${l.id}">Legg i ${escapeHtml(i.navn || 'innkjøpet')}</button>
-        </div>`; }).join('') || '<div class="dempet">Alle behov i søknaden ligger i et innkjøp.</div>'}
+    ${liste.length > 1 ? `<button type="button" class="knapp knapp-primar" style="align-self:flex-start" data-handling="legg-alle">Legg alle ${liste.length} i ${navn}</button>` : ''}
+    <div style="display:flex; flex-direction:column; gap:6px">
+      ${grupper.map(g => `
+        ${visOverskrift ? `<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:8px"><span class="etikett">${escapeHtml(g.type || 'Uten type')}</span>${g.elementer.length > 1 ? `<button type="button" class="knapp knapp-ramme knapp-liten" style="height:26px; font-size:12px" data-handling="legg-gruppe" data-type="${escapeHtml(g.type)}">Legg alle ${g.elementer.length}</button>` : ''}</div>` : ''}
+        ${g.elementer.map(l => `<div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--color-neutral-200)">
+          <div style="flex:1; min-width:0"><div class="fet">${escapeHtml(soknadslinjeTittel(l) || 'Uten tittel')}</div><div class="dempet">${l.antall ?? 0} stk i søknaden${l.finansieres ? ' · finansieres' : ''}</div></div>
+          <button type="button" class="knapp knapp-primar knapp-liten" data-handling="legg-i-innkjop" data-lid="${l.id}">Legg til</button>
+        </div>`).join('')}`).join('') || '<div class="dempet">Alle behov i søknaden ligger i et innkjøp.</div>'}
     </div>
-    <div class="hint">Behov som ikke legges i et innkjøp forblir åpne i behovslisten.</div>`, { nytt: ui.nyttPanel });
+    <div class="hint">Linjene havner i matrisen under samme type og i samme rekkefølge som i søknaden. Behov som ikke legges i et innkjøp forblir åpne i behovslisten.</div>`, { nytt: ui.nyttPanel });
 }
 
 function vedleggPanel(s, i, lid, sid) {
@@ -327,8 +346,15 @@ export const innkjopFane = {
       case 'legg-i-innkjop': {
         const sl = s.linjer?.[lid];
         if (!i || !sl) return true;
-        const tittel = sl.behovId ? (tilstand.behov.find(b => b.id === sl.behovId)?.tittel || '') : sl.tittel;
-        lagre(() => leggSoknadslinjeIInnkjop(i, { id: lid, ...sl }, tittel));
+        lagre(() => leggSoknadslinjeIInnkjop(i, { id: lid, ...sl }, soknadslinjeTittel(sl) || ''));
+        return true;
+      }
+      case 'legg-alle':
+      case 'legg-gruppe': {
+        if (!i) return true;
+        const ledige = ikkeFordelte(s, innkjopFor(s.id))
+          .filter(l => handling === 'legg-alle' || linjetype(l, tilstand.behov) === el.dataset.type);
+        lagre(() => leggSoknadslinjerIInnkjop(i, ledige.map(l => ({ soknadLinje: l, tittel: soknadslinjeTittel(l) || '' }))));
         return true;
       }
       case 'fri-linje': {
@@ -429,11 +455,13 @@ export const innkjopFane = {
     e.preventDefault();
     const [lid, sid] = celle;
     const b = innkjopsberegning(i);
-    const li = b.linjer.findIndex(l => l.id === lid), si = b.leverandorer.findIndex(x => x.id === sid);
+    // Radene fylles i den rekkefølgen matrisen viser dem (gruppert som søknaden).
+    const linjeIder = linjegrupper(s, i).flatMap(g => g.linjer.map(l => l.id));
+    const li = linjeIder.indexOf(lid), si = b.leverandorer.findIndex(x => x.id === sid);
     ui.redigerer = null;
     // Prisfeltet skal ikke lagre sin gamle verdi når det mister fokus etterpå.
     if (el.dataset?.pris) { el.dataset.ignorer = '1'; el.blur(); }
-    lagre(() => settPriser(i, li, si, rutenett));
+    lagre(() => settPriser(i, linjeIder, li, si, rutenett));
     return true;
   },
 

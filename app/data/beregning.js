@@ -335,6 +335,18 @@ export function innkjopsberegning(innkjop) {
   };
 }
 
+// Innkjøpets linjer gruppert og ordnet slik de står i søknaden: samme
+// typer, samme typerekkefølge og samme rekkefølge innenfor typen. Frie
+// linjer (og linjer som er fjernet fra søknaden) kommer til slutt, uten type.
+export function grupperInnkjopslinjer(innkjop, soknad, behovliste, typeRekkefolge = []) {
+  const soknadslinjer = soknad?.linjer || {};
+  const linjer = innkjopslinjer(innkjop).map(l => {
+    const sl = l.soknadLinjeId ? soknadslinjer[l.soknadLinjeId] : null;
+    return { linje: l, type: sl ? linjetype(sl, behovliste) : '', fri: sl ? 0 : 1, plass: sl ? (sl.rekkefolge ?? 0) : (l.rekkefolge ?? 0) };
+  }).sort((a, b) => a.fri - b.fri || a.plass - b.plass);
+  return grupperPerType(linjer, x => x.type, typeRekkefolge).map(g => ({ type: g.type, linjer: g.elementer.map(x => x.linje) }));
+}
+
 export function sumInnkjop(innkjop) {
   return innkjopsberegning(innkjop).total;
 }

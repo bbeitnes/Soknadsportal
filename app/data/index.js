@@ -258,6 +258,16 @@ export function leggSoknadslinjeIInnkjop(innkjop, soknadLinje, tittel) {
   }).then(() => id);
 }
 
+// Flere søknadslinjer på én gang (f.eks. en hel type).
+export function leggSoknadslinjerIInnkjop(innkjop, linjer) {
+  const felt = {};
+  let rekkefolge = nesteRekkefolgeI(innkjop.linjer);
+  for (const { soknadLinje, tittel } of linjer) {
+    felt[`linjer.${nyId('l')}`] = { soknadLinjeId: soknadLinje.id, tittel, antall: Number(soknadLinje.antall) || 0, rekkefolge: rekkefolge++ };
+  }
+  return Object.keys(felt).length ? oppdaterInnkjop(innkjop.id, felt) : Promise.resolve();
+}
+
 export function leggFriLinjeIInnkjop(innkjop) {
   const id = nyId('l');
   return oppdaterInnkjop(innkjop.id, {
@@ -318,8 +328,9 @@ export function settPris(innkjop, linjeId, sid, raa) {
 }
 
 // Innliming fra Excel: rutenettet legges inn fra cellen det limes i.
-export function settPriser(innkjop, fraLinjeIdx, fraSidIdx, rutenett) {
-  const linjer = innkjopslinjer(innkjop), lev = leverandorer(innkjop);
+// `linjeIder` er linjene i den rekkefølgen matrisen viser dem.
+export function settPriser(innkjop, linjeIder, fraLinjeIdx, fraSidIdx, rutenett) {
+  const linjer = linjeIder.map(id => ({ id })), lev = leverandorer(innkjop);
   const felt = {};
   rutenett.forEach((rad, i) => {
     const l = linjer[fraLinjeIdx + i];

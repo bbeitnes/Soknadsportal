@@ -42,3 +42,15 @@ Gjør det i begge databasene. Flere brukere inviteres fra portalen (trinn e).
   (samme verdier som Bestillingsportal).
 - Push til `test` deployer til `…/Soknadsportal-test/`, push til `main` til
   `…/Soknadsportal/`. Bare `app/` publiseres.
+
+## 6. CORS på Storage-bøtta (gjort 2026-09-30)
+Revisjonsrapporten henter vedleggene fra Storage i nettleseren. Da må
+bøtta tillate lesing fra portalens adresser, ellers stopper nettleseren
+det («blocked by CORS policy»). Settes én gang for bøtta (felles for test
+og prod) fra Cloud Shell på console.cloud.google.com:
+
+```bash
+printf '[{"origin":["https://beitnes.net","http://beitnes.net","http://localhost:8430"],"method":["GET"],"responseHeader":["Content-Type"],"maxAgeSeconds":3600}]' > cors.json && gcloud storage buckets update gs://skiensskolemusikk-b5cbc.firebasestorage.app --cors-file=cors.json
+```
+
+Får portalen ny adresse, må den legges til i `origin`-listen.

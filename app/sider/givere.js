@@ -196,7 +196,7 @@ export const givereSide = {
     else if (handling === 'send-lenke') {
       const b = tilstand.brukere.find(x => x.id === el.dataset.id);
       if (!b || ui.sender) return;
-      if (!confirm(`Sende innloggingslenke på e-post til ${b.epost}?\n\nLenken virker én gang. Mottakeren skriver inn e-postadressen sin når den åpnes.`)) return;
+      if (!confirm(`Sende innloggingslenke på e-post til ${b.epost}?\n\nLenken virker én gang. Mottakeren skriver inn e-postadressen sin når den åpnes. Be mottakeren se i søppelpost hvis den ikke dukker opp.`)) return;
       ui.sender = b.id; tegn();
       try {
         if (await sendInnloggingslenkeTil(b) === 'demo') visMelding('Demo: ingen e-post sendes. Åpne portalen uten ?demo for å sende på ordentlig.');

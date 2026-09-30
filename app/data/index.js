@@ -408,6 +408,22 @@ export async function lastOppVedlegg(innkjop, sid, fil, linjeId = null) {
   await oppdaterInnkjop(innkjop.id, felt);
 }
 
+// Priser lest fra et tilbud, lagt inn i én skriving. Hver pris kobles til
+// dokumentet og siden den står på, og leverandørens egen varetekst tas med,
+// så det går an å se hva prisen gjaldt.
+// rader: [{ linjeId, raa, side, tekst }]
+export function settTilbudspriser(innkjop, sid, vedleggId, rader) {
+  const felt = {};
+  for (const r of rader) {
+    const sti = `priser.${r.linjeId}.${sid}`;
+    felt[`${sti}.raa`] = r.raa;
+    felt[`${sti}.vedleggId`] = vedleggId;
+    felt[`${sti}.side`] = r.side;
+    felt[`${sti}.tekst`] = r.tekst;
+  }
+  return Object.keys(felt).length ? oppdaterInnkjop(innkjop.id, felt).then(() => true) : Promise.resolve(true);
+}
+
 export async function slettVedlegg(innkjop, sid, vid, sti) {
   const felt = { [`leverandorer.${sid}.vedlegg.${vid}`]: SLETT };
   for (const l of innkjopslinjer(innkjop)) {
@@ -513,7 +529,7 @@ export function sendInnloggingslenkeTil(bruker) {
 // Teksten administrator sender til den inviterte.
 export function invitasjonstekst(bruker) {
   const url = location.origin + location.pathname;
-  return `Du er invitert til Søknadsportal.\n\nGå til ${url} og logg inn med Google-kontoen din, eller be om en innloggingslenke på e-post. Bruk adressen ${bruker.epost}.`;
+  return `Du er invitert til Søknadsportal.\n\nGå til ${url} og logg inn med Google-kontoen din, eller be om en innloggingslenke på e-post (se i søppelpost hvis den ikke kommer). Bruk adressen ${bruker.epost}.`;
 }
 
 // ——— Manuell rekkefølge (dra og slipp) ———

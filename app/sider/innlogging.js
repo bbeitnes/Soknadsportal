@@ -42,7 +42,7 @@ export const innloggingsside = {
       if (!gyldigEpost(epost)) { skriv('Skriv inn en gyldig e-postadresse.', true); return; }
       try {
         await innlogging.sendInnloggingslenke(epost);
-        skriv(`Sjekk e-posten din. Vi har sendt en innloggingslenke til ${epost}.`);
+        skriv(`Sjekk e-posten din. Vi har sendt en innloggingslenke til ${epost}. Finner du den ikke, se i søppelpost.`);
       } catch (err) {
         skriv('Kunne ikke sende lenken: ' + (err.message || err.code), true);
       }

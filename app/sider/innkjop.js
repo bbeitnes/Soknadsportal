@@ -11,18 +11,21 @@ import {
   leggTilLeverandor, fjernLeverandor, settPris, settPriser, velgPris, settValgt,
   lastOppVedlegg, slettVedlegg, dokumentUrl, opprettLeverandor,
   leggSoknadslinjerIInnkjop, fellesTyperekkefolge, leggBehovISoknadOgInnkjop, anskaffet,
+  filBytes, settTilbudspriser,
 } from '../data/index.js';
 import {
   INNKJOPSSTATUSER, innkjopsstatusNavn, innkjopsberegning, billigstPerLinje, tolkRutenett,
   ikkeFordelte, vedleggsliste, momsProsent, giverandel, leverandorNavn, leverandorKontakt,
   grupperInnkjopslinjer, grupperPerType, linjetype, typerekkefolgeFor, tolkPris, velgbareBehov,
+  tolkTilbudslinjer, tilbudsprisTekst, foreslaKobling,
 } from '../data/beregning.js';
 import { escapeHtml, kr, tidspunkt, fornavn } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
-import { lagre } from '../ui/lagring.js';
+import { lagre, visMelding } from '../ui/lagring.js';
 import { tegn, fokuser, sidepanel, lukkeknapp, IKON } from '../ui/visning.js';
+import { lesPdfLinjer } from '../ui/pdftekst.js';
 
-const ui = { aktiv: {}, panel: null, nyttPanel: false, redigerer: null, sok: '', limTekst: false };
+const ui = { aktiv: {}, panel: null, nyttPanel: false, redigerer: null, sok: '', limTekst: false, lesing: null };
 
 const navn = lev => leverandorNavn(lev, tilstand.leverandorer);
 
@@ -198,6 +201,7 @@ function leverandorPanel(s, i, lev) {
         ${limTekstKnapp()}
       </div>
       ${tekstinnliming(lev.id)}
+      ${vedlegg.filter(erPdf).map(v => { const leser = ui.lesing?.status === 'leser' && ui.lesing.vid === v.id; return `<button type="button" class="knapp knapp-ramme knapp-liten" style="align-self:flex-start; max-width:100%; overflow:hidden; text-overflow:ellipsis" data-handling="les-priser" data-sid="${lev.id}" data-vid="${v.id}" ${ui.lesing?.status === 'leser' ? 'disabled' : ''} title="Leser tilbudslinjene ut av PDF-en, så du kan koble dem til varelinjene og legge inn pris og rabatt">${leser ? 'Leser tilbudet …' : `Les priser fra ${vedlegg.filter(erPdf).length > 1 ? `«${escapeHtml(v.navn)}»` : 'tilbudet'}`}</button>`; }).join('')}
       <span class="undertekst">${vedlegg.length === 1 ? 'Ett vedlegg: alle prisene fra denne leverandøren peker automatisk til dette dokumentet.' : vedlegg.length > 1 ? 'Flere vedlegg: velg dokument og eventuelt side via ••• i hver celle.' : 'Last opp tilbudet, eller lim inn teksten fra e-posten, så kan hver pris åpnes i dokumentet.'}</span>
     </div>
     <button type="button" class="knapp knapp-primar" style="align-self:flex-start" data-handling="velg-alt" data-sid="${lev.id}">Velg alt fra ${escapeHtml(navn(lev) || 'denne')}</button>
@@ -268,6 +272,7 @@ function tilbudPanel(s, i, lid, sid) {
       ${lukkeknapp()}
     </div>
     ${p ? `<div class="hint">${kr(p.netto)} per stk${p.liste !== p.netto ? ` (${escapeHtml(p.under)})` : ''} · ${antall} stk = ${kr(antall * p.netto)}</div>` : ''}
+    ${pris.tekst ? `<div class="felt"><span class="etikett">I tilbudet står det</span><div style="font-size:14px">${escapeHtml(pris.tekst)}</div></div>` : ''}
     <label class="felt"><span class="etikett">Alternativt produkt</span>
       <input class="inndata" placeholder="F.eks. merke og modell" ${feltAttr(n('alternativ'), pris.alternativ)}>
       <span class="undertekst">Fylles ut når leverandøren tilbyr noe annet enn det vi ba om. Vises i matrisen og i revisjonen.</span>
@@ -285,6 +290,110 @@ function tilbudPanel(s, i, lid, sid) {
     <label class="felt" style="max-width:120px"><span class="etikett">Sidetall</span><input class="inndata tall" inputmode="numeric" placeholder="valgfritt" ${feltAttr(n('side'), pris.side, 'tall')}></label>
     <button type="button" class="knapp knapp-ramme" style="align-self:flex-start" data-handling="apne-vedlegg" data-sid="${sid}" data-vid="${valgtVid}">Åpne dokumentet${pris.side ? ` (side ${pris.side})` : ''}</button>` : ''}`, { nytt: ui.nyttPanel });
 }
+
+// ——— Les priser fra tilbudet ———
+// Tilbudslinjene leses ut av PDF-en (ui/pdftekst.js) og får et forslag til
+// varelinje. Brukeren retter koblingene og prisene, og legger alt inn samlet.
+const erPdf = v => (v.type || '').toLowerCase() === 'application/pdf' || /\.pdf$/i.test(v.navn || '');
+
+async function lesPriser(s, i, sid, vid) {
+  const v = i.leverandorer?.[sid]?.vedlegg?.[vid];
+  if (!v || ui.lesing?.status === 'leser') return;
+  ui.lesing = { sid, vid, navn: v.navn, status: 'leser' };
+  tegn();
+  try {
+    const rader = tolkTilbudslinjer(await lesPdfLinjer(await filBytes(v.sti)));
+    if (!rader.length) {
+      ui.lesing = null;
+      visMelding(`Fant ingen prislinjer i «${v.navn}». Er det et skannet bilde, finnes det ingen tekst å lese.`);
+    } else {
+      const varelinjer = linjegrupper(s, i).flatMap(g => g.linjer).map(l => ({ id: l.id, tekst: `${linjetittel(s, l) || ''} ${linjebeskrivelse(s, l)}`, antall: l.antall }));
+      const forslag = foreslaKobling(rader, varelinjer);
+      ui.lesing = { sid, vid, navn: v.navn, status: 'klar', rader: rader.map((r, n) => ({ ...r, lid: forslag[n], raa: tilbudsprisTekst(r.pris, r.rabatt) })) };
+      ui.panel = { type: 'les-priser', sid };
+      ui.nyttPanel = true;
+    }
+  } catch (err) {
+    console.error(err);
+    ui.lesing = null;
+    visMelding('Kunne ikke lese tilbudet: ' + (err.message || err));
+  }
+  tegn();
+}
+
+// Radene som er klare til å legges inn: koblet til en varelinje som finnes,
+// og med en pris som lar seg tolke.
+const klareRader = (i, les) => les.rader.filter(r => r.lid && i.linjer?.[r.lid] && tolkPris(r.raa));
+
+function lesPriserPanel(s, i) {
+  const les = ui.lesing, sid = les.sid;
+  const linjer = linjegrupper(s, i).flatMap(g => g.linjer);
+  const navnPa = l => `${linjetittel(s, l) || 'Uten tittel'}${linjebeskrivelse(s, l) ? ' – ' + linjebeskrivelse(s, l) : ''}`;
+  const klare = klareRader(i, les);
+  const koblet = new Set(les.rader.map(r => r.lid).filter(Boolean));
+  const uten = linjer.filter(l => !koblet.has(l.id));
+  // Ledige varelinjer først i nedtrekkslisten, de som alt er koblet til slutt.
+  const valg = (liste, valgt) => liste.map(x => `<option value="${x.id}" ${x.id === valgt ? 'selected' : ''}>${escapeHtml(navnPa(x))} (${Number(x.antall) || 0} stk)</option>`).join('');
+  const rad = (r, n) => {
+    const l = r.lid && i.linjer?.[r.lid] ? { id: r.lid, ...i.linjer[r.lid] } : null;
+    const p = tolkPris(r.raa);
+    const gammel = l ? i.priser?.[l.id]?.[sid]?.raa : null;
+    const vart = l ? Number(l.antall) || 0 : 0;
+    return `
+      <tr class="${l ? '' : 'ikke-med'}">
+        <td>
+          <div style="font-weight:600">${escapeHtml(r.beskrivelse)}</div>
+          <div class="undertekst">${r.varenr ? `Varenr ${escapeHtml(r.varenr)} · ` : ''}${r.antall} ${escapeHtml(r.enhet || 'stk')} · ${kr(r.pris)}${r.rabatt ? ` −${String(r.rabatt).replace('.', ',')} %` : ''} · side ${r.side}${r.avvik ? ' · <span class="aksent" style="font-weight:600">tallene i tilbudet går ikke opp – sjekk</span>' : ''}</div>
+        </td>
+        <td style="width:150px">
+          <input class="celleinn" style="width:130px; ${p ? '' : 'border-color:var(--color-accent)'}" data-tilbudspris="${n}" data-blur-ved-enter value="${escapeHtml(r.raa)}" title="Stykkpris slik den legges i matrisen, f.eks. 1200 -15%">
+          <div class="undertekst" style="text-align:right; padding-right:22px">${p ? `= ${kr(p.netto)} per stk` : '<span class="aksent">ugyldig pris</span>'}</div>
+        </td>
+        <td style="width:300px">
+          <select class="inndata" style="height:30px; font-size:13px" data-tilbudsrad="${n}">
+            <option value="">– ikke med –</option>
+            ${valg(linjer.filter(x => x.id === r.lid || !koblet.has(x.id)), r.lid)}
+            ${koblet.size > (r.lid ? 1 : 0) ? `<optgroup label="Koblet til en annen tilbudslinje">${valg(linjer.filter(x => x.id !== r.lid && koblet.has(x.id)), r.lid)}</optgroup>` : ''}
+          </select>
+          ${l && vart !== r.antall ? `<div class="undertekst"><span class="aksent">Tilbudet gjelder ${r.antall} ${escapeHtml(r.enhet || 'stk')}, vi har ${vart}.</span>${r.antall === 1 && vart > 1 ? ` <button type="button" class="lenkeknapp" data-handling="del-pris" data-n="${n}" title="Bruk når tilbudsprisen gjelder hele linjen, ikke ett stykk">Gjelder prisen alle ${vart}? Del på ${vart}</button>` : ''}</div>` : ''}
+          ${gammel && gammel !== r.raa.trim() ? `<div class="undertekst">Erstatter ${escapeHtml(gammel)}</div>` : ''}
+        </td>
+      </tr>`;
+  };
+  return sidepanel(`
+    <div class="panelhode">
+      <div><div class="etikett">Priser fra tilbudet</div><h2>${escapeHtml(navn(i.leverandorer?.[sid]) || 'Leverandør')}</h2><div class="ingress" style="margin-top:4px">${escapeHtml(les.navn)} · ${les.rader.length} tilbudslinjer funnet, ${koblet.size} koblet til en varelinje.</div></div>
+      ${lukkeknapp()}
+    </div>
+    <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap">
+      <button type="button" class="knapp knapp-primar" data-handling="legg-inn-priser" ${klare.length ? '' : 'disabled'}>Legg inn ${klare.length} ${klare.length === 1 ? 'pris' : 'priser'}</button>
+      <span class="hint" style="flex:1 1 260px">Sjekk koblingene – de er forslag ut fra navnet. Prisen legges inn som stykkpris slik den står i tilbudet; sjekk om den er med eller uten mva.</span>
+    </div>
+    <div class="tabellramme" data-rull="les-priser" style="flex:1 1 auto; min-height:200px">
+      <table class="liste tett tilbudsrader">
+        <thead><tr><th>Tilbudslinje</th><th class="tall">Stykkpris</th><th>Varelinje hos oss</th></tr></thead>
+        <tbody>${les.rader.map(rad).join('')}</tbody>
+      </table>
+    </div>
+    ${uten.length ? `<div class="hint" title="${escapeHtml(uten.map(navnPa).join('\n'))}">${uten.length} ${uten.length === 1 ? 'varelinje' : 'varelinjer'} får ikke pris fra dette tilbudet: ${escapeHtml(uten.slice(0, 4).map(l => linjetittel(s, l) || 'Uten tittel').join(', '))}${uten.length > 4 ? ' …' : ''}</div>` : ''}`,
+    { nytt: ui.nyttPanel }).replace('class="sidepanel"', 'class="sidepanel" style="width:min(900px, 96vw)"');
+}
+
+// Valgene i panelet lever i ui.lesing til de legges inn. Nedtrekkslisten
+// tegner på nytt (en varelinje kan bare kobles til én tilbudslinje);
+// prisfeltet oppdaterer bare tallet, og tegnes når man forlater det.
+document.addEventListener('change', e => {
+  const n = e.target.dataset?.tilbudsrad;
+  if (n == null || !ui.lesing?.rader) return;
+  const lid = e.target.value || null;
+  if (lid) ui.lesing.rader.forEach(r => { if (r.lid === lid) r.lid = null; });
+  ui.lesing.rader[n].lid = lid;
+  tegn();
+});
+document.addEventListener('input', e => {
+  const n = e.target.dataset?.tilbudspris;
+  if (n != null && ui.lesing?.rader) ui.lesing.rader[n].raa = e.target.value;
+});
 
 // «+ Behov fra listen»: behovet har endret seg etter at søknaden ble sendt.
 // Et åpent behov legges i søknaden og rett inn i dette innkjøpet.
@@ -370,8 +479,10 @@ export const innkjopFane = {
     else if (aktiv && ui.panel?.type === 'tilbud' && aktiv.leverandorer?.[ui.panel.sid] && aktiv.linjer?.[ui.panel.lid]) panel = tilbudPanel(s, aktiv, ui.panel.lid, ui.panel.sid);
     else if (aktiv && ui.panel?.type === 'velg-leverandor') panel = velgLeverandorPanel(aktiv);
     else if (aktiv && ui.panel?.type === 'behov-fra-listen') panel = behovFraListenPanel(s, aktiv);
+    else if (aktiv && ui.panel?.type === 'les-priser' && ui.lesing?.status === 'klar' && aktiv.leverandorer?.[ui.lesing.sid]) panel = lesPriserPanel(s, aktiv);
     else if (ui.panel) ui.panel = null;
     if (!panel) ui.limTekst = false;
+    if (ui.panel?.type !== 'les-priser' && ui.lesing?.status === 'klar') ui.lesing = null;
     const html = `
       ${chips(s, liste, aktiv, ikkeFordelt)}
       ${aktiv ? matrise(s, aktiv) : `<div class="laster" style="flex-direction:column; gap:12px">Ingen innkjøp enda.<div class="hint">Et innkjøp samler linjer og leverandører i én matrise. Lag ett per tilbudsrunde, f.eks. «Instrumenter» og «Uniformer».</div><button type="button" class="knapp knapp-primar" data-handling="innkjop-ny">+ Nytt innkjøp</button></div>`}
@@ -484,6 +595,24 @@ export const innkjopFane = {
         return true;
       }
       case 'tilbud-celle': apne('tilbud'); return true;
+      case 'les-priser': if (i) lesPriser(s, i, sid, el.dataset.vid); return true;
+      case 'del-pris': {
+        const r = ui.lesing?.rader?.[el.dataset.n];
+        const vart = Number(i?.linjer?.[r?.lid]?.antall) || 0;
+        if (r && vart) { r.raa = tilbudsprisTekst(r.pris * r.antall / vart, r.rabatt); tegn(); }
+        return true;
+      }
+      case 'legg-inn-priser': {
+        const les = ui.lesing;
+        if (!i || !les?.rader || les.lagrer) return true;
+        const rader = klareRader(i, les).map(r => ({ linjeId: r.lid, raa: r.raa.trim(), side: r.side, tekst: `${r.varenr ? r.varenr + ' ' : ''}${r.beskrivelse}` }));
+        les.lagrer = true;
+        const ok = await lagre(() => settTilbudspriser(i, les.sid, les.vid, rader));
+        les.lagrer = false;
+        if (ok) { ui.lesing = null; ui.panel = null; }
+        tegn();
+        return true;
+      }
       case 'lim-tekst': ui.limTekst = true; tegn(); return true;
       case 'velg-vedlegg': if (i) lagre(() => oppdaterInnkjop(i.id, { [`priser.${lid}.${sid}.vedleggId`]: el.dataset.vid })); return true;
       case 'apne-vedlegg': if (i) apneVedlegg(i, sid, el.dataset.vid); return true;
@@ -506,6 +635,7 @@ export const innkjopFane = {
   // Prisfeltet i en celle lagres når man forlater det.
   fokusUt(el, e, s) {
     if (el.id === 'lev-sok') { ui.sok = el.value; return true; }
+    if (el.dataset.tilbudspris != null) { tegn(); return true; }
     if (el.id === 'tilbudstekst') {
       // Bytter man vindu for å hente teksten, mister feltet fokus uten at
       // man er ferdig. Da venter vi til man faktisk forlater det.
@@ -570,9 +700,11 @@ export const innkjopFane = {
       return true;
     }
     if (ui.redigerer) { ui.redigerer = null; return true; }
+    // Koblingene i «Les priser» er arbeid som går tapt – spør før panelet lukkes.
+    if (ui.panel?.type === 'les-priser' && !confirm('Lukke uten å legge inn prisene?')) return true;
     if (ui.panel) { ui.panel = null; return true; }
     return false;
   },
 
-  forlat() { ui.panel = null; ui.redigerer = null; ui.limTekst = false; },
+  forlat() { ui.panel = null; ui.redigerer = null; ui.limTekst = false; ui.lesing = null; },
 };

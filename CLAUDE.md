@@ -39,13 +39,19 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
 - Alle dokumenter har `organisasjonId`; `lytt()` filtrerer på det.
 - Samlinger: `brukere` (ID = e-post), `givere`, `behov`, `soknader` (linjer,
   utgifter og dokumenter som kart på dokumentet), `innkjop` (én per
-  tilbudsrunde: linjer, leverandorer{leverandorId,frakt,vedlegg}, priser[lid][sid]{raa,alternativ,vedleggId,side}, valgt[lid]),
+  tilbudsrunde: linjer, leverandorer{leverandorId,frakt,vedlegg}, priser[lid][sid]{raa,alternativ,vedleggId,side,tekst}, valgt[lid]),
   `leverandorer` (register), `fakturaer` (løpenummer per søknad, dekker{innkjopId|lid} eller
   {utgift|uid}, fraMobil).
 - Priser lagres slik de ble skrevet («1200 -15%»); `tolkPris()` gir netto.
 - Tilbudspanelet (`•••` i en priscelle) kobler prisen til et tilbudsdokument (vedlegg + side) og
   har feltet `alternativ` (leverandøren tilbyr et annet produkt). E-posttekst limes inn og lagres
   som et `.txt`-vedlegg. Alternativet vises i matrisen, i Revisjon og i PDF-ens «Gjelder» (`posttittel()`).
+- «Les priser fra tilbudet» (leverandørpanelet, per PDF-vedlegg): `ui/pdftekst.js` leser linjene med
+  pdf.js fra cdnjs (tabulator mellom tabellceller), `tolkTilbudslinjer()` finner varelinjene
+  (antall, enhetspris, rabatt), `foreslaKobling()` foreslår varelinje ut fra navn. Brukeren retter i
+  panelet, og `settTilbudspriser()` skriver `raa`, `vedleggId`, `side` og `tekst` (leverandørens
+  varetekst) i én skriving. Ekte tilbud til utvikling ligger i `eksempler/` (i `.gitignore` –
+  repoet er offentlig). Testene bruker oppdiktede tilbud.
 - Linjer lagt til i en søknad som ikke lenger er utkast får `etterSoknad: true` og `notat` (fritekst).
   De teller ikke i `sumEstimert()`/søkt beløp (`soktLinjer()` / `tilleggslinjer()`), men går i innkjøp,
   pott og revisjon. PDF-rapporten viser dem ikke spesielt (bare på skjerm).

@@ -2,3 +2,6 @@
 node_modules/
 .claude/settings.local.json
 *.zip
+
+# Ekte tilbud og andre eksempelfiler til utvikling – repoet er offentlig
+eksempler/

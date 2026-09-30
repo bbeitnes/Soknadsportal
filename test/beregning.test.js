@@ -381,3 +381,83 @@ test('anskaffet per behov: valgt linje som er fakturert', async () => {
   assert.deepEqual(velgbareBehov(behov, [], soknad('ny', 'utkast', {}), kjopt).map(x => x.behov.id), ['fagott']);
   assert.deepEqual(velgbareBehov(behov, [], soknad('ny', 'utkast', {})).map(x => x.behov.id), ['kornett', 'fagott']);
 });
+
+test('tilbud: varelinjer leses fra tabellceller, med fortsettelseslinjer', async () => {
+  const { tolkTilbudslinjer, tilbudsprisTekst, tolkPris } = await import('../app/data/beregning.js');
+  // Oppdiktet tilbud i to vanlige oppsett. y synker nedover siden.
+  const l = (side, y, tekst, hoyde = 9) => ({ side, y, hoyde, tekst });
+  const rader = tolkTilbudslinjer([
+    l(1, 700, 'Tilbudsnummer:\t4711'),
+    l(1, 650, 'Beskrivelse\tAntall\tRabatt'),
+    l(1, 630, '100 Acme ABC-123 Bb-kornett\t4 stk\t12 000,00\t12,0%\t33 792,00\t8 448,00\t42 240,00'),
+    l(1, 617, 'Tamburin Acme TX1,\t1 stk\t4 000,00\t10,0%\t2 880,00\t720,00\t3 600,00'),
+    l(1, 607, 'dobbel rad, kalveskinn'),
+    l(1, 594, 'Rør klarinett no 2\t8\t400,00\t15,0%\t2 176,00\t544,00\t2 720,00'),
+    l(1, 581, 'Køller assortert\t5 stk\t600,00\t2 400,00\t600,00\t3 000,00'),
+    l(1, 560, 'Sum (NOK)\t38 739,20\t9 684,80\t48 424,00'),
+    l(2, 800, 'Varenr\tBeskrivelse\tAntall\tPris(ink)\tRabatt\tBeløp(ink)'),
+    l(2, 785, '70001\tAcme Fløyte, Wave\t2\tstk\t9 000,00\t-10%\t16 200,00', 11),
+    l(2, 770, 'S.nr.:\t1', 11),
+    l(2, 756, '2', 11),
+    l(2, 742, '90000\tDiverse\t1\tstk\t4 000,00\t-10%\t3 600,00', 11),
+    l(2, 728, '5 stk. Køller Marimba', 8.8), // undertekst i mindre skrift hører med
+    l(2, 714, '70002\tRør, eske a\' 10 stk. 2,5\t10\teske\t400,00\t-10%\t3 000,00', 11),
+    l(2, 700, 'Antall enheter: 283', 11),
+    l(2, 40, 'Acme Musikk AS', 7),
+    l(3, 600, 'Total\t22 800,00'),
+  ]);
+  assert.deepEqual(rader.map(r => [r.side, r.varenr, r.beskrivelse, r.antall, r.enhet, r.pris, r.rabatt, r.avvik]), [
+    [1, '', '100 Acme ABC-123 Bb-kornett', 4, 'stk', 12000, 12, false],
+    [1, '', 'Tamburin Acme TX1, dobbel rad, kalveskinn', 1, 'stk', 4000, 10, false],
+    [1, '', 'Rør klarinett no 2', 8, '', 400, 15, false],
+    [1, '', 'Køller assortert', 5, 'stk', 600, null, false],
+    [2, '70001', 'Acme Fløyte, Wave', 2, 'stk', 9000, 10, false],
+    [2, '90000', 'Diverse 5 stk. Køller Marimba', 1, 'stk', 4000, 10, false],
+    [2, '70002', "Rør, eske a' 10 stk. 2,5", 10, 'eske', 400, 10, true], // 10 × 400 − 10 % er 3 600, ikke 3 000
+  ]);
+  assert.equal(tilbudsprisTekst(12000, 12), '12000 -12%');
+  assert.equal(tilbudsprisTekst(500, null), '500');
+  assert.equal(tilbudsprisTekst(1234.56, 12.5), '1234,56 -12,5%');
+  assert.equal(tolkPris(tilbudsprisTekst(9000, 10)).netto, 8100);
+});
+
+test('tilbud: linje uten tabulatorer deles opp, og beløpene avgjør tvetydighet', async () => {
+  const { tolkTilbudslinjer } = await import('../app/data/beregning.js');
+  const rader = tolkTilbudslinjer([
+    { tekst: '1002 Rør klarinett no 2 8 400,00 15,0% 2 176,00 544,00 2 720,00' },
+    { tekst: 'Kornett Acme 4 stk 12 000,00 12,0% 33 792,00 8 448,00 42 240,00' },
+    { tekst: 'Med vennlig hilsen' },
+    { tekst: 'Notestativ 25 stk 400,00' },
+  ]);
+  assert.deepEqual(rader.map(r => [r.beskrivelse, r.antall, r.pris, r.rabatt]), [
+    ['1002 Rør klarinett no 2', 8, 400, 15],
+    ['Kornett Acme', 4, 12000, 12],
+    ['Notestativ', 25, 400, null],
+  ]);
+});
+
+test('tilbud: forslag til kobling mot varelinjer', async () => {
+  const { likhet, foreslaKobling } = await import('../app/data/beregning.js');
+  assert.ok(likhet('614 Yamaha YCR-2330III Bb-kornett', 'Kornett Yamaha YCR2330III') > 0.8);
+  assert.ok(likhet('Yamaha YCL-255S Bb-klarinett', 'Noteklype klarinett') < 0.45);
+  assert.ok(likhet('Yamaha YAS-280 Alt Saksofon', 'Tenorsaksofon Yamaha YTS-280') < 0.45); // samme merke, annen modell
+  assert.ok(likhet('Bach TB-650 Bb-Trombone med Etui, Barnetrombone', 'Trombone Bach TB650 barnetrombone') > 0.7);
+  const varelinjer = [
+    { id: 'kornett', tekst: 'Kornett Yamaha YCR2330III', antall: 4 },
+    { id: 'klarinett', tekst: 'Klarinett Yamaha YCL-255S', antall: 1 },
+    { id: 'noteklype', tekst: 'Noteklype klarinett', antall: 9 },
+    { id: 'ror2', tekst: 'Rør klarinett Vandoren 2', antall: 8 },
+    { id: 'ror3', tekst: 'Rør klarinett Vandoren 3', antall: 7 },
+    { id: 'tuba', tekst: 'Tuba Besson', antall: 1 },
+  ];
+  const rader = [
+    { beskrivelse: 'Noteklype 506N klarinett m/ring', antall: 9 },
+    { varenr: '623', beskrivelse: 'Yamaha YCL-255S Bb-klarinett', antall: 1 },
+    { varenr: '501924', beskrivelse: 'Yamaha YCR-2330III Kornett, Kort, L Bb', antall: 4 },
+    { beskrivelse: 'Vandoren Classic Bb-klarinett rør no 3', antall: 7 },
+    { beskrivelse: 'Vandoren Classic Bb-klarinett rør no 2', antall: 8 },
+    { beskrivelse: 'Ventilolje syntetisk', antall: 25 },
+  ];
+  // Like tekster skilles på antall; det som ikke ligner noe, står uten forslag.
+  assert.deepEqual(foreslaKobling(rader, varelinjer), ['noteklype', 'klarinett', 'kornett', 'ror3', 'ror2', null]);
+});

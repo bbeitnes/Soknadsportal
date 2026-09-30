@@ -215,6 +215,10 @@ table.matrise { border-collapse: separate; border-spacing: 0; min-width: 100%; f
 .m-mer:hover { background: var(--color-accent-100); color: var(--color-accent-700); }
 .m-alt { font-size: 12px; font-weight: 600; color: var(--color-accent-700); margin-top: 2px; max-width: 190px; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .matrise .m-linje .celleunder { max-width: 300px; }
+/* Les priser fra tilbudet: tilbudslinjer som ikke kobles til noe, dempes */
+.tilbudsrader td { vertical-align: top; }
+.tilbudsrader tr.ikke-med td:first-child, .tilbudsrader tr.ikke-med .celleinn { color: var(--color-neutral-600); }
+.lenkeknapp { border: 0; background: transparent; padding: 0; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--color-text); text-decoration: underline; }
 .m-inn { width: 100%; height: 36px; padding: 0 10px; border: 2px solid var(--color-accent); background: var(--color-neutral-100); text-align: right; font-size: 15px; font-weight: 600; color: var(--color-text); }
 .m-inn:focus { outline: none; }
 .matrise tfoot td { position: sticky; z-index: 3; }

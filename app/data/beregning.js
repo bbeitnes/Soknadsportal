@@ -420,6 +420,142 @@ export function nesteRekkefolgeI(kart) {
   return Object.values(kart || {}).reduce((m, x) => Math.max(m, x.rekkefolge ?? 0), 0) + 1;
 }
 
+// ——— Lese priser fra et tilbud ———
+// ui/pdftekst.js gir tilbudet som linjer, med tabulator mellom cellene i en
+// tabell. En varelinje kjennes igjen på «antall (enhet) enhetspris», eventuelt
+// fulgt av rabatt i prosent og beløp:
+//   «100 Acme ABC-123 kornett ⇥ 4 stk ⇥ 12 000,00 ⇥ 12,0% ⇥ 42 240,00»
+//   «70001 ⇥ Acme ABC-123 kornett ⇥ 4 ⇥ stk ⇥ 12 000,00 ⇥ -12% ⇥ 42 240,00»
+// Linjer rett under som bare er tekst, er resten av varebeskrivelsen.
+
+const ENHET = 'stk|par|sett|pk|pakke|pakker|eske|esker|boks|rull|sats|m|kg|l';
+const BELOP = '\\d{1,3}(?:[ \\u00a0.]?\\d{3})*,\\d{2}';
+const ER_BELOP = new RegExp(`^${BELOP}$`);
+const ER_ANTALL = new RegExp(`^(\\d+)(?:\\s*(${ENHET})\\.?)?$`, 'i');
+const ER_ENHET = new RegExp(`^(${ENHET})\\.?$`, 'i');
+const ER_PROSENT = /^[-−]?\s*(\d+(?:,\d+)?)\s*%$/;
+// Linjer som ikke er en del av varebeskrivelsen: serienummer, løse tall og
+// «Antall enheter: 283».
+const STOY = [/^s\.?\s?nr/i, /^\d+$/, /:\s*\d[\d  ]*$/];
+
+const belop = t => parseFloat(t.replace(/[  .]/g, '').replace(',', '.'));
+const omtrent = (a, b) => Math.abs(a - b) <= Math.max(1, Math.abs(b) * 0.002);
+
+// Stemmer antall × pris − rabatt med et av beløpene på linjen (med eller uten mva)?
+function stemmer(antall, pris, rabatt, summer) {
+  const netto = antall * pris * (1 - (rabatt || 0) / 100);
+  return summer.some(sum => omtrent(sum, netto) || omtrent(sum * 1.25, netto) || omtrent(sum, netto * 1.25));
+}
+
+function tolkCeller(celler) {
+  for (let i = 1; i < celler.length - 1; i++) {
+    const a = celler[i].match(ER_ANTALL);
+    if (!a) continue;
+    let j = i + 1, enhet = a[2] || '';
+    if (!enhet && ER_ENHET.test(celler[j])) enhet = celler[j++];
+    if (!ER_BELOP.test(celler[j] || '')) continue;
+    const pris = belop(celler[j++]);
+    const r = (celler[j] || '').match(ER_PROSENT);
+    if (r) j++;
+    return {
+      forst: celler.slice(0, i), antall: Number(a[1]), enhet: enhet.toLowerCase().replace('.', ''),
+      pris, rabatt: r ? belop(r[1]) : null, summer: celler.slice(j).filter(c => ER_BELOP.test(c)).map(belop),
+    };
+  }
+  return null;
+}
+
+// En linje uten tabulatorer (alt i én tekst) deles opp fra høyre. «no 2 8
+// 380,00» kan leses som 2 × 8 380 eller 8 × 380 — beløpene på linjen avgjør.
+function delOppTekst(tekst) {
+  const hale = pris => new RegExp(`^(.*?)\\s+(\\d+)\\s*((?:${ENHET})\\.?)?\\s+(${pris})(?:\\s+([-−]?\\s*\\d+(?:,\\d+)?\\s*%))?((?:\\s+${BELOP})*)$`, 'i');
+  const forsok = [hale(BELOP), hale('\\d{1,3},\\d{2}')].map(re => {
+    const m = tekst.match(re);
+    return m && tolkCeller([m[1], m[2] + (m[3] ? ' ' + m[3] : ''), m[4], ...(m[5] ? [m[5]] : []), ...(m[6].match(new RegExp(BELOP, 'g')) || [])]);
+  }).filter(Boolean);
+  return forsok.find(t => stemmer(t.antall, t.pris, t.rabatt, t.summer)) || forsok[0] || null;
+}
+
+// linjer: [{ side, y, hoyde, tekst }] ovenfra og ned (y og hoyde er valgfrie).
+// Gir én rad per vare: { side, varenr, beskrivelse, antall, enhet, pris,
+// rabatt, avvik }. `avvik` = tallene på linjen går ikke opp (bør sjekkes).
+export function tolkTilbudslinjer(linjer) {
+  const rader = [];
+  let apen = null, forrige = null;
+  for (const l of linjer) {
+    const tekst = (l.tekst || '').trim();
+    if (!tekst) continue;
+    const celler = tekst.split('\t').map(c => c.trim()).filter(Boolean);
+    const t = celler.length > 1 ? tolkCeller(celler) : delOppTekst(tekst);
+    if (t && t.forst.join('').trim()) {
+      const harVarenr = t.forst.length > 1 && /^\d+$/.test(t.forst[0]);
+      apen = {
+        side: l.side ?? 1, varenr: harVarenr ? t.forst[0] : '',
+        beskrivelse: t.forst.slice(harVarenr ? 1 : 0).join(' ').replace(/\s+/g, ' ').trim(),
+        antall: t.antall, enhet: t.enhet, pris: t.pris, rabatt: t.rabatt,
+        avvik: t.summer.length > 0 && !stemmer(t.antall, t.pris, t.rabatt, t.summer),
+      };
+      rader.push(apen);
+      forrige = l;
+      continue;
+    }
+    // Bare tekst rett under en vare, i samme eller litt mindre skrift = resten
+    // av beskrivelsen. Uten plassering (ren tekst) vet vi ikke hva som hører sammen.
+    const h = forrige?.hoyde || 10, forhold = (l.hoyde || h) / h;
+    const tett = l.y != null && forrige?.y != null && forrige.y - l.y <= 1.7 * h && forhold >= 0.7 && forhold <= 1.06;
+    if (apen && celler.length === 1 && (l.side ?? 1) === apen.side && tett && !STOY.some(re => re.test(tekst))) {
+      apen.beskrivelse += ' ' + tekst;
+      forrige = l;
+    } else apen = null;
+  }
+  return rader;
+}
+
+// Prisen slik den skrives i en celle i matrisen: «9650 -10%».
+export function tilbudsprisTekst(pris, rabatt) {
+  const t = n => String(Math.round(n * 100) / 100).replace('.', ',');
+  return rabatt ? `${t(pris)} -${t(rabatt)}%` : t(pris);
+}
+
+// Hvor like to varetekster er (0–1). Ordene i den ene letes opp i den andre
+// uten skilletegn, så «YCR-2330III» og «YCR2330III» er samme ord. Ord med
+// tall er modellnavn: de holdes hele («YTS-280» er ikke «YAS-280») og teller
+// dobbelt. Andre ord deles på bindestrek («Bb-klarinett» → «klarinett»).
+const kompakt = s => String(s || '').toLowerCase().replace(/[^a-z0-9æøå]/g, '');
+const ordI = s => [...new Set(String(s || '').toLowerCase().split(/[\s,;()/]+/)
+  .flatMap(o => /\d/.test(o) ? [kompakt(o)] : o.split(/[^a-zæøå]+/))
+  .filter(o => o.length >= 3 || (/\d/.test(o) && o.length >= 2)))];
+const vekt = o => o.length * (/\d/.test(o) ? 2 : 1);
+
+function andelFunnet(ord, tekst) {
+  let alle = 0, funnet = 0;
+  for (const o of ord) { alle += vekt(o); if (tekst.includes(o)) funnet += vekt(o); }
+  return alle ? funnet / alle : 0;
+}
+
+export function likhet(a, b) {
+  return (andelFunnet(ordI(a), kompakt(b)) + andelFunnet(ordI(b), kompakt(a))) / 2;
+}
+
+// Forslag til hvilken varelinje hver tilbudsrad hører til: beste treff først,
+// og hver varelinje brukes bare én gang. varelinjer: [{ id, tekst, antall }].
+// Gir en liste med varelinje-id (eller null) per rad. Samme antall teller litt.
+export function foreslaKobling(rader, varelinjer, terskel = 0.45) {
+  const par = [];
+  rader.forEach((r, i) => varelinjer.forEach(v => {
+    const poeng = likhet(`${r.varenr || ''} ${r.beskrivelse}`, v.tekst) + (Number(v.antall) === r.antall ? 0.05 : 0);
+    if (poeng >= terskel) par.push({ i, id: v.id, poeng });
+  }));
+  par.sort((a, b) => b.poeng - a.poeng);
+  const ut = rader.map(() => null), brukt = new Set();
+  for (const p of par) {
+    if (ut[p.i] != null || brukt.has(p.id)) continue;
+    ut[p.i] = p.id;
+    brukt.add(p.id);
+  }
+  return ut;
+}
+
 // ——— Leverandørregister ———
 // Leverandørene i et innkjøp peker på registeret (leverandorId) og har
 // bare det som er spesifikt for innkjøpet: frakt og vedlegg. Eldre

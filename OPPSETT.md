@@ -23,6 +23,21 @@ Authentication → Sign-in method:
 Authentication → Settings → Authorized domains: sjekk at `beitnes.net` og
 `localhost` står der.
 
+### E-post fra eget domene (anbefalt)
+Innloggingslenken sendes som standard fra `noreply@skiensskolemusikk-b5cbc.firebaseapp.com`
+og havner lett i søppelpost (bekreftet 2026-09-30). Send heller gjennom en
+e-postkonto på eget domene:
+
+1. Opprett en e-postkonto hos ProISP, f.eks. `portal@beitnes.net`. SMTP-server,
+   port og sikkerhet står under kontoens oppsett for e-postklient i kontrollpanelet.
+2. Firebase Console → Authentication → Templates → **SMTP settings** → slå på, og
+   fyll inn avsenderadresse, SMTP-server, port, brukernavn, passord og sikkerhet.
+3. Samme sted: sett malspråket til norsk, og gi «Email link sign-in»-malen et
+   gjenkjennelig avsendernavn (f.eks. «Søknadsportal»).
+4. Test fra innloggingssiden på test-siden med en adresse du kan lese.
+
+Innstillingen gjelder hele Firebase-prosjektet (også KorpsApp og Bestillingsportal).
+
 ## 4. Første administrator
 Firestore → velg databasen → «Start collection» `brukere`:
 - Document ID: din e-post med små bokstaver, f.eks. `bbeitnes@gmail.com`

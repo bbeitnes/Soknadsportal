@@ -21,6 +21,38 @@ export function linjeliste(soknad) {
     .sort((a, b) => (a.rekkefolge ?? 0) - (b.rekkefolge ?? 0));
 }
 
+// ——— Type (Instrument, Uniform, Utstyr …) ———
+// Fritekst på behovet. I en søknad kan linjen overstyre typen, fordi
+// kategoriene ofte følger giverens skjema. Tom overstyring = arv fra behovet.
+
+export function linjetype(linje, behovliste) {
+  const egen = (linje?.type || '').trim();
+  if (egen) return egen;
+  const b = linje?.behovId ? behovliste.find(x => x.id === linje.behovId) : null;
+  return (b?.type || '').trim();
+}
+
+// Grupperer på type, alfabetisk, med «uten type» til slutt.
+export function grupperPerType(elementer, typeAv) {
+  const grupper = new Map();
+  for (const e of elementer) {
+    const t = (typeAv(e) || '').trim();
+    if (!grupper.has(t)) grupper.set(t, []);
+    grupper.get(t).push(e);
+  }
+  return [...grupper.entries()]
+    .sort(([a], [b]) => (a === '') - (b === '') || a.localeCompare(b, 'nb'))
+    .map(([type, elementer]) => ({ type, elementer }));
+}
+
+// Alle typer som er i bruk — forslag når man skriver i et typefelt.
+export function typeliste(behovliste, soknader = []) {
+  const typer = new Set();
+  for (const b of behovliste) if ((b.type || '').trim()) typer.add(b.type.trim());
+  for (const s of soknader) for (const l of Object.values(s.linjer || {})) if ((l.type || '').trim()) typer.add(l.type.trim());
+  return [...typer].sort((a, b) => a.localeCompare(b, 'nb'));
+}
+
 export function linjekostnad(linje) {
   return (Number(linje.antall) || 0) * (Number(linje.estPris) || 0);
 }
@@ -433,7 +465,8 @@ export function tolkTabell(tekst) {
 
 // Overskrifter vi kjenner igjen, per felt i behovet.
 const IMPORTKOLONNER = {
-  tittel: /^(tittel|navn|navn\/produkt|produkt|behov|vare|instrument|beskrivelse av behov)$/i,
+  type: /^(type|kategori|gruppe)$/i,
+  tittel: /^(tittel|navn|navn\/produkt|produkt|behov|vare)$/i,
   beskrivelse: /^(beskrivelse|spesifikasjon|spek|modell|notat|kommentar|detaljer)$/i,
   antall: /^(antall|stk|ant\.?|mengde)$/i,
   estPris: /^(est\.? ?(stk\.?|stykk)?pris|estimert (stk\.?|stykk)?pris|stykkpris|stk\.?pris|listepris|pris|enhetspris|pris per stk)$/i,
@@ -442,6 +475,7 @@ const IMPORTKOLONNER = {
 // Det importpanelet forteller brukeren. Holdes ved siden av mønstrene over,
 // så beskrivelsen og det som faktisk gjenkjennes ikke sklir fra hverandre.
 export const IMPORTFELT = [
+  { navn: 'Type', paakrevd: false, overskrifter: ['Type', 'Kategori'], eksempel: 'Instrument', tomt: 'Uten type' },
   { navn: 'Tittel', paakrevd: true, overskrifter: ['Tittel', 'Navn', 'Navn/produkt', 'Produkt', 'Behov'], eksempel: 'Kornett', tomt: 'Raden hoppes over' },
   { navn: 'Beskrivelse', paakrevd: false, overskrifter: ['Beskrivelse', 'Spesifikasjon', 'Notat'], eksempel: 'Yamaha YCR2330III', tomt: 'Blir tom' },
   { navn: 'Antall', paakrevd: false, overskrifter: ['Antall', 'Stk'], eksempel: '6', tomt: 'Blir 1' },
@@ -457,7 +491,7 @@ function tilTall(tekst) {
 }
 
 // Gir { kolonner, harOverskrift, rader }. Uten gjenkjent overskrift antas
-// rekkefølgen Tittel, Beskrivelse, Antall, Est. stykkpris. Hver rad får
+// rekkefølgen Type, Tittel, Beskrivelse, Antall, Est. stykkpris. Hver rad får
 // status 'ny', 'finnes' (samme tittel og beskrivelse ligger der alt) eller
 // 'ugyldig' (mangler tittel, eller ugyldig tall).
 export function tolkBehovimport(tekst, eksisterende = []) {
@@ -470,12 +504,13 @@ export function tolkBehovimport(tekst, eksisterende = []) {
     }
   });
   const harOverskrift = kolonner.tittel != null;
-  const kol = harOverskrift ? kolonner : { tittel: 0, beskrivelse: 1, antall: 2, estPris: 3 };
+  const kol = harOverskrift ? kolonner : { type: 0, tittel: 1, beskrivelse: 2, antall: 3, estPris: 4 };
   const nokkel = (t, b) => `${(t || '').trim().toLowerCase()}|${(b || '').trim().toLowerCase()}`;
   const finnes = new Set(eksisterende.map(b => nokkel(b.tittel, b.beskrivelse)));
   const sett = new Set();
   const rader = tabell.slice(harOverskrift ? 1 : 0).map(r => {
     const tittel = (r[kol.tittel] ?? '').trim();
+    const type = kol.type != null ? (r[kol.type] ?? '').trim() : '';
     const beskrivelse = kol.beskrivelse != null ? (r[kol.beskrivelse] ?? '').trim() : '';
     const antall = kol.antall != null ? tilTall(r[kol.antall]) : null;
     const estPris = kol.estPris != null ? tilTall(r[kol.estPris]) : null;
@@ -486,7 +521,7 @@ export function tolkBehovimport(tekst, eksisterende = []) {
     else if (finnes.has(nokkel(tittel, beskrivelse))) { status = 'finnes'; grunn = 'finnes fra før'; }
     else if (sett.has(nokkel(tittel, beskrivelse))) { status = 'finnes'; grunn = 'står to ganger'; }
     if (status === 'ny') sett.add(nokkel(tittel, beskrivelse));
-    return { tittel, beskrivelse, antall: antall ?? 1, estPris: estPris ?? 0, status, grunn };
+    return { type, tittel, beskrivelse, antall: antall ?? 1, estPris: estPris ?? 0, status, grunn };
   });
   return { kolonner: kol, harOverskrift, rader };
 }

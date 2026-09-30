@@ -240,9 +240,9 @@ test('import av behov: CSV med semikolon, overskrifter og duplikater', async () 
   assert.deepEqual(tolkTabell('a,b\n"x,y",2')[1], ['x,y', '2']);
   const i = tolkBehovimport(csv, [{ tittel: 'trompet', beskrivelse: 'Bb; Yamaha "pro"' }]);
   assert.equal(i.harOverskrift, true);
-  assert.deepEqual(i.kolonner, { tittel: 1, beskrivelse: 2, antall: 3, estPris: 4 });
+  assert.deepEqual(i.kolonner, { type: 0, tittel: 1, beskrivelse: 2, antall: 3, estPris: 4 });
   assert.deepEqual(i.rader.map(r => r.status), ['ny', 'finnes', 'ugyldig', 'finnes']);
-  assert.deepEqual(i.rader[0], { tittel: 'Kornett', beskrivelse: 'Yamaha YCR2330III', antall: 6, estPris: 13539, status: 'ny', grunn: '' });
+  assert.deepEqual(i.rader[0], { type: 'Instrumenter', tittel: 'Kornett', beskrivelse: 'Yamaha YCR2330III', antall: 6, estPris: 13539, status: 'ny', grunn: '' });
   assert.equal(i.rader[1].estPris, 23000);
   assert.equal(i.rader[2].grunn, 'ugyldig antall');
   assert.equal(i.rader[3].grunn, 'står to ganger');
@@ -250,7 +250,7 @@ test('import av behov: CSV med semikolon, overskrifter og duplikater', async () 
 
 test('import av behov: limt inn fra regneark uten overskrift', async () => {
   const { tolkBehovimport } = await import('../app/data/beregning.js');
-  const i = tolkBehovimport('Tuba\tBesson\t2\tkr 45 000,00\nNotestativ\t\t\t\n\tuten tittel\t1\t1');
+  const i = tolkBehovimport('Instrument\tTuba\tBesson\t2\tkr 45 000,00\n\tNotestativ\t\t\t\nUtstyr\t\tuten tittel\t1\t1');
   assert.equal(i.harOverskrift, false);
   assert.deepEqual(i.rader.map(r => [r.tittel, r.antall, r.estPris, r.status]), [['Tuba', 2, 45000, 'ny'], ['Notestativ', 1, 0, 'ny'], ['', 1, 1, 'ugyldig']]);
   assert.equal(tolkBehovimport('').rader.length, 0);
@@ -263,11 +263,25 @@ test('importbeskrivelsen stemmer med det som gjenkjennes', async () => {
   const lengste = Math.max(...IMPORTFELT.map(f => f.overskrifter.length));
   for (let n = 0; n < lengste; n++) {
     const hode = IMPORTFELT.map(f => f.overskrifter[Math.min(n, f.overskrifter.length - 1)]).join('\t');
-    const i = tolkBehovimport(hode + '\nKornett\tYamaha\t6\t13 539');
+    const i = tolkBehovimport(hode + '\nInstrument\tKornett\tYamaha\t6\t13 539');
     assert.equal(i.harOverskrift, true, hode);
-    assert.deepEqual(i.rader[0], { tittel: 'Kornett', beskrivelse: 'Yamaha', antall: 6, estPris: 13539, status: 'ny', grunn: '' }, hode);
+    assert.deepEqual(i.rader[0], { type: 'Instrument', tittel: 'Kornett', beskrivelse: 'Yamaha', antall: 6, estPris: 13539, status: 'ny', grunn: '' }, hode);
   }
   // … og malen (navn + eksempel) må kunne importeres som den er.
   const mal = IMPORTFELT.map(f => f.navn).join(';') + '\r\n' + IMPORTFELT.map(f => f.eksempel).join(';');
   assert.deepEqual(tolkBehovimport(mal).rader.map(r => [r.tittel, r.antall, r.estPris, r.status]), [['Kornett', 6, 13539, 'ny']]);
+});
+
+test('type: arv fra behov, overstyring per søknadslinje og gruppering', async () => {
+  const { linjetype, grupperPerType, typeliste } = await import('../app/data/beregning.js');
+  const behov = [{ id: 'a', type: 'Instrument' }, { id: 'b', type: '' }, { id: 'c' }];
+  assert.equal(linjetype({ behovId: 'a' }, behov), 'Instrument');
+  assert.equal(linjetype({ behovId: 'a', type: 'Utstyr' }, behov), 'Utstyr');
+  assert.equal(linjetype({ behovId: 'a', type: '  ' }, behov), 'Instrument');
+  assert.equal(linjetype({ behovId: 'b' }, behov), '');
+  assert.equal(linjetype({ behovId: null, type: 'Lokale' }, behov), 'Lokale');
+  assert.equal(linjetype({ behovId: 'finnes-ikke' }, behov), '');
+  const g = grupperPerType([{ t: 'Utstyr', n: 1 }, { t: '', n: 2 }, { t: 'Instrument', n: 3 }, { t: 'Utstyr', n: 4 }], x => x.t);
+  assert.deepEqual(g.map(x => [x.type, x.elementer.map(e => e.n)]), [['Instrument', [3]], ['Utstyr', [1, 4]], ['', [2]]]);
+  assert.deepEqual(typeliste(behov, [{ linjer: { l: { type: 'Uniform' }, m: { type: 'Instrument' } } }]), ['Instrument', 'Uniform']);
 });

@@ -1,6 +1,6 @@
 // Behovslisten: alt korpset trenger, uavhengig av søknad.
 import { tilstand, opprettBehov, oppdaterBehov, slettBehov, importerBehov } from '../data/index.js';
-import { behovsinfo, statusNavn, tolkBehovimport, IMPORTFELT } from '../data/beregning.js';
+import { behovsinfo, statusNavn, tolkBehovimport, IMPORTFELT, grupperPerType, typeliste } from '../data/beregning.js';
 import { escapeHtml, kr, tidspunkt, fornavn } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
 import { lagre } from '../ui/lagring.js';
@@ -77,6 +77,7 @@ function panel(b) {
       <div><div class="etikett">Behov</div><input class="tittelfelt" ${feltAttr(n('tittel'), b.tittel)} placeholder="Tittel"></div>
       ${lukkeknapp()}
     </div>
+    <label class="felt"><span class="etikett">Type</span><input class="inndata" list="typer" placeholder="F.eks. Instrument, Uniform, Utstyr" ${feltAttr(n('type'), b.type)}><span class="undertekst">Fritt valg. Behovslisten grupperes på type. Kan overstyres per søknad.</span></label>
     <label class="felt"><span class="etikett">Beskrivelse</span>${tekstomrade(n('beskrivelse'), b.beskrivelse, 'class="inndata" rows="3" placeholder="Hva og hvorfor"')}</label>
     <div class="to-kol">
       <label class="felt"><span class="etikett">Antall totalt</span><input class="inndata tall" inputmode="numeric" ${feltAttr(n('antall'), b.antall, 'tall')}></label>
@@ -110,11 +111,11 @@ function importForhandsvisning() {
   const nye = i.rader.filter(r => r.status === 'ny');
   const hoppet = i.rader.length - nye.length;
   const html = `
-    <div class="hint">${i.harOverskrift ? 'Kolonnene ble funnet fra overskriftsraden.' : 'Fant ingen overskriftsrad – antar rekkefølgen Tittel, Beskrivelse, Antall, Est. stykkpris.'}</div>
+    <div class="hint">${i.harOverskrift ? 'Kolonnene ble funnet fra overskriftsraden.' : 'Fant ingen overskriftsrad – antar rekkefølgen Type, Tittel, Beskrivelse, Antall, Est. stykkpris.'}</div>
     <div class="tabellramme" style="flex:0 1 auto; max-height:40vh">
       <table class="liste" style="font-size:13px">
-        <thead><tr><th>Behov</th><th class="tall">Antall</th><th class="tall">Est. pris</th><th></th></tr></thead>
-        <tbody>${i.rader.map(r => `<tr style="${r.status === 'ny' ? '' : 'color:var(--color-neutral-500)'}"><td><div class="celletittel">${escapeHtml(r.tittel || '–')}</div><div class="celleunder" style="max-width:200px">${escapeHtml(r.beskrivelse)}</div></td><td class="tall">${r.antall}</td><td class="tall">${kr(r.estPris)}</td><td class="smal">${r.status === 'ny' ? '' : `<span class="merkelapp ${r.status === 'ugyldig' ? 'm-varsel' : 'm-av'}">${escapeHtml(r.grunn)}</span>`}</td></tr>`).join('')}</tbody>
+        <thead><tr><th>Type</th><th>Behov</th><th class="tall">Antall</th><th class="tall">Est. pris</th><th></th></tr></thead>
+        <tbody>${i.rader.map(r => `<tr style="${r.status === 'ny' ? '' : 'color:var(--color-neutral-500)'}"><td class="smal">${escapeHtml(r.type || '–')}</td><td><div class="celletittel">${escapeHtml(r.tittel || '–')}</div><div class="celleunder" style="max-width:200px">${escapeHtml(r.beskrivelse)}</div></td><td class="tall">${r.antall}</td><td class="tall">${kr(r.estPris)}</td><td class="smal">${r.status === 'ny' ? '' : `<span class="merkelapp ${r.status === 'ugyldig' ? 'm-varsel' : 'm-av'}">${escapeHtml(r.grunn)}</span>`}</td></tr>`).join('')}</tbody>
       </table>
     </div>
     <div class="hint">${nye.length} nye behov${hoppet ? ` · ${hoppet} hoppes over` : ''}</div>`;
@@ -137,10 +138,10 @@ function importPanel() {
     </div>
     <div class="felt"><span class="etikett">Dette skal lista inneholde</span>
       <table class="liste" style="font-size:13px; border:2px solid var(--color-divider); table-layout:fixed">
-        <thead><tr><th style="position:static; width:20%">Kolonne</th><th style="position:static; width:36%">Overskrift</th><th style="position:static; width:24%">Eksempel</th><th style="position:static; width:20%">Hvis tom</th></tr></thead>
+        <thead><tr><th style="position:static; width:21%">Kolonne</th><th style="position:static; width:35%">Overskrift</th><th style="position:static; width:24%">Eksempel</th><th style="position:static; width:20%">Hvis tom</th></tr></thead>
         <tbody>${IMPORTFELT.map(f => `<tr><td class="fet smal">${f.navn}${f.paakrevd ? ' <span class="aksent" title="Påkrevd">*</span>' : ''}</td><td>${f.overskrifter.map(escapeHtml).join(', ')}</td><td>${escapeHtml(f.eksempel)}</td><td class="dempet">${f.tomt}</td></tr>`).join('')}</tbody>
       </table>
-      <span class="undertekst"><span class="aksent">*</span> Påkrevd. Første rad i regnearket skal være overskriftene: én av de nevnte per kolonne, i valgfri rekkefølge. Andre kolonner (f.eks. Kategori, Sum, Prioritet) ses bort fra. <a href="${importmal()}" download="behovsliste-mal.csv">Last ned mal (CSV)</a></span>
+      <span class="undertekst"><span class="aksent">*</span> Påkrevd. Første rad i regnearket skal være overskriftene: én av de nevnte per kolonne, i valgfri rekkefølge. Andre kolonner (f.eks. Sum, Prioritet) ses bort fra. <a href="${importmal()}" download="behovsliste-mal.csv">Last ned mal (CSV)</a></span>
     </div>
     <textarea class="inndata" id="imp-tekst" rows="6" placeholder="Lim inn her" style="font-family:ui-monospace, Menlo, monospace; font-size:12px; white-space:pre">${escapeHtml(ui.importTekst)}</textarea>
     <label class="knapp knapp-ramme knapp-liten" style="align-self:flex-start; cursor:pointer">Velg CSV-fil<input type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" hidden data-import></label>
@@ -169,7 +170,8 @@ document.addEventListener('input', e => {
 
 function skrivUt(d) {
   const navn = { apne: 'Åpne behov', lukket: 'Anskaffede og lukkede behov', alle: 'Alle behov' }[ui.filter];
-  const rader = d.synlig.map(({ b, info }) => `<tr><td>${escapeHtml(b.tittel)}${b.beskrivelse ? `<div class="d">${escapeHtml(b.beskrivelse)}</div>` : ''}</td><td class="n">${info.anskaffet} / ${info.total}</td><td class="n">${kr(b.estPris)}</td><td class="n">${info.erApent ? kr(info.gjenstarKr) : '–'}</td><td>${escapeHtml(info.bruk.map(x => `${giverNavn(x.soknad.giverId)} (${x.linje.antall ?? 0})`).join(', ')) || '–'}</td><td>${escapeHtml(info.status)}</td></tr>`).join('');
+  const rad = ({ b, info }) => `<tr><td>${escapeHtml(b.tittel)}${b.beskrivelse ? `<div class="d">${escapeHtml(b.beskrivelse)}</div>` : ''}</td><td class="n">${info.anskaffet} / ${info.total}</td><td class="n">${kr(b.estPris)}</td><td class="n">${info.erApent ? kr(info.gjenstarKr) : '–'}</td><td>${escapeHtml(info.bruk.map(x => `${giverNavn(x.soknad.giverId)} (${x.linje.antall ?? 0})`).join(', ')) || '–'}</td><td>${escapeHtml(info.status)}</td></tr>`;
+  const rader = grupperPerType(d.synlig, x => x.b.type).map(g => `<tr class="g"><td colspan="3">${escapeHtml(g.type || 'Uten type')}</td><td class="n">${kr(g.elementer.reduce((sum, x) => sum + (x.info.erApent ? x.info.gjenstarKr : 0), 0))}</td><td colspan="2"></td></tr>${g.elementer.map(rad).join('')}`).join('');
   utskrift(navn, `<p>Behovsliste · skrevet ut ${new Date().toLocaleDateString('nb-NO')} · ${d.synlig.length} behov</p>
     <table><thead><tr><th>Behov</th><th class="n">Anskaffet / totalt</th><th class="n">Est. stk.pris</th><th class="n">Gjenstår, kr</th><th>Søknader</th><th>Status</th></tr></thead>
     <tbody>${rader}</tbody><tfoot><tr><td colspan="3">Gjenstående estimert</td><td class="n">${kr(d.synligKr)}</td><td colspan="2"></td></tr></tfoot></table>`, 'landscape');
@@ -205,11 +207,14 @@ export const behovSide = {
         <div class="tabellramme" data-rull="behov">
           <table class="liste">
             <thead><tr><th>Behov</th><th>Gjenstår</th><th class="tall">Est. stk.pris</th><th class="tall">Gjenstår, kr</th><th>Søknader</th><th>Status</th></tr></thead>
-            <tbody>${d.synlig.map(rad).join('') || '<tr class="tom-rad"><td colspan="6">Ingen behov i dette utvalget.</td></tr>'}</tbody>
+            <tbody>${grupperPerType(d.synlig, x => x.b.type).map(g => `
+              <tr class="gruppe"><td colspan="3">${escapeHtml(g.type || 'Uten type')}</td><td class="tall">${kr(g.elementer.reduce((sum, x) => sum + (x.info.erApent ? x.info.gjenstarKr : 0), 0))}</td><td colspan="2">${g.elementer.length} behov</td></tr>
+              ${g.elementer.map(rad).join('')}`).join('') || '<tr class="tom-rad"><td colspan="6">Ingen behov i dette utvalget.</td></tr>'}</tbody>
             <tfoot><tr><td colspan="3" class="dempet">${d.synlig.length} behov vist · gjenstående estimert</td><td class="tall sum">${kr(d.synligKr)}</td><td colspan="2"></td></tr></tfoot>
           </table>
         </div>
       </main>
+      <datalist id="typer">${typeliste(tilstand.behov, tilstand.soknader).map(t => `<option value="${escapeHtml(t)}">`).join('')}</datalist>
       ${valgt ? panel(valgt) : ui.panel === 'import' ? importPanel() : ''}`;
     ui.nyttPanel = false;
     return html;

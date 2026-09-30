@@ -9,6 +9,7 @@ import {
 import {
   SOKNADSSTATUSER, statusNavn, linjeliste, linjekostnad, sumEstimert, soktBelop, soktForslag, velgbareBehov,
   pott, giverandel, momsProsent, utgiftsliste, sumUtgifter, sumFakturert,
+  linjetype, grupperPerType, typeliste,
 } from '../data/beregning.js';
 import { escapeHtml, kr, datoFelt, tidspunkt, fornavn, tolkTall, tolkDato } from '../ui/format.js';
 import { feltAttr } from '../ui/felt.js';
@@ -104,14 +105,16 @@ function behovstabell(s) {
   const n = (l, f) => `soknader/${s.id}/linjer.${l.id}.${f}`;
   const finansieres = linjer.filter(l => l.finansieres).length;
   const sum = sumEstimert(s), sumGiver = giverandel(sum, prosent);
-  const rader = linjer.map(l => {
+  const rad = l => {
     const b = l.behovId ? behovMedId(l.behovId) : null;
     const kostnad = linjekostnad(l), fraGiver = giverandel(kostnad, prosent);
+    const arvet = (b?.type || '').trim();
     return `
       <tr>
         <td>${l.behovId
           ? `<span class="fet">${escapeHtml(linjetittel(l))}</span>${b?.beskrivelse ? `<div class="celleunder">${escapeHtml(b.beskrivelse)}</div>` : ''}`
           : `<input class="celleinn tekst" ${feltAttr(n(l, 'tittel'), l.tittel)} placeholder="Beskriv linjen">`}</td>
+        <td><input class="celleinn tekst" style="min-width:0; width:104px; font-weight:400" list="typer" placeholder="${escapeHtml(arvet || 'Type')}" title="${arvet ? `Behovet har typen «${escapeHtml(arvet)}». Skriv en annen for denne søknaden, eller tøm feltet for å bruke behovets.` : 'Type for denne søknaden'}" ${feltAttr(n(l, 'type'), linjetype(l, tilstand.behov))}></td>
         <td class="tall"><input class="celleinn antall" inputmode="numeric" ${feltAttr(n(l, 'antall'), l.antall, 'tall')}></td>
         <td class="tall"><input class="celleinn" inputmode="numeric" ${feltAttr(n(l, 'estPris'), l.estPris, 'tall')}></td>
         <td class="tall fet">${kr(kostnad)}</td>
@@ -119,24 +122,32 @@ function behovstabell(s) {
         <td>${avkryss(!!l.finansieres, l.finansieres ? 'Ja' : 'Nei', 'finansieres', `data-linje="${l.id}"`)}</td>
         <td style="width:40px; padding-left:0"><button type="button" class="ikonknapp" data-handling="fjern-linje" data-linje="${l.id}" title="Fjern fra søknaden">${IKON.fjern}</button></td>
       </tr>`;
+  };
+  // Gruppert på type med delsum per gruppe (giverens kategorier).
+  const rader = grupperPerType(linjer, l => linjetype(l, tilstand.behov)).map(g => {
+    const delsum = g.elementer.reduce((a, l) => a + linjekostnad(l), 0), delGiver = giverandel(delsum, prosent);
+    return `
+      <tr class="gruppe"><td colspan="4">${escapeHtml(g.type || 'Uten type')}</td><td class="tall">${kr(delsum)}</td>${moms ? `<td class="tall">${kr(delGiver)}</td><td class="tall">${kr(delsum - delGiver)}</td>` : ''}<td colspan="2">${g.elementer.length} ${g.elementer.length === 1 ? 'linje' : 'linjer'}</td></tr>
+      ${g.elementer.map(rad).join('')}`;
   }).join('');
-  const kolonner = moms ? 8 : 6;
+  const kolonner = moms ? 9 : 7;
   return `
     <div class="tabellramme" data-rull="soknad-behov">
-      <table class="liste">
+      <table class="liste tett">
         <thead><tr>
-          <th>Behov</th><th class="tall">Antall</th><th class="tall">Est. stk.pris</th><th class="tall">Kostnad</th>
-          ${moms ? `<th class="tall">Fra giver (${100 - prosent} %)</th><th class="tall">Fra momskomp. (${prosent} %)</th>` : ''}
+          <th>Behov</th><th>Type</th><th class="tall">Antall</th><th class="tall">Est. stk.pris</th><th class="tall">Kostnad</th>
+          ${moms ? `<th class="tall">Fra giver<br>(${100 - prosent} %)</th><th class="tall">Fra moms-<br>komp. (${prosent} %)</th>` : ''}
           <th>Finansieres</th><th></th>
         </tr></thead>
         <tbody>${rader || `<tr class="tom-rad"><td colspan="${kolonner}">Ingen behov i søknaden enda. Legg til fra behovslisten eller som fri linje.</td></tr>`}</tbody>
         <tfoot><tr>
-          <td colspan="3" class="dempet">Sum estimert</td>
+          <td colspan="4" class="dempet">Sum estimert</td>
           <td class="tall sum">${kr(sum)}</td>
           ${moms ? `<td class="tall sum">${kr(sumGiver)}</td><td class="tall fet dempet">${kr(sum - sumGiver)}<div class="undertekst" style="font-weight:400">forventes mottatt neste år</div></td>` : ''}
           <td colspan="2" class="dempet smal">${finansieres} av ${linjer.length} finansieres</td>
         </tr></tfoot>
       </table>
+      <datalist id="typer">${typeliste(tilstand.behov, tilstand.soknader).map(t => `<option value="${escapeHtml(t)}">`).join('')}</datalist>
     </div>`;
 }
 
@@ -305,7 +316,12 @@ function fraListenPanel(s) {
 }
 
 function skrivUt(s) {
-  const rader = linjeliste(s).map(l => `<tr><td>${escapeHtml(linjetittel(l))}</td><td class="n">${l.antall ?? 0}</td><td class="n">${kr(l.estPris)}</td><td class="n">${kr(linjekostnad(l))}</td></tr>`).join('');
+  const rad = l => `<tr><td>${escapeHtml(linjetittel(l))}</td><td class="n">${l.antall ?? 0}</td><td class="n">${kr(l.estPris)}</td><td class="n">${kr(linjekostnad(l))}</td></tr>`;
+  const grupper = grupperPerType(linjeliste(s), l => linjetype(l, tilstand.behov));
+  // Er alt uten type, skrives lista ut som før, uten gruppeoverskrift.
+  const rader = grupper.length === 1 && !grupper[0].type
+    ? grupper[0].elementer.map(rad).join('')
+    : grupper.map(g => `<tr class="g"><td colspan="3">${escapeHtml(g.type || 'Uten type')}</td><td class="n">${kr(g.elementer.reduce((a, l) => a + linjekostnad(l), 0))}</td></tr>${g.elementer.map(rad).join('')}`).join('');
   utskrift(s.tittel || 'Søknad', `<p>${escapeHtml(giver(s.giverId)?.navn || '')} · Behovsliste · skrevet ut ${new Date().toLocaleDateString('nb-NO')}</p>
     <table><thead><tr><th>Behov</th><th class="n">Antall</th><th class="n">Est. stk.pris</th><th class="n">Kostnad</th></tr></thead>
     <tbody>${rader}</tbody><tfoot><tr><td colspan="3">Sum estimert</td><td class="n">${kr(sumEstimert(s))}</td></tr></tfoot></table>`);
@@ -345,6 +361,13 @@ export const soknadSide = {
       return { giverId: verdi, momsProsent: g?.momsTrekk ? (g.momsProsent ?? 0) : null };
     }
     if (sti === 'soktOverstyrt' && s && (verdi == null || verdi === soktForslag(s))) return { soktOverstyrt: null };
+    // Type lik behovets (eller tomt felt) betyr «ikke overstyrt».
+    const typeTreff = sti.match(/^linjer\.([^.]+)\.type$/);
+    if (typeTreff && s) {
+      const l = s.linjer?.[typeTreff[1]];
+      const arvet = l?.behovId ? (behovMedId(l.behovId)?.type || '').trim() : '';
+      return { [sti]: !verdi || verdi === arvet ? null : verdi };
+    }
     // Tomt momsfelt betyr 0 %, ikke «ingen innstilling» — den styres av giveren.
     if (sti === 'momsProsent' && verdi == null) return { momsProsent: 0 };
     return null;

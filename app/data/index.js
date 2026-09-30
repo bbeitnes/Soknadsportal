@@ -82,7 +82,7 @@ export function slettGiver(id) {
 // ——— Behov ———
 
 export function opprettBehov() {
-  return lager.opprett('behov', { tittel: '', beskrivelse: '', antall: 1, estPris: 0, statusOverstyring: null, ...signatur() });
+  return lager.opprett('behov', { type: '', tittel: '', beskrivelse: '', antall: 1, estPris: 0, statusOverstyring: null, ...signatur() });
 }
 
 // Import fra regneark: ett behov per rad. Går raden galt underveis,
@@ -91,7 +91,7 @@ export function opprettBehov() {
 export async function importerBehov(rader) {
   let antall = 0;
   for (const r of rader) {
-    await lager.opprett('behov', { tittel: r.tittel, beskrivelse: r.beskrivelse, antall: r.antall, estPris: r.estPris, statusOverstyring: null, ...signatur() });
+    await lager.opprett('behov', { type: r.type || '', tittel: r.tittel, beskrivelse: r.beskrivelse, antall: r.antall, estPris: r.estPris, statusOverstyring: null, ...signatur() });
     antall++;
   }
   return antall;
@@ -141,7 +141,7 @@ export function leggBehovISoknad(soknad, behov, antall) {
 export function leggFriLinjeISoknad(soknad) {
   const id = nyId('l');
   return oppdaterSoknad(soknad.id, {
-    [`linjer.${id}`]: { behovId: null, tittel: '', antall: 1, estPris: 0, finansieres: false, rekkefolge: nesteRekkefolge(soknad) },
+    [`linjer.${id}`]: { behovId: null, type: null, tittel: '', antall: 1, estPris: 0, finansieres: false, rekkefolge: nesteRekkefolge(soknad) },
   }).then(() => id);
 }
 

@@ -260,3 +260,14 @@ table.matrise { border-collapse: separate; border-spacing: 0; min-width: 100%; f
 }
 body.mobilside .toppmeny nav a:not(.meny-kvittering) { display: none; }
 body.mobilside .meny-kvittering { display: inline-flex; }
+
+/* Gruppeoverskrift i tabeller (type med delsum) */
+.liste tr.gruppe td { background: var(--color-surface); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding-top: 7px; padding-bottom: 6px; color: var(--color-neutral-800); border-bottom: 1px solid var(--color-neutral-400); }
+.liste tr.gruppe td.tall { font-size: 13px; letter-spacing: 0; }
+
+/* Tett tabell: søknadens behovstabell har mange kolonner (type + moms) */
+.liste.tett th, .liste.tett td { padding-left: 7px; padding-right: 7px; }
+.liste.tett th:first-child, .liste.tett td:first-child { padding-left: 16px; }
+.liste.tett .celleinn { width: 76px; }
+.liste.tett .celleinn.antall { width: 50px; }
+.liste.tett .celleinn.tekst { width: 100%; }

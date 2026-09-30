@@ -232,3 +232,27 @@ test('fakturaer: løpenummer, poster, avvik og oppsummering', async () => {
   assert.equal(o.ikkeKoblet, 1);
   assert.deepEqual(o.perPost['i1/l1'], [1]);
 });
+
+test('import av behov: CSV med semikolon, overskrifter og duplikater', async () => {
+  const { tolkTabell, tolkBehovimport } = await import('../app/data/beregning.js');
+  const csv = '﻿Kategori;Navn/produkt;Spesifikasjon;Antall;Listepris;Sum;Prioritet\r\nInstrumenter;Kornett;Yamaha YCR2330III;6;13539;81234;Må ha\r\nInstrumenter;Trompet;"Bb; Yamaha ""pro""";2;23 000;46000;Må ha\r\n;;;;;;\r\nInstrumenter;Horn;Brukt;x;12000;;\r\nInstrumenter;Kornett;Yamaha YCR2330III;1;1;;\r\n';
+  assert.equal(tolkTabell(csv).length, 5);
+  assert.deepEqual(tolkTabell('a,b\n"x,y",2')[1], ['x,y', '2']);
+  const i = tolkBehovimport(csv, [{ tittel: 'trompet', beskrivelse: 'Bb; Yamaha "pro"' }]);
+  assert.equal(i.harOverskrift, true);
+  assert.deepEqual(i.kolonner, { tittel: 1, beskrivelse: 2, antall: 3, estPris: 4 });
+  assert.deepEqual(i.rader.map(r => r.status), ['ny', 'finnes', 'ugyldig', 'finnes']);
+  assert.deepEqual(i.rader[0], { tittel: 'Kornett', beskrivelse: 'Yamaha YCR2330III', antall: 6, estPris: 13539, status: 'ny', grunn: '' });
+  assert.equal(i.rader[1].estPris, 23000);
+  assert.equal(i.rader[2].grunn, 'ugyldig antall');
+  assert.equal(i.rader[3].grunn, 'står to ganger');
+});
+
+test('import av behov: limt inn fra regneark uten overskrift', async () => {
+  const { tolkBehovimport } = await import('../app/data/beregning.js');
+  const i = tolkBehovimport('Tuba\tBesson\t2\tkr 45 000,00\nNotestativ\t\t\t\n\tuten tittel\t1\t1');
+  assert.equal(i.harOverskrift, false);
+  assert.deepEqual(i.rader.map(r => [r.tittel, r.antall, r.estPris, r.status]), [['Tuba', 2, 45000, 'ny'], ['Notestativ', 1, 0, 'ny'], ['', 1, 1, 'ugyldig']]);
+  assert.equal(tolkBehovimport('').rader.length, 0);
+  assert.equal(tolkBehovimport('Behov\tAntall\tPris\nFlagg\t3\t1.250').rader[0].estPris, 1250);
+});

@@ -405,3 +405,79 @@ export function revisjonsoppsummering(fakturaer, poster) {
   }
   return { fakturert: fakturaer.reduce((s, f) => s + (Number(f.belop) || 0), 0), manglerFaktura, avvikSum, avvikAntall, ikkeKoblet, perPost };
 }
+
+// ——— Import av behovsliste fra regneark ———
+// Tekst limt inn fra Excel/Google Sheets er tabulatorseparert; CSV-filer
+// bruker semikolon eller komma. Felt kan stå i hermetegn.
+
+export function tolkTabell(tekst) {
+  const t = String(tekst ?? '').replace(/^﻿/, '').replace(/\r\n?/g, '\n');
+  const forste = t.split('\n')[0] || '';
+  const skille = forste.includes('\t') ? '\t' : (forste.split(';').length >= forste.split(',').length ? ';' : ',');
+  const rader = [];
+  let rad = [], felt = '', iHermetegn = false;
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (iHermetegn) {
+      if (c === '"' && t[i + 1] === '"') { felt += '"'; i++; }
+      else if (c === '"') iHermetegn = false;
+      else felt += c;
+    } else if (c === '"' && felt === '') iHermetegn = true;
+    else if (c === skille) { rad.push(felt.trim()); felt = ''; }
+    else if (c === '\n') { rad.push(felt.trim()); rader.push(rad); rad = []; felt = ''; }
+    else felt += c;
+  }
+  if (felt !== '' || rad.length) { rad.push(felt.trim()); rader.push(rad); }
+  return rader.filter(r => r.some(c => c !== ''));
+}
+
+// Overskrifter vi kjenner igjen, per felt i behovet.
+const IMPORTKOLONNER = {
+  tittel: /^(tittel|navn|navn\/produkt|produkt|behov|vare|instrument|beskrivelse av behov)$/i,
+  beskrivelse: /^(beskrivelse|spesifikasjon|spek|modell|notat|kommentar|detaljer)$/i,
+  antall: /^(antall|stk|ant\.?|mengde)$/i,
+  estPris: /^(est\.? ?(stk\.?|stykk)?pris|estimert (stk\.?|stykk)?pris|stykkpris|stk\.?pris|listepris|pris|enhetspris|pris per stk)$/i,
+};
+
+function tilTall(tekst) {
+  const renset = String(tekst ?? '').replace(/[\s ]/g, '').replace(/kr\.?|,-$/gi, '');
+  if (renset === '') return null;
+  // «13.539,50» og «13 539,5» → 13539.5; «13,539.50» tolkes ikke.
+  const n = Number(renset.includes(',') ? renset.replace(/\./g, '').replace(',', '.') : renset.replace(/\.(?=\d{3}(\D|$))/g, ''));
+  return Number.isFinite(n) && n >= 0 ? Math.round(n) : NaN;
+}
+
+// Gir { kolonner, harOverskrift, rader }. Uten gjenkjent overskrift antas
+// rekkefølgen Tittel, Beskrivelse, Antall, Est. stykkpris. Hver rad får
+// status 'ny', 'finnes' (samme tittel og beskrivelse ligger der alt) eller
+// 'ugyldig' (mangler tittel, eller ugyldig tall).
+export function tolkBehovimport(tekst, eksisterende = []) {
+  const tabell = tolkTabell(tekst);
+  if (!tabell.length) return { kolonner: null, harOverskrift: false, rader: [] };
+  const kolonner = {};
+  tabell[0].forEach((celle, i) => {
+    for (const [felt, monster] of Object.entries(IMPORTKOLONNER)) {
+      if (kolonner[felt] == null && monster.test(celle.trim())) kolonner[felt] = i;
+    }
+  });
+  const harOverskrift = kolonner.tittel != null;
+  const kol = harOverskrift ? kolonner : { tittel: 0, beskrivelse: 1, antall: 2, estPris: 3 };
+  const nokkel = (t, b) => `${(t || '').trim().toLowerCase()}|${(b || '').trim().toLowerCase()}`;
+  const finnes = new Set(eksisterende.map(b => nokkel(b.tittel, b.beskrivelse)));
+  const sett = new Set();
+  const rader = tabell.slice(harOverskrift ? 1 : 0).map(r => {
+    const tittel = (r[kol.tittel] ?? '').trim();
+    const beskrivelse = kol.beskrivelse != null ? (r[kol.beskrivelse] ?? '').trim() : '';
+    const antall = kol.antall != null ? tilTall(r[kol.antall]) : null;
+    const estPris = kol.estPris != null ? tilTall(r[kol.estPris]) : null;
+    let status = 'ny', grunn = '';
+    if (!tittel) { status = 'ugyldig'; grunn = 'mangler tittel'; }
+    else if (Number.isNaN(antall)) { status = 'ugyldig'; grunn = 'ugyldig antall'; }
+    else if (Number.isNaN(estPris)) { status = 'ugyldig'; grunn = 'ugyldig pris'; }
+    else if (finnes.has(nokkel(tittel, beskrivelse))) { status = 'finnes'; grunn = 'finnes fra før'; }
+    else if (sett.has(nokkel(tittel, beskrivelse))) { status = 'finnes'; grunn = 'står to ganger'; }
+    if (status === 'ny') sett.add(nokkel(tittel, beskrivelse));
+    return { tittel, beskrivelse, antall: antall ?? 1, estPris: estPris ?? 0, status, grunn };
+  });
+  return { kolonner: kol, harOverskrift, rader };
+}

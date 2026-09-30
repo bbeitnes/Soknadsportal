@@ -85,6 +85,18 @@ export function opprettBehov() {
   return lager.opprett('behov', { tittel: '', beskrivelse: '', antall: 1, estPris: 0, statusOverstyring: null, ...signatur() });
 }
 
+// Import fra regneark: ett behov per rad. Går raden galt underveis,
+// stopper vi; det som alt er opprettet blir liggende (og hoppes over
+// som «finnes fra før» hvis importen kjøres på nytt).
+export async function importerBehov(rader) {
+  let antall = 0;
+  for (const r of rader) {
+    await lager.opprett('behov', { tittel: r.tittel, beskrivelse: r.beskrivelse, antall: r.antall, estPris: r.estPris, statusOverstyring: null, ...signatur() });
+    antall++;
+  }
+  return antall;
+}
+
 export function oppdaterBehov(id, felt) {
   return lager.oppdater('behov', id, { ...felt, ...signatur() });
 }

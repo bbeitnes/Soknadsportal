@@ -1,13 +1,13 @@
 // Behovslisten: alt korpset trenger, uavhengig av søknad.
-import { tilstand, opprettBehov, oppdaterBehov, slettBehov } from '../data/index.js';
-import { behovsinfo, statusNavn } from '../data/beregning.js';
+import { tilstand, opprettBehov, oppdaterBehov, slettBehov, importerBehov } from '../data/index.js';
+import { behovsinfo, statusNavn, tolkBehovimport } from '../data/beregning.js';
 import { escapeHtml, kr, tidspunkt, fornavn } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
 import { lagre } from '../ui/lagring.js';
 import { tegn, fokuser, sidepanel, lukkeknapp } from '../ui/visning.js';
 import { utskrift } from '../ui/utskrift.js';
 
-const ui = { filter: 'apne', panel: null, nyttPanel: false };
+const ui = { filter: 'apne', panel: null, nyttPanel: false, importTekst: '', importerer: false };
 
 const FILTRE = [['apne', 'Åpne'], ['lukket', 'Anskaffet og lukket'], ['alle', 'Alle']];
 
@@ -102,6 +102,58 @@ function panel(b) {
     </div>`, { nytt: ui.nyttPanel });
 }
 
+// ——— Import fra Excel / Google Sheets ———
+
+function importForhandsvisning() {
+  const i = tolkBehovimport(ui.importTekst, tilstand.behov);
+  if (!i.rader.length) return { html: '<div class="undertekst">Ingenting å vise enda.</div>', nye: [] };
+  const nye = i.rader.filter(r => r.status === 'ny');
+  const hoppet = i.rader.length - nye.length;
+  const html = `
+    <div class="hint">${i.harOverskrift ? 'Kolonnene ble funnet fra overskriftsraden.' : 'Fant ingen overskriftsrad – antar rekkefølgen Tittel, Beskrivelse, Antall, Est. stykkpris.'}</div>
+    <div class="tabellramme" style="flex:0 1 auto; max-height:40vh">
+      <table class="liste" style="font-size:13px">
+        <thead><tr><th>Behov</th><th class="tall">Antall</th><th class="tall">Est. pris</th><th></th></tr></thead>
+        <tbody>${i.rader.map(r => `<tr style="${r.status === 'ny' ? '' : 'color:var(--color-neutral-500)'}"><td><div class="celletittel">${escapeHtml(r.tittel || '–')}</div><div class="celleunder" style="max-width:200px">${escapeHtml(r.beskrivelse)}</div></td><td class="tall">${r.antall}</td><td class="tall">${kr(r.estPris)}</td><td class="smal">${r.status === 'ny' ? '' : `<span class="merkelapp ${r.status === 'ugyldig' ? 'm-varsel' : 'm-av'}">${escapeHtml(r.grunn)}</span>`}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>
+    <div class="hint">${nye.length} nye behov${hoppet ? ` · ${hoppet} hoppes over` : ''}</div>`;
+  return { html, nye };
+}
+
+function importPanel() {
+  const f = importForhandsvisning();
+  return sidepanel(`
+    <div class="panelhode">
+      <div><h2>Importer behov</h2><div class="ingress" style="margin-top:4px">Kopier radene i Excel eller Google Sheets og lim dem inn her, eller velg en CSV-fil.</div></div>
+      ${lukkeknapp()}
+    </div>
+    <div class="undertekst">Ta gjerne med overskriftsraden. Kolonner som gjenkjennes: <b>Tittel</b> (eller Navn/produkt), <b>Beskrivelse</b> (eller Spesifikasjon), <b>Antall</b> og <b>Est. stykkpris</b> (eller Listepris, Pris). Andre kolonner ses bort fra.</div>
+    <textarea class="inndata" id="imp-tekst" rows="6" placeholder="Lim inn her" style="font-family:ui-monospace, Menlo, monospace; font-size:12px; white-space:pre">${escapeHtml(ui.importTekst)}</textarea>
+    <label class="knapp knapp-ramme knapp-liten" style="align-self:flex-start; cursor:pointer">Velg CSV-fil<input type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" hidden data-import></label>
+    <div id="imp-forhand" style="display:flex; flex-direction:column; gap:8px; min-height:0">${f.html}</div>
+    <div style="display:flex; align-items:center; gap:12px">
+      <button type="button" class="knapp knapp-primar" data-handling="importer" ${f.nye.length && !ui.importerer ? '' : 'disabled'}>${ui.importerer ? 'Importerer …' : `Importer ${f.nye.length} behov`}</button>
+    </div>`, { nytt: ui.nyttPanel }).replace('class="sidepanel"', 'class="sidepanel" style="width:560px"');
+}
+
+// Forhåndsvisningen oppdateres på stedet mens man limer inn eller skriver,
+// uten ny tegning av siden (markøren blir stående i tekstfeltet).
+function oppdaterImport() {
+  const el = document.getElementById('imp-forhand');
+  if (!el) return;
+  const f = importForhandsvisning();
+  el.innerHTML = f.html;
+  const knapp = document.querySelector('[data-handling="importer"]');
+  if (knapp) { knapp.disabled = !f.nye.length || ui.importerer; knapp.textContent = `Importer ${f.nye.length} behov`; }
+}
+
+document.addEventListener('input', e => {
+  if (e.target.id !== 'imp-tekst') return;
+  ui.importTekst = e.target.value;
+  oppdaterImport();
+});
+
 function skrivUt(d) {
   const navn = { apne: 'Åpne behov', lukket: 'Anskaffede og lukkede behov', alle: 'Alle behov' }[ui.filter];
   const rader = d.synlig.map(({ b, info }) => `<tr><td>${escapeHtml(b.tittel)}${b.beskrivelse ? `<div class="d">${escapeHtml(b.beskrivelse)}</div>` : ''}</td><td class="n">${info.anskaffet} / ${info.total}</td><td class="n">${kr(b.estPris)}</td><td class="n">${info.erApent ? kr(info.gjenstarKr) : '–'}</td><td>${escapeHtml(info.bruk.map(x => `${giverNavn(x.soknad.giverId)} (${x.linje.antall ?? 0})`).join(', ')) || '–'}</td><td>${escapeHtml(info.status)}</td></tr>`).join('');
@@ -114,7 +166,7 @@ export const behovSide = {
   tegn() {
     const d = beregn();
     const valgt = tilstand.behov.find(b => b.id === ui.panel);
-    if (ui.panel && !valgt) ui.panel = null;
+    if (ui.panel && !valgt && ui.panel !== 'import') ui.panel = null;
     const antall = { apne: d.antallApne, lukket: d.alle.length - d.antallApne };
     const html = `
       <header class="sidehode">
@@ -132,6 +184,7 @@ export const behovSide = {
         <div class="verktoyrad">
           <div class="segment">${FILTRE.map(([id, navn]) => `<button type="button" data-handling="filter" data-id="${id}" aria-pressed="${ui.filter === id}">${navn}${antall[id] != null ? ` (${antall[id]})` : ''}</button>`).join('')}</div>
           <div class="grupper">
+            <button type="button" class="knapp knapp-ramme" data-handling="import">Importer</button>
             <button type="button" class="knapp knapp-ramme" data-handling="skriv-ut">Skriv ut</button>
             <button type="button" class="knapp knapp-primar" data-handling="ny">+ Nytt behov</button>
           </div>
@@ -144,13 +197,25 @@ export const behovSide = {
           </table>
         </div>
       </main>
-      ${valgt ? panel(valgt) : ''}`;
+      ${valgt ? panel(valgt) : ui.panel === 'import' ? importPanel() : ''}`;
     ui.nyttPanel = false;
     return html;
   },
 
   async klikk(handling, el) {
     const b = tilstand.behov.find(x => x.id === ui.panel);
+    if (handling === 'import') { ui.panel = 'import'; ui.nyttPanel = true; tegn(); return; }
+    if (handling === 'importer') {
+      const nye = importForhandsvisning().nye;
+      if (!nye.length || ui.importerer) return;
+      document.activeElement?.blur?.();
+      ui.importerer = true; tegn();
+      const antall = await lagre(() => importerBehov(nye));
+      ui.importerer = false;
+      if (antall) { ui.importTekst = ''; ui.panel = null; ui.filter = 'apne'; }
+      tegn();
+      return;
+    }
     if (handling === 'filter') { ui.filter = el.dataset.id; tegn(); }
     else if (handling === 'apne') { ui.panel = el.dataset.id; ui.nyttPanel = true; tegn(); }
     else if (handling === 'lukk-panel') { ui.panel = null; tegn(); }
@@ -170,6 +235,15 @@ export const behovSide = {
       ui.panel = null;
       lagre(() => slettBehov(b.id));
     }
+  },
+
+  async filer(el, filer) {
+    if (!el.hasAttribute?.('data-import') || !filer[0]) return;
+    ui.importTekst = await filer[0].text();
+    if (el.type === 'file') el.value = '';
+    const felt = document.getElementById('imp-tekst');
+    if (felt) felt.value = ui.importTekst;
+    oppdaterImport();
   },
 
   escape() {

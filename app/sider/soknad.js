@@ -2,7 +2,7 @@
 // grunndata, status, revisjon av/på og dokumenter). Innkjøp, Utgifter og
 // Revisjon kommer i senere trinn.
 import {
-  tilstand, oppdaterSoknad, oppdaterLinje, leggBehovISoknad, leggFriLinjeISoknad, fjernLinje,
+  tilstand, oppdaterSoknad, oppdaterLinje, leggBehovISoknad, leggFlereBehovISoknad, leggFriLinjeISoknad, fjernLinje,
   lastOppDokument, slettDokument, dokumentUrl, slettSoknad, innkjopFor,
   leggTilUtgift, oppdaterUtgift, fjernUtgift,
   fellesTyperekkefolge, settLinjerekkefolge, settSoknadTyperekkefolge, anskaffet,
@@ -10,7 +10,7 @@ import {
 import {
   SOKNADSSTATUSER, statusNavn, linjeliste, linjekostnad, sumEstimert, soktBelop, soktForslag, velgbareBehov,
   pott, giverandel, momsProsent, utgiftsliste, sumUtgifter, sumFakturert,
-  linjetype, grupperPerType, typeliste, flyttIListe, typerekkefolgeFor, soktLinjer, tilleggslinjer,
+  linjetype, grupperPerType, typeliste, flyttIListe, typerekkefolgeFor, soktLinjer, tilleggslinjer, etterRekkefolgeOgTittel,
 } from '../data/beregning.js';
 import { escapeHtml, kr, datoFelt, tidspunkt, fornavn, tolkTall, tolkDato } from '../ui/format.js';
 import { feltAttr } from '../ui/felt.js';
@@ -22,7 +22,7 @@ import { revisjonFane } from './revisjon.js';
 
 const FANER = [['soknad', 'Søknad'], ['innkjop', 'Innkjøp'], ['utgifter', 'Utgifter'], ['revisjon', 'Revisjon']];
 
-const ui = { soknadId: null, panel: null, nyttPanel: false, velger: false, laster: 0 };
+const ui = { soknadId: null, panel: null, nyttPanel: false, velger: false, laster: 0, leggerTil: false };
 
 const giver = id => tilstand.givere.find(g => g.id === id);
 const behovMedId = id => tilstand.behov.find(b => b.id === id);
@@ -303,23 +303,34 @@ function soknadsfane(s) {
     </div>`;
 }
 
-function fraListenPanel(s) {
+// Åpne behov som kan legges i søknaden, gruppert og ordnet som i behovslisten.
+function valgFraListen(s) {
   const valg = velgbareBehov(tilstand.behov, tilstand.soknader, s, anskaffet())
-    .sort((a, b) => (a.behov.tittel || '').localeCompare(b.behov.tittel || '', 'nb'));
+    .sort((a, b) => etterRekkefolgeOgTittel(a.behov, b.behov));
+  return grupperPerType(valg, x => x.behov.type, fellesTyperekkefolge());
+}
+
+function fraListenPanel(s) {
+  const grupper = valgFraListen(s);
+  const antall = grupper.reduce((sum, g) => sum + g.elementer.length, 0);
+  const visOverskrift = grupper.length > 1 || (grupper[0]?.type ?? '') !== '';
   return sidepanel(`
     <div class="panelhode">
       <div><h2>Behov fra listen</h2><div class="ingress" style="margin-top:4px">Åpne behov som ikke er med i søknaden. Antall settes til det som gjenstår.${s.status === 'utkast' ? '' : ' Søknaden er ikke lenger et utkast, så behovet merkes «lagt til etter søknaden» og endrer ikke søkt beløp.'}</div></div>
       ${lukkeknapp()}
     </div>
-    <div style="display:flex; flex-direction:column; gap:8px">
-      ${valg.map(({ behov: b, info }) => `
-        <div style="display:flex; align-items:center; gap:12px; padding:12px 14px; background:var(--color-neutral-200)">
+    ${antall > 1 ? `<button type="button" class="knapp knapp-primar" style="align-self:flex-start" data-handling="legg-til-alle">Legg til alle ${antall}</button>` : ''}
+    <div style="display:flex; flex-direction:column; gap:6px">
+      ${grupper.map(g => `
+        ${visOverskrift ? `<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:8px"><span class="etikett">${escapeHtml(g.type || 'Uten type')}</span>${g.elementer.length > 1 ? `<button type="button" class="knapp knapp-ramme knapp-liten" style="height:26px; font-size:12px" data-handling="legg-til-type" data-type="${escapeHtml(g.type)}">Legg til alle ${g.elementer.length}</button>` : ''}</div>` : ''}
+        ${g.elementer.map(({ behov: b, info }) => `
+        <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--color-neutral-200)">
           <div style="flex:1; min-width:0">
-            <div class="fet">${escapeHtml(b.tittel || 'Uten tittel')}</div>
+            <div class="fet">${escapeHtml(b.tittel || 'Uten tittel')}</div>${b.beskrivelse ? `<div class="celleunder" title="${escapeHtml(b.beskrivelse)}">${escapeHtml(b.beskrivelse)}</div>` : ''}
             <div class="dempet">Gjenstår ${info.gjenstar} av ${info.total} · est. ${kr(b.estPris)} kr/stk</div>
           </div>
           <button type="button" class="knapp knapp-primar knapp-liten" data-handling="legg-til" data-id="${b.id}">Legg til</button>
-        </div>`).join('') || '<div class="dempet">Ingen åpne behov å velge. Nye behov legges inn under Behov.</div>'}
+        </div>`).join('')}`).join('') || '<div class="dempet">Ingen åpne behov å velge. Nye behov legges inn under Behov.</div>'}
     </div>`, { nytt: ui.nyttPanel });
 }
 
@@ -441,6 +452,18 @@ export const soknadSide = {
         const b = behovMedId(el.dataset.id);
         const info = velgbareBehov(tilstand.behov, tilstand.soknader, s, anskaffet()).find(x => x.behov.id === b?.id)?.info;
         if (b && info) lagre(() => leggBehovISoknad(s, b, info.gjenstar));
+        break;
+      }
+      case 'legg-til-alle':
+      case 'legg-til-type': {
+        const valg = valgFraListen(s)
+          .filter(g => handling === 'legg-til-alle' || g.type === el.dataset.type)
+          .flatMap(g => g.elementer.map(x => ({ behov: x.behov, antall: x.info.gjenstar })));
+        // Et dobbeltklikk skal ikke legge inn alt to ganger.
+        if (ui.leggerTil) break;
+        ui.leggerTil = true;
+        await lagre(() => leggFlereBehovISoknad(s, valg));
+        ui.leggerTil = false;
         break;
       }
       case 'fri-linje': {

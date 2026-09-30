@@ -164,6 +164,20 @@ export function leggBehovISoknad(soknad, behov, antall) {
   }).then(() => id);
 }
 
+// Flere behov på én gang (en hel type, eller alle åpne), i den rekkefølgen
+// de kommer. Én skriving, så søknaden tegnes bare én gang.
+export function leggFlereBehovISoknad(soknad, valg) {
+  const felt = {};
+  let rekkefolge = nesteRekkefolge(soknad);
+  valg.forEach(({ behov, antall }, nr) => {
+    felt[`linjer.${nyId('l')}${nr}`] = {
+      behovId: behov.id, tittel: '', antall, estPris: Number(behov.estPris) || 0,
+      rekkefolge: rekkefolge++, ...etterSoknadFelt(soknad),
+    };
+  });
+  return Object.keys(felt).length ? oppdaterSoknad(soknad.id, felt) : Promise.resolve();
+}
+
 export function leggFriLinjeISoknad(soknad) {
   const id = nyId('l');
   return oppdaterSoknad(soknad.id, {

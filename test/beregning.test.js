@@ -233,7 +233,8 @@ test('fakturaer: løpenummer, poster, avvik og oppsummering', async () => {
   assert.equal(o.avvikSum, 100);
   assert.equal(o.avvikAntall, 1);
   assert.equal(o.ikkeKoblet, 1);
-  assert.deepEqual(o.perPost['i1/l1'], [1]);
+  assert.deepEqual(o.perPost['i1/l1'], { nr: [1], fakturert: 3900, avvik: 100 });
+  assert.deepEqual(o.perPost['i1/l2'], { nr: [], fakturert: null, avvik: 0 });
 });
 
 test('revisjonsposter: alternativt produkt følger den valgte leverandøren', async () => {
@@ -533,6 +534,8 @@ test('beløp med øre: visning, tolking og avvik uten flyttallsstøy', async () 
   assert.equal(tolkBelop('1.234,56'), 1234.56);
   assert.equal(tolkBelop('8060,8 kr'), 8060.8);
   assert.equal(tolkBelop(''), null);
+  assert.equal(tolkBelop('−500'), -500); // kreditnota
+  assert.ok(Number.isNaN(tolkTall('-5'))); // antall og estimater kan ikke være negative
   assert.ok(Number.isNaN(tolkBelop('abc')));
   assert.equal(tolkTall('1 234,56'), 1235); // antall og estimater er fortsatt hele tall
   const poster = [{ id: 'a', tilbudt: 8060.8 }, { id: 'b', tilbudt: 0.1 }, { id: 'c', tilbudt: 0.2 }];
@@ -542,4 +545,26 @@ test('beløp med øre: visning, tolking og avvik uten flyttallsstøy', async () 
   assert.equal(sumFakturert(fakturaer, 's'), 0.3);
   assert.equal(revisjonsoppsummering(fakturaer, []).fakturert, 0.3);
   assert.equal(sumUtgifter({ utgifter: { a: { belop: 0.1 }, b: { belop: 0.2 } } }), 0.3);
+});
+
+test('kreditnota: avvik per post, faktura med negativt beløp', async () => {
+  const { fakturaavvik, fakturertPerPost, revisjonsoppsummering, sumFakturert } = await import('../app/data/beregning.js');
+  const poster = [{ id: 'kornett', tilbudt: 30600 }, { id: 'stativ', tilbudt: 1000 }, { id: 'noter', tilbudt: 500 }];
+  const fakturaer = [
+    { id: 'f1', soknadId: 's', lopenummer: 1, belop: 30600, dekker: { kornett: true } },
+    { id: 'f2', soknadId: 's', lopenummer: 2, belop: 1100, dekker: { stativ: true } },
+    { id: 'f3', soknadId: 's', lopenummer: 2, belop: -500, dekker: { kornett: true } }, // kreditnota på samme dokument
+    { id: 'f4', soknadId: 's', lopenummer: 3, belop: 1500, dekker: { stativ: true, noter: true } }, // dekker to poster
+  ];
+  assert.deepEqual(fakturertPerPost(fakturaer, poster), { kornett: 30100, stativ: 2100, noter: 500 });
+  const o = revisjonsoppsummering(fakturaer, poster);
+  assert.deepEqual(o.perPost.kornett, { nr: [1, 2], fakturert: 30100, avvik: -500 });
+  assert.deepEqual(o.perPost.stativ, { nr: [2, 3], fakturert: 2100, avvik: 1100 });
+  assert.deepEqual([o.fakturert, o.avvikSum, o.avvikAntall, o.manglerFaktura], [32700, 600, 2, 0]);
+  assert.equal(sumFakturert(fakturaer, 's'), 32700);
+  // Avvik per faktura gjelder bare når fakturaen er alene om postene sine.
+  assert.equal(fakturaavvik(fakturaer[0], poster, fakturaer).alene, false);
+  assert.equal(fakturaavvik(fakturaer[2], poster, fakturaer).alene, false);
+  const alene = [fakturaer[0], fakturaer[3]];
+  assert.deepEqual(fakturaavvik(fakturaer[0], poster, alene), { tilbudt: 30600, avvik: 0, koblet: true, alene: true });
 });

@@ -125,10 +125,21 @@ export async function lagRevisjonsrapport(s) {
   tekst('Summen stemmer med «Brukt (fakturert)» på forsiden.', MARG, 9, font, graa);
 
   // ——— 3. Bilagene ———
+  // Samme dokument på flere oppføringer (faktura + kreditnota) tas med én gang.
+  const sett = new Map();
   for (const f of fakturaer) {
     const nr = f.lopenummer;
     let lagt = false;
+    if (f.fil?.sti && sett.has(f.fil.sti)) {
+      nySide();
+      stempel(nr, 0);
+      y = A4[1] / 2 + 20;
+      tekst(`Bilag: samme dokument som faktura ${sett.get(f.fil.sti)}.`, MARG, 12, fet, graa); y -= 24;
+      tekst(`${f.leverandor || 'Ukjent leverandør'} · ${f.fakturanr || 'uten nummer'} · ${f.dato ? datoFelt(f.dato) : 'uten dato'} · ${f.belop == null ? '–' : belop(f.belop) + ' kr'}`, MARG, 10, font, graa);
+      continue;
+    }
     if (f.fil?.sti) {
+      sett.set(f.fil.sti, nr);
       try {
         const bytes = await filBytes(f.fil.sti);
         const type = (f.fil.type || '').toLowerCase();

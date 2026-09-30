@@ -35,15 +35,16 @@ export const belop = kr;
 // Hele kroner; tolkBelop() beholder ørene.
 export function tolkTall(tekst) {
   const n = tolkBelop(tekst);
-  return n == null || Number.isNaN(n) ? n : Math.round(n);
+  return n == null || Number.isNaN(n) ? n : n < 0 ? NaN : Math.round(n);
 }
 
 // «1 234,56» → 1234.56. Punktum regnes som tusenskille, komma som desimal.
+// Negativt beløp («−500») er lov: en kreditnota.
 export function tolkBelop(tekst) {
-  const renset = String(tekst ?? '').replace(/[\s kr.]/gi, '').replace(',', '.');
+  const renset = String(tekst ?? '').replace(/[\s kr.]/gi, '').replace(',', '.').replace('−', '-');
   if (renset === '') return null;
   const n = Number(renset);
-  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : NaN;
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : NaN;
 }
 
 // «15.3.26», «15.03.2026», «150326», «15032026» og «2026-03-15» → «2026-03-15».

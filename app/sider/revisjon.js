@@ -48,20 +48,22 @@ function avvikTekst(avvik) {
 
 function fakturaPanel(s, f, poster) {
   const n = felt => `fakturaer/${f.id}/${felt}`;
-  const a = fakturaavvik(f, poster);
+  const alle = fakturaerFor(s.id);
+  const a = fakturaavvik(f, poster, alle);
   const dekker = new Set(fakturaDekker(f));
-  const andre = fakturaerFor(s.id).filter(x => x.id !== f.id);
+  const andre = alle.filter(x => x.id !== f.id);
+  const kreditnota = Number(f.belop) < 0;
   const register = [...tilstand.leverandorer].map(l => l.navn).filter(Boolean).sort((x, y) => x.localeCompare(y, 'nb'));
   return sidepanel(`
     <div class="panelhode">
-      <div><h2>Faktura ${f.lopenummer}</h2><div class="ingress" style="margin-top:4px">${f.leverandor ? `${escapeHtml(f.leverandor)} · ${escapeHtml(f.fakturanr || 'uten nummer')}` : 'Ny faktura – feltene lagres fortløpende'}</div></div>
+      <div><h2>${kreditnota ? 'Kreditnota' : 'Faktura'} ${f.lopenummer}</h2><div class="ingress" style="margin-top:4px">${f.leverandor ? `${escapeHtml(f.leverandor)} · ${escapeHtml(f.fakturanr || 'uten nummer')}` : 'Ny faktura – feltene lagres fortløpende'}</div></div>
       ${lukkeknapp()}
     </div>
     <div class="to-kol">
       <label class="felt" style="grid-column:1 / -1"><span class="etikett">Leverandør</span><input class="inndata" list="leverandorliste" ${feltAttr(n('leverandor'), f.leverandor)}><datalist id="leverandorliste">${register.map(x => `<option value="${escapeHtml(x)}">`).join('')}</datalist></label>
       <label class="felt"><span class="etikett">Fakturanr</span><input class="inndata" ${feltAttr(n('fakturanr'), f.fakturanr)}></label>
       <label class="felt"><span class="etikett">Dato</span><input class="inndata" placeholder="dd.mm.åååå" ${feltAttr(n('dato'), f.dato, 'dato')}></label>
-      <label class="felt"><span class="etikett">Beløp</span><input class="inndata tall" inputmode="decimal" placeholder="0,00" ${feltAttr(n('belop'), f.belop, 'belop')}></label>
+      <label class="felt"><span class="etikett">Beløp</span><input class="inndata tall" inputmode="decimal" placeholder="0,00" title="Negativt beløp = kreditnota" ${feltAttr(n('belop'), f.belop, 'belop')}><span class="undertekst">Negativt = kreditnota</span></label>
       <div class="felt"><span class="etikett">Vedlegg</span>
         ${f.fil
           ? `<div style="display:flex; align-items:center; gap:6px; height:36px; padding:0 10px; border:2px solid var(--color-divider); min-width:0">${IKON.fil}<button type="button" data-handling="apne-fil" style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border:0; background:transparent; padding:0; text-align:left; cursor:pointer; font-size:13px; font-weight:600">${escapeHtml(f.fil.navn)}</button><label class="ikonknapp" style="width:24px; height:24px; cursor:pointer" title="Bytt fil">${IKON.pluss}<input type="file" accept="application/pdf,image/*" hidden data-faktura="${f.id}"></label></div>`
@@ -69,7 +71,7 @@ function fakturaPanel(s, f, poster) {
       </div>
     </div>
     <div>
-      <div style="display:flex; justify-content:space-between; align-items:baseline"><span class="etikett">Gjelder</span><span class="hint">Tilbudt ${belop(a.tilbudt)} · avvik <span class="fet ${a.avvik ? 'aksent' : ''}">${a.koblet ? (a.avvik ? avvikTekst(a.avvik) : '0') : '–'}</span></span></div>
+      <div style="display:flex; justify-content:space-between; align-items:baseline"><span class="etikett">Gjelder</span><span class="hint">${a.koblet && !a.alene ? 'Flere fakturaer på samme linje – avviket står per linje under «Hva potten er brukt på»' : `Tilbudt ${belop(a.tilbudt)} · avvik <span class="fet ${a.avvik ? 'aksent' : ''}">${a.koblet ? (a.avvik ? avvikTekst(a.avvik) : '0') : '–'}</span>`}</span></div>
       <div class="valgliste" style="margin-top:8px">
         ${poster.map(p => {
           const pa = dekker.has(p.id);
@@ -110,15 +112,15 @@ export const revisjonFane = {
             <table class="liste">
               <thead><tr><th>Nr</th><th>Leverandør</th><th>Fakturanr</th><th>Dato</th><th class="tall">Beløp</th><th class="tall">Avvik</th></tr></thead>
               <tbody>${fakturaer.map(f => {
-                const a = fakturaavvik(f, poster);
+                const a = fakturaavvik(f, poster, fakturaer);
                 const navn = fakturaDekker(f).map(id => poster.find(x => x.id === id)).filter(Boolean).map(posttittel);
                 return `<tr class="klikkbar ${f.id === ui.panel ? 'valgt' : ''}" data-handling="apne-faktura" data-id="${f.id}">
-                  <td style="font-weight:700">${f.lopenummer}</td>
+                  <td style="font-weight:700">${f.lopenummer}${Number(f.belop) < 0 ? '<div class="undertekst" style="font-weight:600">kreditnota</div>' : ''}</td>
                   <td>${escapeHtml(f.leverandor || '–')}<div class="celleunder" style="max-width:200px" title="${escapeHtml(navn.join(', '))}">${navn.length ? escapeHtml(navn.join(', ')) : '<span class="aksent">Ikke koblet til noe</span>'}</div></td>
                   <td class="smal" style="font-size:13px">${escapeHtml(f.fakturanr || '–')}</td>
                   <td class="smal" style="font-size:13px">${f.dato ? datoFelt(f.dato) : '–'}</td>
                   <td class="tall fet">${f.belop == null ? '–' : belop(f.belop)}</td>
-                  <td class="tall fet smal aksent">${a.koblet ? avvikTekst(a.avvik) : ''}${f.merknad ? `<div class="celleunder" style="font-weight:400; max-width:220px; white-space:normal" title="${escapeHtml(f.merknad)}">${escapeHtml(f.merknad)}</div>` : ''}</td>
+                  <td class="tall fet smal aksent">${a.koblet ? (a.alene ? avvikTekst(a.avvik) : '<span class="undertekst" style="font-weight:400" title="Flere fakturaer på samme linje – se avvik per linje">se linje</span>') : ''}${f.merknad ? `<div class="celleunder" style="font-weight:400; max-width:220px; white-space:normal" title="${escapeHtml(f.merknad)}">${escapeHtml(f.merknad)}</div>` : ''}</td>
                 </tr>`; }).join('') || '<tr class="tom-rad"><td colspan="6">Ingen fakturaer enda. Kvitteringer fra mobil dukker også opp her.</td></tr>'}</tbody>
               <tfoot><tr><td colspan="4" class="dempet">Sum fakturert</td><td class="tall sum">${belop(o.fakturert)}</td><td class="tall fet aksent">${avvikTekst(o.avvikSum)}</td></tr></tfoot>
             </table>
@@ -128,11 +130,11 @@ export const revisjonFane = {
           <div class="etikett">Hva potten er brukt på</div>
           <div class="tabellramme" data-rull="poster">
             <table class="liste">
-              <thead><tr><th>Gjelder</th><th class="tall">Tilbudt</th><th>Faktura</th></tr></thead>
+              <thead><tr><th>Gjelder</th><th class="tall">Tilbudt</th><th class="tall">Fakturert</th><th class="tall">Avvik</th><th>Faktura</th></tr></thead>
               <tbody>${poster.map(x => {
-                const nr = o.perPost[x.id];
-                return `<tr><td>${escapeHtml(x.tittel)}<div class="celleunder">${escapeHtml(x.under)}</div>${x.etterSoknad ? `<div class="celleunder" style="color:var(--color-text)" title="${escapeHtml(x.notat)}">Lagt til etter søknaden${x.notat ? `: ${escapeHtml(x.notat)}` : ''}</div>` : ''}${x.alternativ ? `<div class="celleunder aksent" style="font-weight:600" title="Leverandøren tilbød et annet produkt enn det vi ba om">Alternativt produkt: ${escapeHtml(x.alternativ)}</div>` : ''}</td><td class="tall fet">${belop(x.tilbudt)}</td><td class="smal"><span class="merkelapp ${nr.length ? 'm-pa' : 'm-varsel'}">${nr.length ? `Faktura ${nr.join(', ')}` : 'Mangler faktura'}</span></td></tr>`;
-              }).join('') || '<tr class="tom-rad"><td colspan="3">Ingen valgte tilbudslinjer eller utgifter enda.</td></tr>'}</tbody>
+                const { nr, fakturert, avvik } = o.perPost[x.id];
+                return `<tr><td>${escapeHtml(x.tittel)}<div class="celleunder">${escapeHtml(x.under)}</div>${x.etterSoknad ? `<div class="celleunder" style="color:var(--color-text)" title="${escapeHtml(x.notat)}">Lagt til etter søknaden${x.notat ? `: ${escapeHtml(x.notat)}` : ''}</div>` : ''}${x.alternativ ? `<div class="celleunder aksent" style="font-weight:600" title="Leverandøren tilbød et annet produkt enn det vi ba om">Alternativt produkt: ${escapeHtml(x.alternativ)}</div>` : ''}</td><td class="tall">${belop(x.tilbudt)}</td><td class="tall fet">${fakturert == null ? '–' : belop(fakturert)}</td><td class="tall fet smal aksent">${avvik ? avvikTekst(avvik) : ''}</td><td class="smal"><span class="merkelapp ${nr.length ? 'm-pa' : 'm-varsel'}">${nr.length ? `Faktura ${nr.join(', ')}` : 'Mangler faktura'}</span></td></tr>`;
+              }).join('') || '<tr class="tom-rad"><td colspan="5">Ingen valgte tilbudslinjer eller utgifter enda.</td></tr>'}</tbody>
             </table>
           </div>
           ${utenValgTekst(s)}

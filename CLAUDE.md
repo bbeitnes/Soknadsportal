@@ -41,7 +41,10 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   utgifter og dokumenter som kart på dokumentet), `innkjop` (én per
   tilbudsrunde: linjer, leverandorer{leverandorId,frakt,vedlegg}, priser[lid][sid]{raa,alternativ,vedleggId,side,tekst}, valgt[lid]),
   `leverandorer` (register), `fakturaer` (løpenummer per søknad, dekker{innkjopId|lid} eller
-  {utgift|uid}, fraMobil, merknad – fritekst som vises i fakturalisten og PDF-rapporten).
+  {utgift|uid}, fraMobil, merknad – fritekst som vises i fakturalisten og PDF-rapporten). Negativt
+  `belop` = kreditnota. Avvik regnes per post (`fakturertPerPost()`: en faktura som dekker flere
+  poster fordeles etter tilbudt pris); avvik per faktura vises bare når den er alene om postene.
+  Rapporten tar med samme bilagsfil én gang («se faktura N»).
 - Alle beløp vises med to desimaler: `kr()` (= `belop()`) gir «8 060,80» / «12 000,00». `heltall()`
   er for antall og redigerbare `tall`-felt. Fakturaer, løse utgifter og kvitteringer lagres med øre
   (felttype `belop`, `tolkBelop()`); antall og estimater lagres som hele tall (`tall`, `tolkTall()`).

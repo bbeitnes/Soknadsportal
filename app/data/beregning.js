@@ -674,10 +674,35 @@ export function fakturaDekker(faktura) {
   return Object.keys(faktura?.dekker || {}).map(k => k.replaceAll('|', '/'));
 }
 
-export function fakturaavvik(faktura, poster) {
+// Avvik per faktura: beløp mot tilbudt for postene den dekker. Gis `alle`
+// (søknadens fakturaer), sier `alene` om fakturaen er den eneste på postene
+// sine – ellers er avviket per faktura meningsløst (kreditnota, delfaktura),
+// og avviket per post (fakturertPerPost) gjelder i stedet.
+export function fakturaavvik(faktura, poster, alle = null) {
   const ider = fakturaDekker(faktura);
   const tilbudt = ore(ider.reduce((s, id) => s + (poster.find(p => p.id === id)?.tilbudt || 0), 0));
-  return { tilbudt, avvik: ider.length ? ore((Number(faktura.belop) || 0) - tilbudt) : 0, koblet: ider.length > 0 };
+  const ut = { tilbudt, avvik: ider.length ? ore((Number(faktura.belop) || 0) - tilbudt) : 0, koblet: ider.length > 0 };
+  if (alle) ut.alene = ider.every(id => !alle.some(f => f !== faktura && f.id !== faktura.id && fakturaDekker(f).includes(id)));
+  return ut;
+}
+
+// Fakturert per post: hver faktura (og kreditnota, negativt beløp) fordeles
+// på postene den dekker i forhold til tilbudt pris. Dekker den bare én post,
+// går hele beløpet dit. Gir postId → beløp.
+export function fakturertPerPost(fakturaer, poster) {
+  const ut = {};
+  for (const f of fakturaer) {
+    const dekket = fakturaDekker(f).map(id => poster.find(p => p.id === id)).filter(Boolean);
+    if (!dekket.length) continue;
+    const belop = Number(f.belop) || 0;
+    const tilbudtSum = dekket.reduce((s, p) => s + p.tilbudt, 0);
+    for (const p of dekket) {
+      const andel = tilbudtSum > 0 ? p.tilbudt / tilbudtSum : 1 / dekket.length;
+      ut[p.id] = (ut[p.id] || 0) + belop * andel;
+    }
+  }
+  for (const id of Object.keys(ut)) ut[id] = ore(ut[id]);
+  return ut;
 }
 
 export function sumFakturert(fakturaer, soknadId) {
@@ -686,20 +711,20 @@ export function sumFakturert(fakturaer, soknadId) {
 
 // Oppsummeringen øverst i Revisjon: hva som er fakturert, hva som mangler
 // faktura, og hva som avviker fra tilbud.
+// Avviket regnes per post: fakturert (alle fakturaer og kreditnotaer på
+// posten) mot tilbudt. perPost[id] = { nr: [løpenummer], fakturert, avvik }.
 export function revisjonsoppsummering(fakturaer, poster) {
-  let manglerFaktura = 0;
+  let manglerFaktura = 0, avvikSum = 0, avvikAntall = 0;
+  const fakturert = fakturertPerPost(fakturaer, poster);
   const perPost = {};
   for (const p of poster) {
     const fs = fakturaer.filter(f => fakturaDekker(f).includes(p.id));
-    perPost[p.id] = fs.map(f => f.lopenummer);
+    const avvik = fs.length ? ore((fakturert[p.id] || 0) - p.tilbudt) : 0;
+    perPost[p.id] = { nr: fs.map(f => f.lopenummer), fakturert: fs.length ? fakturert[p.id] || 0 : null, avvik };
     if (!fs.length) manglerFaktura++;
+    else if (avvik) { avvikSum += avvik; avvikAntall++; }
   }
-  let avvikSum = 0, avvikAntall = 0, ikkeKoblet = 0;
-  for (const f of fakturaer) {
-    const a = fakturaavvik(f, poster);
-    if (!a.koblet) ikkeKoblet++;
-    else if (a.avvik) { avvikSum += a.avvik; avvikAntall++; }
-  }
+  const ikkeKoblet = fakturaer.filter(f => !fakturaDekker(f).length).length;
   return { fakturert: ore(fakturaer.reduce((s, f) => s + (Number(f.belop) || 0), 0)), manglerFaktura, avvikSum: ore(avvikSum), avvikAntall, ikkeKoblet, perPost };
 }
 

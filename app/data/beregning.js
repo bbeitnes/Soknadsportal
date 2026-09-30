@@ -439,6 +439,15 @@ const IMPORTKOLONNER = {
   estPris: /^(est\.? ?(stk\.?|stykk)?pris|estimert (stk\.?|stykk)?pris|stykkpris|stk\.?pris|listepris|pris|enhetspris|pris per stk)$/i,
 };
 
+// Det importpanelet forteller brukeren. Holdes ved siden av mønstrene over,
+// så beskrivelsen og det som faktisk gjenkjennes ikke sklir fra hverandre.
+export const IMPORTFELT = [
+  { navn: 'Tittel', paakrevd: true, overskrifter: ['Tittel', 'Navn', 'Navn/produkt', 'Produkt', 'Behov'], eksempel: 'Kornett', tomt: 'Raden hoppes over' },
+  { navn: 'Beskrivelse', paakrevd: false, overskrifter: ['Beskrivelse', 'Spesifikasjon', 'Notat'], eksempel: 'Yamaha YCR2330III', tomt: 'Blir tom' },
+  { navn: 'Antall', paakrevd: false, overskrifter: ['Antall', 'Stk'], eksempel: '6', tomt: 'Blir 1' },
+  { navn: 'Est. stykkpris', paakrevd: false, overskrifter: ['Est. stykkpris', 'Stykkpris', 'Listepris', 'Pris'], eksempel: '13 539', tomt: 'Blir 0' },
+];
+
 function tilTall(tekst) {
   const renset = String(tekst ?? '').replace(/[\s ]/g, '').replace(/kr\.?|,-$/gi, '');
   if (renset === '') return null;

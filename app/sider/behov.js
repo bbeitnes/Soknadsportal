@@ -1,6 +1,6 @@
 // Behovslisten: alt korpset trenger, uavhengig av søknad.
 import { tilstand, opprettBehov, oppdaterBehov, slettBehov, importerBehov } from '../data/index.js';
-import { behovsinfo, statusNavn, tolkBehovimport } from '../data/beregning.js';
+import { behovsinfo, statusNavn, tolkBehovimport, IMPORTFELT } from '../data/beregning.js';
 import { escapeHtml, kr, tidspunkt, fornavn } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
 import { lagre } from '../ui/lagring.js';
@@ -121,6 +121,13 @@ function importForhandsvisning() {
   return { html, nye };
 }
 
+// En tom mal med riktige overskrifter og én eksempelrad. Semikolon og BOM
+// gjør at Excel åpner den riktig med norske innstillinger.
+function importmal() {
+  const csv = '\ufeff' + IMPORTFELT.map(f => f.navn).join(';') + '\r\n' + IMPORTFELT.map(f => f.eksempel).join(';') + '\r\n';
+  return 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+}
+
 function importPanel() {
   const f = importForhandsvisning();
   return sidepanel(`
@@ -128,13 +135,19 @@ function importPanel() {
       <div><h2>Importer behov</h2><div class="ingress" style="margin-top:4px">Kopier radene i Excel eller Google Sheets og lim dem inn her, eller velg en CSV-fil.</div></div>
       ${lukkeknapp()}
     </div>
-    <div class="undertekst">Ta gjerne med overskriftsraden. Kolonner som gjenkjennes: <b>Tittel</b> (eller Navn/produkt), <b>Beskrivelse</b> (eller Spesifikasjon), <b>Antall</b> og <b>Est. stykkpris</b> (eller Listepris, Pris). Andre kolonner ses bort fra.</div>
+    <div class="felt"><span class="etikett">Dette skal lista inneholde</span>
+      <table class="liste" style="font-size:13px; border:2px solid var(--color-divider); table-layout:fixed">
+        <thead><tr><th style="position:static; width:20%">Kolonne</th><th style="position:static; width:36%">Overskrift</th><th style="position:static; width:24%">Eksempel</th><th style="position:static; width:20%">Hvis tom</th></tr></thead>
+        <tbody>${IMPORTFELT.map(f => `<tr><td class="fet smal">${f.navn}${f.paakrevd ? ' <span class="aksent" title="Påkrevd">*</span>' : ''}</td><td>${f.overskrifter.map(escapeHtml).join(', ')}</td><td>${escapeHtml(f.eksempel)}</td><td class="dempet">${f.tomt}</td></tr>`).join('')}</tbody>
+      </table>
+      <span class="undertekst"><span class="aksent">*</span> Påkrevd. Første rad i regnearket skal være overskriftene: én av de nevnte per kolonne, i valgfri rekkefølge. Andre kolonner (f.eks. Kategori, Sum, Prioritet) ses bort fra. <a href="${importmal()}" download="behovsliste-mal.csv">Last ned mal (CSV)</a></span>
+    </div>
     <textarea class="inndata" id="imp-tekst" rows="6" placeholder="Lim inn her" style="font-family:ui-monospace, Menlo, monospace; font-size:12px; white-space:pre">${escapeHtml(ui.importTekst)}</textarea>
     <label class="knapp knapp-ramme knapp-liten" style="align-self:flex-start; cursor:pointer">Velg CSV-fil<input type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" hidden data-import></label>
     <div id="imp-forhand" style="display:flex; flex-direction:column; gap:8px; min-height:0">${f.html}</div>
     <div style="display:flex; align-items:center; gap:12px">
       <button type="button" class="knapp knapp-primar" data-handling="importer" ${f.nye.length && !ui.importerer ? '' : 'disabled'}>${ui.importerer ? 'Importerer …' : `Importer ${f.nye.length} behov`}</button>
-    </div>`, { nytt: ui.nyttPanel }).replace('class="sidepanel"', 'class="sidepanel" style="width:560px"');
+    </div>`, { nytt: ui.nyttPanel }).replace('class="sidepanel"', 'class="sidepanel" style="width:620px"');
 }
 
 // Forhåndsvisningen oppdateres på stedet mens man limer inn eller skriver,

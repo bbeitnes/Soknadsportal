@@ -256,3 +256,18 @@ test('import av behov: limt inn fra regneark uten overskrift', async () => {
   assert.equal(tolkBehovimport('').rader.length, 0);
   assert.equal(tolkBehovimport('Behov\tAntall\tPris\nFlagg\t3\t1.250').rader[0].estPris, 1250);
 });
+
+test('importbeskrivelsen stemmer med det som gjenkjennes', async () => {
+  const { IMPORTFELT, tolkBehovimport } = await import('../app/data/beregning.js');
+  // Hver overskrift portalen lover å kjenne igjen, må faktisk virke …
+  const lengste = Math.max(...IMPORTFELT.map(f => f.overskrifter.length));
+  for (let n = 0; n < lengste; n++) {
+    const hode = IMPORTFELT.map(f => f.overskrifter[Math.min(n, f.overskrifter.length - 1)]).join('\t');
+    const i = tolkBehovimport(hode + '\nKornett\tYamaha\t6\t13 539');
+    assert.equal(i.harOverskrift, true, hode);
+    assert.deepEqual(i.rader[0], { tittel: 'Kornett', beskrivelse: 'Yamaha', antall: 6, estPris: 13539, status: 'ny', grunn: '' }, hode);
+  }
+  // … og malen (navn + eksempel) må kunne importeres som den er.
+  const mal = IMPORTFELT.map(f => f.navn).join(';') + '\r\n' + IMPORTFELT.map(f => f.eksempel).join(';');
+  assert.deepEqual(tolkBehovimport(mal).rader.map(r => [r.tittel, r.antall, r.estPris, r.status]), [['Kornett', 6, 13539, 'ny']]);
+});

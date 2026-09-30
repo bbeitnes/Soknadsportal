@@ -38,10 +38,18 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
 - Alle dokumenter har `organisasjonId`; `lytt()` filtrerer på det.
 - Samlinger: `brukere` (ID = e-post), `givere`, `behov`, `soknader` (linjer,
   utgifter og dokumenter som kart på dokumentet), `innkjop` (én per
-  tilbudsrunde: linjer, leverandorer{leverandorId,frakt,vedlegg}, priser[lid][sid].raa, valgt[lid]),
+  tilbudsrunde: linjer, leverandorer{leverandorId,frakt,vedlegg}, priser[lid][sid]{raa,alternativ,vedleggId,side}, valgt[lid]),
   `leverandorer` (register), `fakturaer` (løpenummer per søknad, dekker{innkjopId|lid} eller
   {utgift|uid}, fraMobil).
 - Priser lagres slik de ble skrevet («1200 -15%»); `tolkPris()` gir netto.
+- Tilbudspanelet (`•••` i en priscelle) kobler prisen til et tilbudsdokument (vedlegg + side) og
+  har feltet `alternativ` (leverandøren tilbyr et annet produkt). E-posttekst limes inn og lagres
+  som et `.txt`-vedlegg. Alternativet vises i matrisen, i Revisjon og i PDF-ens «Gjelder» (`posttittel()`).
+- Linjer lagt til i en søknad som ikke lenger er utkast får `etterSoknad: true` og `notat` (fritekst).
+  De teller ikke i `sumEstimert()`/søkt beløp (`soktLinjer()` / `tilleggslinjer()`), men går i innkjøp,
+  pott og revisjon. PDF-rapporten viser dem ikke spesielt (bare på skjerm).
+- Anskaffet antall i behovslisten: `anskaffetPerBehov()` – valgt innkjøpslinje som er dekket av en
+  faktura eller ligger i et innkjøp med status «Fakturert». Sider henter kartet med `anskaffet()`.
 - Behov har `type` (fritekst: Instrument, Uniform …). En søknadslinje kan overstyre med
   `linjer.<id>.type`; null = arv fra behovet (`linjetype()`). Behovslisten og søknadens
   behovstabell grupperes på type med delsum (`grupperPerType()`).

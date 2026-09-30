@@ -23,7 +23,7 @@ export function lagDemodata() {
   const behov = {
     b1: { organisasjonId: org, type: 'Instrument', tittel: 'Kornett Bb', beskrivelse: 'Til nye aspiranter. Studentmodell med etui.', antall: 6, estPris: 8500, statusOverstyring: null, ...av(...kari, 12) },
     b2: { organisasjonId: org, type: 'Instrument', tittel: 'Althorn Eb', beskrivelse: 'Erstatter to instrumenter med sprukne ventiler.', antall: 2, estPris: 12000, statusOverstyring: null, ...av(...kari, 60) },
-    b3: { organisasjonId: org, type: 'Instrument', tittel: 'Trombone, tenor', beskrivelse: '', antall: 2, estPris: 10000, statusOverstyring: null, ...av(...per, 62) },
+    b3: { organisasjonId: org, type: 'Instrument', tittel: 'Trombone, tenor', beskrivelse: 'Yamaha YSL-354 eller tilsvarende.', antall: 2, estPris: 10000, statusOverstyring: null, ...av(...per, 62) },
     b4: { organisasjonId: org, type: 'Instrument', tittel: 'Baryton', beskrivelse: '', antall: 1, estPris: 21000, statusOverstyring: null, ...av(...per, 62) },
     b6: { organisasjonId: org, type: 'Utstyr', tittel: 'Notestativ', beskrivelse: 'Sammenleggbare, til øvingslokalet.', antall: 12, estPris: 450, statusOverstyring: null, ...av(...kari, 60) },
     b7: { organisasjonId: org, type: 'Instrument', tittel: 'Klarinett Bb', beskrivelse: '', antall: 4, estPris: 6500, statusOverstyring: null, ...av(...kari, 45) },
@@ -41,6 +41,7 @@ export function lagDemodata() {
       linjer: {
         l1: linje('b1', 4, 8500, true, 1), l2: linje('b2', 2, 12000, true, 2), l3: linje('b3', 2, 10000, true, 3),
         l4: linje('b4', 1, 21000, true, 4), l6: { ...linje('b6', 12, 450, true, 5), type: 'Inventar' }, l7: linje('b7', 2, 6500, false, 6),
+        l8: { ...linje('b10', 2, 5200, true, 7), etterSoknad: true, notat: 'I stedet for klarinettene – to nye slagverkere i høst' },
       },
       utgifter: {
         u1: { beskrivelse: 'Frakt av notestativ fra lager', belop: 1200, dato: '2026-05-12', lagtInnAv: { epost: kari[0], navn: kari[1] }, rekkefolge: 1 },
@@ -95,6 +96,7 @@ export function lagDemodata() {
         k3: { soknadLinjeId: 'l3', tittel: 'Trombone, tenor', antall: 2, rekkefolge: 3 },
         k4: { soknadLinjeId: 'l4', tittel: 'Baryton', antall: 1, rekkefolge: 4 },
         k6: { soknadLinjeId: 'l6', tittel: 'Notestativ', antall: 12, rekkefolge: 5 },
+        k8: { soknadLinjeId: 'l8', tittel: 'Marsjtrommer', antall: 2, rekkefolge: 6 },
       },
       leverandorer: {
         mh: { leverandorId: 'mh', frakt: 1500, rekkefolge: 1, vedlegg: { v1: { navn: 'Tilbud 2026-0412.pdf', sti: 'demo/v1', tid: dagerSiden(20), lastetOppAv: { epost: kari[0], navn: kari[1] } } } },
@@ -104,11 +106,12 @@ export function lagDemodata() {
       priser: {
         k1: { mh: pris('8900 -10%'), nb: pris('7650'), to: pris('8200 -500') },
         k2: { mh: pris('12400 -10%'), nb: pris('11900') },
-        k3: { mh: pris('9800'), nb: pris('10200 -8%'), to: pris('9600') },
+        k3: { mh: pris('9800'), nb: { raa: '10200 -8%', alternativ: 'Jupiter JTB700 (i stedet for Yamaha)' }, to: pris('9600') },
         k4: { mh: pris('21500 -10%'), nb: pris('19900'), to: pris('20400') },
         k6: { mh: pris('420'), to: pris('390') },
+        k8: { mh: pris('5400'), nb: pris('4950') },
       },
-      valgt: { k1: 'nb', k2: 'mh', k3: 'nb', k4: 'mh', k6: 'to' },
+      valgt: { k1: 'nb', k2: 'mh', k3: 'nb', k4: 'mh', k6: 'to', k8: 'nb' },
       ...av(...kari, 1),
     },
     i2: {

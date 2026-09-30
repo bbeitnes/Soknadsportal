@@ -7,7 +7,7 @@
 // hverandre på samme felt: siste lagring per felt vinner.
 import { lager, innlogging, SLETT } from './lager.js';
 import { ORGANISASJON_ID } from '../config/app-config.js';
-import { linjeliste, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer, linjetype } from './beregning.js';
+import { linjeliste, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer, linjetype, erInnvilget, anskaffetPerBehov } from './beregning.js';
 
 export { innlogging };
 
@@ -114,6 +114,11 @@ export function oppdaterBehov(id, felt) {
   return lager.oppdater('behov', id, { ...felt, ...signatur() });
 }
 
+// Anskaffet antall per behov (behovId → antall), fra fakturerte innkjøp.
+export function anskaffet() {
+  return anskaffetPerBehov(tilstand.soknader, tilstand.innkjop, tilstand.fakturaer);
+}
+
 export function slettBehov(id) {
   const iBruk = tilstand.soknader.some(s => linjeliste(s).some(l => l.behovId === id));
   if (iBruk) return Promise.reject(new Error('Behovet ligger i en søknad og kan ikke slettes'));
@@ -138,6 +143,14 @@ export function oppdaterSoknad(id, felt) {
   return lager.oppdater('soknader', id, { ...felt, ...signatur() });
 }
 
+// Er søknaden ikke lenger et utkast, er en ny linje «lagt til etter
+// søknaden»: den endrer ikke det vi søkte om. I en innvilget søknad er den
+// lagt til for å kjøpes av bevilgningen, så den starter som finansiert.
+function etterSoknadFelt(soknad) {
+  if (soknad.status === 'utkast') return { finansieres: false };
+  return { etterSoknad: true, notat: '', finansieres: erInnvilget(soknad) };
+}
+
 // Et valgt behov får antall = gjenstående og behovets estimerte stykkpris.
 // Prisen kopieres inn i søknaden, slik at søknaden viser det vi faktisk
 // søkte om selv om estimatet i behovslisten endres senere.
@@ -146,7 +159,7 @@ export function leggBehovISoknad(soknad, behov, antall) {
   return oppdaterSoknad(soknad.id, {
     [`linjer.${id}`]: {
       behovId: behov.id, tittel: '', antall, estPris: Number(behov.estPris) || 0,
-      finansieres: false, rekkefolge: nesteRekkefolge(soknad),
+      rekkefolge: nesteRekkefolge(soknad), ...etterSoknadFelt(soknad),
     },
   }).then(() => id);
 }
@@ -154,7 +167,7 @@ export function leggBehovISoknad(soknad, behov, antall) {
 export function leggFriLinjeISoknad(soknad) {
   const id = nyId('l');
   return oppdaterSoknad(soknad.id, {
-    [`linjer.${id}`]: { behovId: null, type: null, tittel: '', antall: 1, estPris: 0, finansieres: false, rekkefolge: nesteRekkefolge(soknad) },
+    [`linjer.${id}`]: { behovId: null, type: null, tittel: '', antall: 1, estPris: 0, rekkefolge: nesteRekkefolge(soknad), ...etterSoknadFelt(soknad) },
   }).then(() => id);
 }
 
@@ -268,6 +281,13 @@ export function leggSoknadslinjerIInnkjop(innkjop, linjer) {
   return Object.keys(felt).length ? oppdaterInnkjop(innkjop.id, felt) : Promise.resolve();
 }
 
+// Behovet endret seg: et behov fra behovslisten legges i søknaden og rett
+// inn i innkjøpet. Feiler det siste, ligger linjen igjen som «ikke fordelt».
+export async function leggBehovISoknadOgInnkjop(soknad, innkjop, behov, antall) {
+  const linjeId = await leggBehovISoknad(soknad, behov, antall);
+  return leggSoknadslinjeIInnkjop(innkjop, { id: linjeId, antall }, behov.tittel || '');
+}
+
 export function leggFriLinjeIInnkjop(innkjop) {
   const id = nyId('l');
   return oppdaterInnkjop(innkjop.id, {
@@ -359,16 +379,19 @@ export function settValgt(innkjop, valgt) {
   return Object.keys(felt).length ? oppdaterInnkjop(innkjop.id, felt) : Promise.resolve();
 }
 
-export async function lastOppVedlegg(innkjop, sid, fil) {
+// Med `linjeId` kobles vedlegget samtidig til den linjens pris hos leverandøren.
+export async function lastOppVedlegg(innkjop, sid, fil, linjeId = null) {
   const id = nyId('v');
   const trygtNavn = fil.name.replace(/[^\w.\-æøåÆØÅ ]/g, '_');
   const sti = await lager.lastOpp(`innkjop/${innkjop.id}/vedlegg/${id}-${trygtNavn}`, fil);
-  await oppdaterInnkjop(innkjop.id, {
+  const felt = {
     [`leverandorer.${sid}.vedlegg.${id}`]: {
       navn: fil.name, sti, type: fil.type || '',
       lastetOppAv: { epost: tilstand.meg.epost, navn: tilstand.meg.navn }, tid: Date.now(),
     },
-  });
+  };
+  if (linjeId) felt[`priser.${linjeId}.${sid}.vedleggId`] = id;
+  await oppdaterInnkjop(innkjop.id, felt);
 }
 
 export async function slettVedlegg(innkjop, sid, vid, sti) {

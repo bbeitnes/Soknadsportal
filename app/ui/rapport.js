@@ -5,7 +5,7 @@
 //   3. Alle fakturaene i rekkefølge, med løpenummer stamplet i hjørnet.
 //      Bilder blir egne sider; PDF-er kopieres inn side for side.
 import { tilstand, innkjopFor, fakturaerFor, filBytes } from '../data/index.js';
-import { pott, fakturaDekker, giverandel } from '../data/beregning.js';
+import { pott, fakturaDekker, giverandel, posttittel } from '../data/beregning.js';
 import { posterFor } from '../sider/revisjon.js';
 import { kr, datoFelt } from './format.js';
 
@@ -103,7 +103,7 @@ export async function lagRevisjonsrapport(s) {
   };
   tabellhode();
   for (const f of fakturaer) {
-    const gjelder = fakturaDekker(f).map(id => poster.find(x => x.id === id)?.tittel).filter(Boolean).join(', ') || 'Ikke koblet';
+    const gjelder = fakturaDekker(f).map(id => poster.find(x => x.id === id)).filter(Boolean).map(posttittel).join(', ') || 'Ikke koblet';
     const linjer = brytTekst(gjelder, 9, gjelderBredde);
     const hoyde = Math.max(1, linjer.length) * 12 + 8;
     if (y - hoyde < MARG + 40) { nySide(); tabellhode(); }

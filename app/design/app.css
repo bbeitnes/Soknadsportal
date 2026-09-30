@@ -209,6 +209,12 @@ table.matrise { border-collapse: separate; border-spacing: 0; min-width: 100%; f
 .m-hak { position: absolute; top: 6px; left: 8px; width: 18px; height: 18px; background: var(--color-accent); color: var(--color-neutral-100); display: inline-flex; align-items: center; justify-content: center; }
 .m-klips { position: absolute; bottom: 6px; left: 8px; width: 22px; height: 22px; border: 0; background: transparent; color: var(--color-neutral-500); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .m-klips:hover { background: var(--color-accent-100); color: var(--color-accent-700); }
+/* ••• åpner tilbudspanelet for cellen; vises når man peker på cellen */
+.m-mer { position: absolute; top: 4px; left: 30px; width: 22px; height: 22px; border: 0; background: transparent; color: var(--color-neutral-600); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; opacity: 0; }
+.m-celle:hover .m-mer, .m-mer:focus-visible { opacity: 1; }
+.m-mer:hover { background: var(--color-accent-100); color: var(--color-accent-700); }
+.m-alt { font-size: 12px; font-weight: 600; color: var(--color-accent-700); margin-top: 2px; max-width: 190px; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.matrise .m-linje .celleunder { max-width: 300px; }
 .m-inn { width: 100%; height: 36px; padding: 0 10px; border: 2px solid var(--color-accent); background: var(--color-neutral-100); text-align: right; font-size: 15px; font-weight: 600; color: var(--color-text); }
 .m-inn:focus { outline: none; }
 .matrise tfoot td { position: sticky; z-index: 3; }
@@ -264,6 +270,10 @@ body.mobilside .meny-kvittering { display: inline-flex; }
 /* Gruppeoverskrift i tabeller (type med delsum) */
 .liste tr.gruppe td { background: var(--color-surface); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding-top: 7px; padding-bottom: 6px; color: var(--color-neutral-800); border-bottom: 1px solid var(--color-neutral-400); }
 .liste tr.gruppe td.tall { font-size: 13px; letter-spacing: 0; }
+/* Linjer lagt til etter søknaden: egen bolk nederst, utenfor det vi søkte om */
+.liste tr.gruppe.tillegg td { background: var(--color-accent-100); color: var(--color-accent-800); border-top: 2px solid var(--color-divider); }
+.liste tr.gruppe.tillegg td span { font-weight: 400; letter-spacing: 0; text-transform: none; font-size: 12px; }
+.celleinn.notat { display: block; height: 24px; margin-top: 3px; font-size: 12px; font-weight: 400; }
 
 /* Tett tabell: søknadens behovstabell har mange kolonner (type + moms) */
 .liste.tett th, .liste.tett td { padding-left: 7px; padding-right: 7px; }

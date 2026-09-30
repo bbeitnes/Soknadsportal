@@ -1,5 +1,5 @@
 // Behovslisten: alt korpset trenger, uavhengig av søknad.
-import { tilstand, opprettBehov, oppdaterBehov, slettBehov, importerBehov, fellesTyperekkefolge, settFellesTyperekkefolge, settBehovrekkefolge } from '../data/index.js';
+import { tilstand, opprettBehov, oppdaterBehov, slettBehov, importerBehov, fellesTyperekkefolge, settFellesTyperekkefolge, settBehovrekkefolge, anskaffet } from '../data/index.js';
 import { behovsinfo, statusNavn, tolkBehovimport, IMPORTFELT, grupperPerType, typeliste, etterRekkefolgeOgTittel, flyttIListe } from '../data/beregning.js';
 import { escapeHtml, kr, tidspunkt, fornavn } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
@@ -36,7 +36,8 @@ const typeAv = b => (b.type || '').trim();
 const del = nokkel => { const i = nokkel.indexOf(':'); return [nokkel.slice(0, i), nokkel.slice(i + 1)]; };
 
 function beregn() {
-  const alle = sortert().map(b => ({ b, info: behovsinfo(b, tilstand.soknader) }));
+  const kjopt = anskaffet();
+  const alle = sortert().map(b => ({ b, info: behovsinfo(b, tilstand.soknader, kjopt.get(b.id) || 0) }));
   const synlig = alle.filter(({ info }) => ui.filter === 'alle' || (ui.filter === 'apne' ? info.erApent : !info.erApent));
   const apne = alle.filter(x => x.info.erApent);
   return {
@@ -51,7 +52,7 @@ function beregn() {
 function soknadsbrikker(info) {
   if (!info.bruk.length) return '<span class="undertekst">–</span>';
   return `<div class="brikker">${info.bruk.map(x => {
-    const tittel = `${x.soknad.tittel} (${statusNavn(x.soknad.status)})`;
+    const tittel = `${x.soknad.tittel} (${statusNavn(x.soknad.status)})${x.linje.etterSoknad ? ' – lagt til etter søknaden' : ''}`;
     return `<span class="brikke ${info.finansiertI(x) ? 'fylt' : ''}" title="${escapeHtml(tittel)}">${escapeHtml(giverNavn(x.soknad.giverId))} · ${x.linje.antall ?? 0}</span>`;
   }).join('')}</div>`;
 }
@@ -70,7 +71,7 @@ function rad({ b, info }) {
 }
 
 function panel(b) {
-  const info = behovsinfo(b, tilstand.soknader);
+  const info = behovsinfo(b, tilstand.soknader, anskaffet().get(b.id) || 0);
   const n = f => `behov/${b.id}/${f}`;
   const valg = [[null, 'Automatisk'], ['trengs-ikke', 'Trengs ikke'], ['anskaffet', 'Anskaffet']];
   const statusNotat = info.overstyrt
@@ -98,7 +99,7 @@ function panel(b) {
     </div>
     <div class="felt"><span class="etikett">Søknader</span>
       <div class="valgliste">
-        ${info.bruk.map(x => `<a href="#/soknad/${x.soknad.id}"><span class="fyll"><span style="font-weight:600">${escapeHtml(x.soknad.tittel)}</span><br><span class="undertekst">${escapeHtml(giverNavn(x.soknad.giverId))} · ${statusNavn(x.soknad.status)}</span></span><span class="smal">${x.linje.antall ?? 0} stk${info.finansiertI(x) ? ' · finansiert' : ''}</span></a>`).join('')
+        ${info.bruk.map(x => `<a href="#/soknad/${x.soknad.id}"><span class="fyll"><span style="font-weight:600">${escapeHtml(x.soknad.tittel)}</span><br><span class="undertekst">${escapeHtml(giverNavn(x.soknad.giverId))} · ${statusNavn(x.soknad.status)}</span></span><span class="smal">${x.linje.antall ?? 0} stk${info.finansiertI(x) ? ' · finansiert' : ''}${x.linje.etterSoknad ? '<br><span class="undertekst">lagt til etter søknaden</span>' : ''}</span></a>`).join('')
           || '<div class="tomt">Ikke med i noen søknad enda. Behovet kan velges når du lager en søknad.</div>'}
       </div>
     </div>

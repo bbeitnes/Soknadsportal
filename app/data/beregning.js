@@ -83,8 +83,23 @@ export function linjekostnad(linje) {
   return (Number(linje.antall) || 0) * (Number(linje.estPris) || 0);
 }
 
+// ——— Lagt til etter søknaden ———
+// Behovet kan endre seg etter at søknaden er sendt (trombone i stedet for
+// klarinett), og vi kjøper av og til ting som ikke sto på lista. Linjer som
+// legges til da merkes `etterSoknad` og kan ha et `notat`. De teller ikke i
+// det vi søkte om, men går inn i innkjøp, pott og revisjon som alle andre.
+
+export function soktLinjer(soknad) {
+  return linjeliste(soknad).filter(l => !l.etterSoknad);
+}
+
+export function tilleggslinjer(soknad) {
+  return linjeliste(soknad).filter(l => l.etterSoknad);
+}
+
+// Estimatet for det vi søkte om — uten linjer lagt til etter søknaden.
 export function sumEstimert(soknad) {
-  return linjeliste(soknad).reduce((sum, l) => sum + linjekostnad(l), 0);
+  return soktLinjer(soknad).reduce((sum, l) => sum + linjekostnad(l), 0);
 }
 
 // ——— Momskompensasjon ———
@@ -180,8 +195,26 @@ function erFinansiert(soknad, linje) {
   return (soknad.status === 'innvilget' || soknad.status === 'avsluttet') && !!linje.finansieres;
 }
 
-// Status for ett behov. `anskaffet` summeres fra fakturerte innkjøp
-// (trinn c/d) — fram til da er den 0.
+// Anskaffet antall per behov, summert fra fakturerte innkjøp: linjen er
+// valgt hos en leverandør, og enten dekket av en faktura eller i et innkjøp
+// med status «Fakturert». Gir et kart behovId → antall.
+export function anskaffetPerBehov(soknader, innkjopListe, fakturaer) {
+  const dekket = new Set(fakturaer.flatMap(f => fakturaDekker(f)));
+  const ut = new Map();
+  for (const i of innkjopListe) {
+    const soknadslinjer = soknader.find(s => s.id === i.soknadId)?.linjer || {};
+    const b = innkjopsberegning(i);
+    for (const l of b.linjer) {
+      const behovId = soknadslinjer[l.soknadLinjeId]?.behovId;
+      if (!behovId || b.perLinje[l.id].valgtSid == null) continue;
+      if (i.status !== 'fakturert' && !dekket.has(`${i.id}/${l.id}`)) continue;
+      ut.set(behovId, (ut.get(behovId) || 0) + (Number(l.antall) || 0));
+    }
+  }
+  return ut;
+}
+
+// Status for ett behov. `anskaffet` kommer fra anskaffetPerBehov().
 export function behovsinfo(behov, soknader, anskaffet = 0) {
   const total = Number(behov.antall) || 0;
   const gjenstar = Math.max(0, total - anskaffet);
@@ -211,10 +244,11 @@ export function behovsinfo(behov, soknader, anskaffet = 0) {
 }
 
 // Behov som kan velges i en søknad: åpne, og ikke allerede med i den.
-export function velgbareBehov(behovliste, soknader, soknad) {
+// `anskaffet` er kartet fra anskaffetPerBehov().
+export function velgbareBehov(behovliste, soknader, soknad, anskaffet = new Map()) {
   const iSoknaden = new Set(linjeliste(soknad).map(l => l.behovId).filter(Boolean));
   return behovliste
-    .map(b => ({ behov: b, info: behovsinfo(b, soknader) }))
+    .map(b => ({ behov: b, info: behovsinfo(b, soknader, anskaffet.get(b.id) || 0) }))
     .filter(x => x.info.erApent && !iSoknaden.has(x.behov.id));
 }
 
@@ -240,7 +274,8 @@ export function nesteUtgiftsrekkefolge(soknad) {
 // `innkjop`:
 //   linjer:       { lid: { soknadLinjeId, tittel, antall, rekkefolge } }
 //   leverandorer: { sid: { navn, kontakt, frakt, rekkefolge, vedlegg: { vid: {…} } } }
-//   priser:       { lid: { sid: { raa: '1200 -15%', vedleggId, side } } }
+//   priser:       { lid: { sid: { raa: '1200 -15%', alternativ, vedleggId, side } } }
+//                 `alternativ` = produktet leverandøren tilbyr i stedet for det vi ba om
 //   valgt:        { lid: sid }
 
 export const INNKJOPSSTATUSER = [
@@ -420,6 +455,9 @@ export function nesteLopenummer(fakturaer, soknadId) {
 // Alt potten er brukt på: valgte linjer i alle innkjøp + løse utgifter.
 // `tittelFor(innkjop, linje)` og `levNavn(innkjop, sid)` gir tekstene,
 // slik at beregningslaget slipper å kjenne søknaden og registeret.
+// `alternativ` er satt når den valgte leverandøren tilbød et annet produkt
+// enn det vi ba om. `etterSoknad` og `notat` følger linjer som ble lagt til
+// etter at søknaden var sendt.
 export function revisjonsposter(soknad, innkjopListe, { tittelFor, levNavn }) {
   const poster = [];
   for (const i of innkjopListe) {
@@ -427,10 +465,13 @@ export function revisjonsposter(soknad, innkjopListe, { tittelFor, levNavn }) {
     for (const l of b.linjer) {
       const v = b.perLinje[l.id];
       if (v.valgtSid == null) continue;
+      const sl = l.soknadLinjeId ? soknad?.linjer?.[l.soknadLinjeId] : null;
       poster.push({
         id: `${i.id}/${l.id}`, type: 'linje', innkjopId: i.id, linjeId: l.id,
         tittel: `${Number(l.antall) || 0} × ${tittelFor(i, l)}`,
         under: `${levNavn(i, v.valgtSid)} · ${i.navn || 'Innkjøp'}`,
+        alternativ: (i.priser?.[l.id]?.[v.valgtSid]?.alternativ || '').trim(),
+        etterSoknad: !!sl?.etterSoknad, notat: (sl?.notat || '').trim(),
         tilbudt: v.sum,
       });
     }
@@ -443,6 +484,11 @@ export function revisjonsposter(soknad, innkjopListe, { tittelFor, levNavn }) {
 
 // Nøklene i `dekker` bruker «|» der post-ID-en har «/» (Firestore-feltstier
 // kan ikke inneholde skråstrek).
+// Posttittel til lister og rapport, med alternativt produkt når det er kjøpt.
+export function posttittel(post) {
+  return post.alternativ ? `${post.tittel} (alternativ: ${post.alternativ})` : post.tittel;
+}
+
 export function fakturaDekker(faktura) {
   return Object.keys(faktura?.dekker || {}).map(k => k.replaceAll('|', '/'));
 }

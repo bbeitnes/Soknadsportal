@@ -6,7 +6,7 @@ import {
 } from '../data/index.js';
 import {
   revisjonsposter, fakturaavvik, fakturaDekker, revisjonsoppsummering, pott, sumFakturert,
-  leverandorNavn,
+  leverandorNavn, posttittel,
 } from '../data/beregning.js';
 import { escapeHtml, kr, datoFelt, tidspunkt, fornavn } from '../ui/format.js';
 import { feltAttr } from '../ui/felt.js';
@@ -65,7 +65,7 @@ function fakturaPanel(s, f, poster) {
         ${poster.map(p => {
           const pa = dekker.has(p.id);
           const annen = andre.find(x => fakturaDekker(x).includes(p.id));
-          return `<button type="button" data-handling="dekker" data-post="${escapeHtml(p.id)}" aria-pressed="${pa}" style="${annen && !pa ? 'color:var(--color-neutral-500)' : ''}"><span class="boks ${pa ? 'pa' : ''}" style="width:16px; height:16px">${IKON.hak}</span><span class="fyll">${escapeHtml(p.tittel)}${annen ? ` <span class="undertekst">(faktura ${annen.lopenummer})</span>` : ''}</span><span class="smal" style="font-variant-numeric:tabular-nums">${kr(p.tilbudt)}</span></button>`;
+          return `<button type="button" data-handling="dekker" data-post="${escapeHtml(p.id)}" aria-pressed="${pa}" style="${annen && !pa ? 'color:var(--color-neutral-500)' : ''}"><span class="boks ${pa ? 'pa' : ''}" style="width:16px; height:16px">${IKON.hak}</span><span class="fyll">${escapeHtml(posttittel(p))}${annen ? ` <span class="undertekst">(faktura ${annen.lopenummer})</span>` : ''}</span><span class="smal" style="font-variant-numeric:tabular-nums">${kr(p.tilbudt)}</span></button>`;
         }).join('') || '<div class="tomt">Ingen valgte tilbudslinjer eller utgifter enda.</div>'}
       </div>
       <span class="undertekst">En faktura kan dekke flere linjer. Sjekk av det den gjelder.</span>
@@ -100,7 +100,7 @@ export const revisjonFane = {
               <thead><tr><th>Nr</th><th>Leverandør</th><th>Fakturanr</th><th>Dato</th><th class="tall">Beløp</th><th class="tall">Avvik</th></tr></thead>
               <tbody>${fakturaer.map(f => {
                 const a = fakturaavvik(f, poster);
-                const navn = fakturaDekker(f).map(id => poster.find(x => x.id === id)?.tittel).filter(Boolean);
+                const navn = fakturaDekker(f).map(id => poster.find(x => x.id === id)).filter(Boolean).map(posttittel);
                 return `<tr class="klikkbar ${f.id === ui.panel ? 'valgt' : ''}" data-handling="apne-faktura" data-id="${f.id}">
                   <td style="font-weight:700">${f.lopenummer}</td>
                   <td>${escapeHtml(f.leverandor || '–')}<div class="celleunder" style="max-width:200px" title="${escapeHtml(navn.join(', '))}">${navn.length ? escapeHtml(navn.join(', ')) : '<span class="aksent">Ikke koblet til noe</span>'}</div></td>
@@ -120,7 +120,7 @@ export const revisjonFane = {
               <thead><tr><th>Gjelder</th><th class="tall">Tilbudt</th><th>Faktura</th></tr></thead>
               <tbody>${poster.map(x => {
                 const nr = o.perPost[x.id];
-                return `<tr><td>${escapeHtml(x.tittel)}<div class="celleunder">${escapeHtml(x.under)}</div></td><td class="tall fet">${kr(x.tilbudt)}</td><td class="smal"><span class="merkelapp ${nr.length ? 'm-pa' : 'm-varsel'}">${nr.length ? `Faktura ${nr.join(', ')}` : 'Mangler faktura'}</span></td></tr>`;
+                return `<tr><td>${escapeHtml(x.tittel)}<div class="celleunder">${escapeHtml(x.under)}</div>${x.etterSoknad ? `<div class="celleunder" style="color:var(--color-text)" title="${escapeHtml(x.notat)}">Lagt til etter søknaden${x.notat ? `: ${escapeHtml(x.notat)}` : ''}</div>` : ''}${x.alternativ ? `<div class="celleunder aksent" style="font-weight:600" title="Leverandøren tilbød et annet produkt enn det vi ba om">Alternativt produkt: ${escapeHtml(x.alternativ)}</div>` : ''}</td><td class="tall fet">${kr(x.tilbudt)}</td><td class="smal"><span class="merkelapp ${nr.length ? 'm-pa' : 'm-varsel'}">${nr.length ? `Faktura ${nr.join(', ')}` : 'Mangler faktura'}</span></td></tr>`;
               }).join('') || '<tr class="tom-rad"><td colspan="3">Ingen valgte tilbudslinjer eller utgifter enda.</td></tr>'}</tbody>
             </table>
           </div>

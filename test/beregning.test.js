@@ -233,6 +233,19 @@ test('fakturaer: løpenummer, poster, avvik og oppsummering', async () => {
   assert.deepEqual(o.perPost['i1/l1'], [1]);
 });
 
+test('revisjonsposter: alternativt produkt følger den valgte leverandøren', async () => {
+  const { revisjonsposter, posttittel } = await import('../app/data/beregning.js');
+  const i = {
+    id: 'i1', navn: 'Instrumenter', ...innkjop,
+    priser: { ...innkjop.priser, l1: { a: { raa: '1000', alternativ: 'Ikke valgt' }, b: { raa: '950', alternativ: ' Jupiter JTB700 ' } } },
+  };
+  const poster = revisjonsposter({}, [i], { tittelFor: (_, l) => 'Linje ' + l.id, levNavn: (_, sid) => 'Lev ' + sid });
+  assert.equal(poster[0].alternativ, 'Jupiter JTB700');
+  assert.equal(posttittel(poster[0]), '4 × Linje l1 (alternativ: Jupiter JTB700)');
+  assert.equal(poster[1].alternativ, '');
+  assert.equal(posttittel(poster[1]), '2 × Linje l2');
+});
+
 test('import av behov: CSV med semikolon, overskrifter og duplikater', async () => {
   const { tolkTabell, tolkBehovimport } = await import('../app/data/beregning.js');
   const csv = '﻿Kategori;Navn/produkt;Spesifikasjon;Antall;Listepris;Sum;Prioritet\r\nInstrumenter;Kornett;Yamaha YCR2330III;6;13539;81234;Må ha\r\nInstrumenter;Trompet;"Bb; Yamaha ""pro""";2;23 000;46000;Må ha\r\n;;;;;;\r\nInstrumenter;Horn;Brukt;x;12000;;\r\nInstrumenter;Kornett;Yamaha YCR2330III;1;1;;\r\n';
@@ -324,4 +337,47 @@ test('innkjøpet speiler søknadens typer og rekkefølge', async () => {
   const g = grupperInnkjopslinjer(i, s, behov, s.typeRekkefolge);
   assert.deepEqual(g.map(x => [x.type, x.linjer.map(l => l.id)]), [['Uniform', ['k2']], ['Instrument', ['k4', 'k1']], ['Slagverk', ['k5']], ['', ['k3', 'k6']]]);
   assert.deepEqual(grupperInnkjopslinjer({}, s, behov), []);
+});
+
+test('linjer lagt til etter søknaden teller ikke i det vi søkte om', async () => {
+  const { soktLinjer, tilleggslinjer, sumEstimert, soktBelop, revisjonsposter } = await import('../app/data/beregning.js');
+  const s = soknad('s1', 'innvilget', {
+    a: { behovId: 'klarinett', antall: 2, estPris: 6500, rekkefolge: 1 },
+    b: { behovId: 'trombone', antall: 1, estPris: 10000, rekkefolge: 2, etterSoknad: true, notat: ' I stedet for klarinett ' },
+  });
+  assert.deepEqual(soktLinjer(s).map(l => l.id), ['a']);
+  assert.deepEqual(tilleggslinjer(s).map(l => l.id), ['b']);
+  assert.equal(sumEstimert(s), 13000);
+  assert.equal(soktBelop(s), 13000);
+
+  const i = { id: 'i1', navn: 'Instrumenter', linjer: { k: { soknadLinjeId: 'b', antall: 1 }, f: { soknadLinjeId: null, antall: 1 } }, leverandorer: { x: {} }, priser: { k: { x: { raa: '9000' } }, f: { x: { raa: '100' } } }, valgt: { k: 'x', f: 'x' } };
+  const poster = revisjonsposter(s, [i], { tittelFor: () => 'T', levNavn: () => 'L' });
+  assert.deepEqual(poster.map(p => [p.etterSoknad, p.notat]), [[true, 'I stedet for klarinett'], [false, '']]);
+});
+
+test('anskaffet per behov: valgt linje som er fakturert', async () => {
+  const { anskaffetPerBehov, velgbareBehov } = await import('../app/data/beregning.js');
+  const s = soknad('s1', 'innvilget', { a: { behovId: 'kornett', antall: 4 }, b: { behovId: 'horn', antall: 2 }, c: { behovId: 'tuba', antall: 1 }, d: { antall: 1 } });
+  const i = {
+    id: 'i1', soknadId: 's1', status: 'valgt',
+    linjer: { ka: { soknadLinjeId: 'a', antall: 3 }, kb: { soknadLinjeId: 'b', antall: 2 }, kc: { soknadLinjeId: 'c', antall: 1 }, kd: { soknadLinjeId: 'd', antall: 9 } },
+    leverandorer: { x: {} },
+    priser: { ka: { x: { raa: '100' } }, kb: { x: { raa: '100' } }, kc: { x: { raa: '100' } }, kd: { x: { raa: '100' } } },
+    valgt: { ka: 'x', kb: 'x', kd: 'x' },
+  };
+  // Bare kornettene er dekket av en faktura. Hornene er valgt, men ikke fakturert.
+  const fakturaer = [{ soknadId: 's1', dekker: { 'i1|ka': true, 'i1|kc': true, 'i1|kd': true } }];
+  assert.deepEqual([...anskaffetPerBehov([s], [i], fakturaer)], [['kornett', 3]]);
+  // Står innkjøpet som «Fakturert», teller alle valgte linjer med et behov.
+  assert.deepEqual([...anskaffetPerBehov([s], [{ ...i, status: 'fakturert' }], [])], [['kornett', 3], ['horn', 2]]);
+  // To innkjøp av samme behov summeres.
+  const s2 = soknad('s2', 'innvilget', { a: { behovId: 'kornett', antall: 2 } });
+  const i2 = { id: 'i2', soknadId: 's2', status: 'fakturert', linjer: { k: { soknadLinjeId: 'a', antall: 2 } }, leverandorer: { x: {} }, priser: { k: { x: { raa: '1' } } }, valgt: { k: 'x' } };
+  const kjopt = anskaffetPerBehov([s, s2], [i, i2], fakturaer);
+  assert.equal(kjopt.get('kornett'), 5);
+
+  // Et ferdig anskaffet behov kan ikke lenger velges i en ny søknad.
+  const behov = [{ id: 'kornett', antall: 5 }, { id: 'fagott', antall: 1 }];
+  assert.deepEqual(velgbareBehov(behov, [], soknad('ny', 'utkast', {}), kjopt).map(x => x.behov.id), ['fagott']);
+  assert.deepEqual(velgbareBehov(behov, [], soknad('ny', 'utkast', {})).map(x => x.behov.id), ['kornett', 'fagott']);
 });

@@ -5,12 +5,12 @@ import {
   tilstand, oppdaterSoknad, oppdaterLinje, leggBehovISoknad, leggFriLinjeISoknad, fjernLinje,
   lastOppDokument, slettDokument, dokumentUrl, slettSoknad, innkjopFor,
   leggTilUtgift, oppdaterUtgift, fjernUtgift,
-  fellesTyperekkefolge, settLinjerekkefolge, settSoknadTyperekkefolge,
+  fellesTyperekkefolge, settLinjerekkefolge, settSoknadTyperekkefolge, anskaffet,
 } from '../data/index.js';
 import {
   SOKNADSSTATUSER, statusNavn, linjeliste, linjekostnad, sumEstimert, soktBelop, soktForslag, velgbareBehov,
   pott, giverandel, momsProsent, utgiftsliste, sumUtgifter, sumFakturert,
-  linjetype, grupperPerType, typeliste, flyttIListe, typerekkefolgeFor,
+  linjetype, grupperPerType, typeliste, flyttIListe, typerekkefolgeFor, soktLinjer, tilleggslinjer,
 } from '../data/beregning.js';
 import { escapeHtml, kr, datoFelt, tidspunkt, fornavn, tolkTall, tolkDato } from '../ui/format.js';
 import { feltAttr } from '../ui/felt.js';
@@ -100,21 +100,24 @@ function pottlinje(s) {
 // ——— Søknad-fanen ———
 
 function behovstabell(s) {
-  const linjer = linjeliste(s);
+  const linjer = soktLinjer(s), tillegg = tilleggslinjer(s);
   const prosent = momsProsent(s);
   const moms = prosent != null;
   const n = (l, f) => `soknader/${s.id}/linjer.${l.id}.${f}`;
-  const finansieres = linjer.filter(l => l.finansieres).length;
+  const finansieres = [...linjer, ...tillegg].filter(l => l.finansieres).length;
   const sum = sumEstimert(s), sumGiver = giverandel(sum, prosent);
   const rad = l => {
     const b = l.behovId ? behovMedId(l.behovId) : null;
     const kostnad = linjekostnad(l), fraGiver = giverandel(kostnad, prosent);
     const arvet = (b?.type || '').trim();
+    // Linjer lagt til etter søknaden har et notat i stedet for drahåndtak;
+    // de står i den rekkefølgen de ble lagt til.
     return `
-      <tr data-slippmal="linje:${l.id}">
-        <td><div style="display:flex; align-items:center"><span class="dra" draggable="true" data-dra="linje:${l.id}" title="Dra for å endre rekkefølge, eller flytt til en annen type">⠿</span><div style="min-width:0; flex:1">${l.behovId
+      <tr ${l.etterSoknad ? '' : `data-slippmal="linje:${l.id}"`}>
+        <td><div style="display:flex; align-items:center">${l.etterSoknad ? '<span class="dra" style="visibility:hidden">⠿</span>' : `<span class="dra" draggable="true" data-dra="linje:${l.id}" title="Dra for å endre rekkefølge, eller flytt til en annen type">⠿</span>`}<div style="min-width:0; flex:1">${l.behovId
           ? `<span class="fet">${escapeHtml(linjetittel(l))}</span>${b?.beskrivelse ? `<div class="celleunder">${escapeHtml(b.beskrivelse)}</div>` : ''}`
-          : `<input class="celleinn tekst" ${feltAttr(n(l, 'tittel'), l.tittel)} placeholder="Beskriv linjen">`}</div></div></td>
+          : `<input class="celleinn tekst" ${feltAttr(n(l, 'tittel'), l.tittel)} placeholder="Beskriv linjen">`}${l.etterSoknad
+          ? `<input class="celleinn tekst notat" title="${escapeHtml(l.notat || 'Hvorfor ble dette lagt til?')}" ${feltAttr(n(l, 'notat'), l.notat)} placeholder="Notat – f.eks. «i stedet for klarinett»">` : ''}</div></div></td>
         <td><input class="celleinn tekst" style="min-width:0; width:104px; font-weight:400" list="typer" placeholder="${escapeHtml(arvet || 'Type')}" title="${arvet ? `Behovet har typen «${escapeHtml(arvet)}». Skriv en annen for denne søknaden, eller tøm feltet for å bruke behovets.` : 'Type for denne søknaden'}" ${feltAttr(n(l, 'type'), linjetype(l, tilstand.behov))}></td>
         <td class="tall"><input class="celleinn antall" inputmode="numeric" ${feltAttr(n(l, 'antall'), l.antall, 'tall')}></td>
         <td class="tall"><input class="celleinn" inputmode="numeric" ${feltAttr(n(l, 'estPris'), l.estPris, 'tall')}></td>
@@ -131,6 +134,10 @@ function behovstabell(s) {
       <tr class="gruppe" data-slippmal="type:${escapeHtml(g.type)}"><td colspan="4"><span class="dra" draggable="true" data-dra="type:${escapeHtml(g.type)}" title="Dra for å flytte hele typen i denne søknaden">⠿</span>${escapeHtml(g.type || 'Uten type')}</td><td class="tall">${kr(delsum)}</td>${moms ? `<td class="tall">${kr(delGiver)}</td><td class="tall">${kr(delsum - delGiver)}</td>` : ''}<td colspan="2">${g.elementer.length} ${g.elementer.length === 1 ? 'linje' : 'linjer'}</td></tr>
       ${g.elementer.map(rad).join('')}`;
   }).join('');
+  const tilleggSum = tillegg.reduce((a, l) => a + linjekostnad(l), 0), tilleggGiver = giverandel(tilleggSum, prosent);
+  const tilleggsrader = tillegg.length ? `
+      <tr class="gruppe tillegg"><td colspan="4">Lagt til etter søknaden <span>· teller ikke i søkt beløp</span></td><td class="tall">${kr(tilleggSum)}</td>${moms ? `<td class="tall">${kr(tilleggGiver)}</td><td class="tall">${kr(tilleggSum - tilleggGiver)}</td>` : ''}<td colspan="2">${tillegg.length} ${tillegg.length === 1 ? 'linje' : 'linjer'}</td></tr>
+      ${tillegg.map(rad).join('')}` : '';
   const kolonner = moms ? 9 : 7;
   return `
     <div class="tabellramme" data-rull="soknad-behov">
@@ -140,12 +147,12 @@ function behovstabell(s) {
           ${moms ? `<th class="tall">Fra giver<br>(${100 - prosent} %)</th><th class="tall">Fra moms-<br>komp. (${prosent} %)</th>` : ''}
           <th>Finansieres</th><th></th>
         </tr></thead>
-        <tbody>${rader || `<tr class="tom-rad"><td colspan="${kolonner}">Ingen behov i søknaden enda. Legg til fra behovslisten eller som fri linje.</td></tr>`}</tbody>
+        <tbody>${rader || `<tr class="tom-rad"><td colspan="${kolonner}">Ingen behov i søknaden enda. Legg til fra behovslisten eller som fri linje.</td></tr>`}${tilleggsrader}</tbody>
         <tfoot><tr>
           <td colspan="4" class="dempet">Sum estimert</td>
           <td class="tall sum">${kr(sum)}</td>
           ${moms ? `<td class="tall sum">${kr(sumGiver)}</td><td class="tall fet dempet">${kr(sum - sumGiver)}<div class="undertekst" style="font-weight:400">forventes mottatt neste år</div></td>` : ''}
-          <td colspan="2" class="dempet smal">${finansieres} av ${linjer.length} finansieres</td>
+          <td colspan="2" class="dempet smal">${finansieres} av ${linjer.length + tillegg.length} finansieres</td>
         </tr></tfoot>
       </table>
       <datalist id="typer">${typeliste(tilstand.behov, tilstand.soknader).map(t => `<option value="${escapeHtml(t)}">`).join('')}</datalist>
@@ -297,11 +304,11 @@ function soknadsfane(s) {
 }
 
 function fraListenPanel(s) {
-  const valg = velgbareBehov(tilstand.behov, tilstand.soknader, s)
+  const valg = velgbareBehov(tilstand.behov, tilstand.soknader, s, anskaffet())
     .sort((a, b) => (a.behov.tittel || '').localeCompare(b.behov.tittel || '', 'nb'));
   return sidepanel(`
     <div class="panelhode">
-      <div><h2>Behov fra listen</h2><div class="ingress" style="margin-top:4px">Åpne behov som ikke er med i søknaden. Antall settes til det som gjenstår.</div></div>
+      <div><h2>Behov fra listen</h2><div class="ingress" style="margin-top:4px">Åpne behov som ikke er med i søknaden. Antall settes til det som gjenstår.${s.status === 'utkast' ? '' : ' Søknaden er ikke lenger et utkast, så behovet merkes «lagt til etter søknaden» og endrer ikke søkt beløp.'}</div></div>
       ${lukkeknapp()}
     </div>
     <div style="display:flex; flex-direction:column; gap:8px">
@@ -318,14 +325,17 @@ function fraListenPanel(s) {
 
 function skrivUt(s) {
   const rad = l => `<tr><td>${escapeHtml(linjetittel(l))}</td><td class="n">${l.antall ?? 0}</td><td class="n">${kr(l.estPris)}</td><td class="n">${kr(linjekostnad(l))}</td></tr>`;
-  const grupper = grupperPerType(linjeliste(s), l => linjetype(l, tilstand.behov), typerekkefolgeFor(s, fellesTyperekkefolge()));
+  const grupper = grupperPerType(soktLinjer(s), l => linjetype(l, tilstand.behov), typerekkefolgeFor(s, fellesTyperekkefolge()));
+  const tillegg = tilleggslinjer(s);
+  const tilleggsrader = tillegg.length
+    ? `<tr class="g"><td colspan="3">Lagt til etter søknaden (ikke med i summen)</td><td class="n">${kr(tillegg.reduce((a, l) => a + linjekostnad(l), 0))}</td></tr>${tillegg.map(l => rad(l).replace('</td>', `${l.notat ? `<div class="d">${escapeHtml(l.notat)}</div>` : ''}</td>`)).join('')}` : '';
   // Er alt uten type, skrives lista ut som før, uten gruppeoverskrift.
   const rader = grupper.length === 1 && !grupper[0].type
     ? grupper[0].elementer.map(rad).join('')
     : grupper.map(g => `<tr class="g"><td colspan="3">${escapeHtml(g.type || 'Uten type')}</td><td class="n">${kr(g.elementer.reduce((a, l) => a + linjekostnad(l), 0))}</td></tr>${g.elementer.map(rad).join('')}`).join('');
   utskrift(s.tittel || 'Søknad', `<p>${escapeHtml(giver(s.giverId)?.navn || '')} · Behovsliste · skrevet ut ${new Date().toLocaleDateString('nb-NO')}</p>
     <table><thead><tr><th>Behov</th><th class="n">Antall</th><th class="n">Est. stk.pris</th><th class="n">Kostnad</th></tr></thead>
-    <tbody>${rader}</tbody><tfoot><tr><td colspan="3">Sum estimert</td><td class="n">${kr(sumEstimert(s))}</td></tr></tfoot></table>`);
+    <tbody>${rader}${tilleggsrader}</tbody><tfoot><tr><td colspan="3">Sum estimert</td><td class="n">${kr(sumEstimert(s))}</td></tr></tfoot></table>`);
 }
 
 function gjeldende() {
@@ -383,7 +393,7 @@ export const soknadSide = {
     const del = nokkel => { const i = nokkel.indexOf(':'); return [nokkel.slice(0, i), nokkel.slice(i + 1)]; };
     const [kHva, kId] = del(kilde), [mHva, mId] = del(mal);
     const typeAv = l => linjetype(l, tilstand.behov);
-    const linjer = linjeliste(s);
+    const linjer = soktLinjer(s);
     const malLinje = mHva === 'linje' ? linjer.find(l => l.id === mId) : null;
     const malType = mHva === 'type' ? mId : (malLinje ? typeAv(malLinje) : '');
     if (kHva === 'type') {
@@ -429,7 +439,7 @@ export const soknadSide = {
       case 'fra-listen': ui.panel = 'fra-listen'; ui.nyttPanel = true; tegn(); break;
       case 'legg-til': {
         const b = behovMedId(el.dataset.id);
-        const info = velgbareBehov(tilstand.behov, tilstand.soknader, s).find(x => x.behov.id === b?.id)?.info;
+        const info = velgbareBehov(tilstand.behov, tilstand.soknader, s, anskaffet()).find(x => x.behov.id === b?.id)?.info;
         if (b && info) lagre(() => leggBehovISoknad(s, b, info.gjenstar));
         break;
       }

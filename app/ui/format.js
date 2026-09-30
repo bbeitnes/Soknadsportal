@@ -19,13 +19,28 @@ export function kr(n) {
   return tegn + String(Math.abs(tall)).replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
 }
 
+// Nøyaktig beløp med øre: 8060.8 → «8 060,80». Brukes der ørene teller
+// (fakturaer, utgifter, revisjon). Estimater og summer ellers bruker kr().
+export function belop(n) {
+  const r = Math.round((Number(n) || 0) * 100) / 100;
+  const [hele, ore] = Math.abs(r).toFixed(2).split('.');
+  return (r < 0 ? '−' : '') + kr(Number(hele)) + ',' + ore;
+}
+
 // Beløp/antall fra et tekstfelt. Tåler mellomrom som tusenskille og «kr».
 // Tomt felt gir null, slik at kallstedet kan skille «tomt» fra 0.
+// Hele kroner; tolkBelop() beholder ørene.
 export function tolkTall(tekst) {
+  const n = tolkBelop(tekst);
+  return n == null || Number.isNaN(n) ? n : Math.round(n);
+}
+
+// «1 234,56» → 1234.56. Punktum regnes som tusenskille, komma som desimal.
+export function tolkBelop(tekst) {
   const renset = String(tekst ?? '').replace(/[\s kr.]/gi, '').replace(',', '.');
   if (renset === '') return null;
   const n = Number(renset);
-  return Number.isFinite(n) && n >= 0 ? Math.round(n) : NaN;
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : NaN;
 }
 
 // «15.3.26», «15.03.2026», «150326», «15032026» og «2026-03-15» → «2026-03-15».

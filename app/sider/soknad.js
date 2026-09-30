@@ -12,7 +12,7 @@ import {
   pott, giverandel, momsProsent, utgiftsliste, sumUtgifter, sumFakturert,
   linjetype, grupperPerType, typeliste, flyttIListe, typerekkefolgeFor, soktLinjer, tilleggslinjer, etterRekkefolgeOgTittel,
 } from '../data/beregning.js';
-import { escapeHtml, kr, datoFelt, tidspunkt, fornavn, tolkTall, tolkDato } from '../ui/format.js';
+import { escapeHtml, kr, belop, datoFelt, tidspunkt, fornavn, tolkBelop, tolkDato } from '../ui/format.js';
 import { feltAttr } from '../ui/felt.js';
 import { lagre, visMelding } from '../ui/lagring.js';
 import { tegn, fokuser, gaaTil, avkryss, sidepanel, lukkeknapp, IKON } from '../ui/visning.js';
@@ -179,7 +179,7 @@ function utgiftsfane(s) {
     <tr>
       <td><input class="celleinn tekst" style="font-weight:400" ${feltAttr(n(u, 'beskrivelse'), u.beskrivelse, 'tekst', { paakrevd: true })}></td>
       <td><input class="celleinn tekst" style="min-width:110px; font-weight:400" placeholder="dd.mm.åååå" ${feltAttr(n(u, 'dato'), u.dato, 'dato')}></td>
-      <td class="tall"><input class="celleinn" style="width:110px; font-weight:600" inputmode="numeric" ${feltAttr(n(u, 'belop'), u.belop, 'tall')}></td>
+      <td class="tall"><input class="celleinn" style="width:110px; font-weight:600" inputmode="decimal" ${feltAttr(n(u, 'belop'), u.belop, 'belop')}></td>
       <td class="smal dempet">${escapeHtml(fornavn(u.lagtInnAv?.navn, u.lagtInnAv?.epost))}</td>
       <td style="width:44px; padding-left:0; text-align:center"><button type="button" class="ikonknapp" data-handling="fjern-utgift" data-id="${u.id}" title="Slett utgiften">${IKON.fjern}</button></td>
     </tr>`).join('');
@@ -196,13 +196,13 @@ function utgiftsfane(s) {
           <tr class="ny-utgift">
             <td><input class="celleinn tekst ny" id="ny-utgift-beskrivelse" placeholder="Ny utgift – beskrivelse"></td>
             <td><input class="celleinn tekst ny" id="ny-utgift-dato" placeholder="dd.mm.åååå"></td>
-            <td class="tall"><input class="celleinn ny" id="ny-utgift-belop" inputmode="numeric" placeholder="0" style="width:110px"></td>
+            <td class="tall"><input class="celleinn ny" id="ny-utgift-belop" inputmode="decimal" placeholder="0,00" style="width:110px"></td>
             <td colspan="2" class="undertekst">Lagres når beskrivelse og beløp er fylt ut</td>
           </tr>
         </tbody>
         <tfoot><tr>
           <td colspan="2" class="dempet">Sum løse utgifter</td>
-          <td class="tall sum">${kr(sumUtgifter(s))}</td>
+          <td class="tall sum">${belop(sumUtgifter(s))}</td>
           <td colspan="2" class="dempet">${liste.length} ${liste.length === 1 ? 'utgift' : 'utgifter'}</td>
         </tr></tfoot>
       </table>
@@ -215,15 +215,15 @@ async function lagreNyUtgift(s) {
   const felt = ['beskrivelse', 'dato', 'belop'].map(f => document.getElementById(`ny-utgift-${f}`));
   if (felt.some(el => !el)) return;
   const [b, d, k] = felt;
-  const beskrivelse = b.value.trim(), belop = tolkTall(k.value), dato = tolkDato(d.value);
-  if (!beskrivelse || belop == null) return;
-  if (Number.isNaN(belop)) { visMelding(`«${k.value}» er ikke et gyldig beløp`); return; }
+  const beskrivelse = b.value.trim(), sum = tolkBelop(k.value), dato = tolkDato(d.value);
+  if (!beskrivelse || sum == null) return;
+  if (Number.isNaN(sum)) { visMelding(`«${k.value}» er ikke et gyldig beløp`); return; }
   if (Number.isNaN(dato)) { visMelding(`«${d.value}» er ikke en gyldig dato (dd.mm.åååå)`); return; }
   // Tøm raden FØR lagringen, så et nytt focusout underveis finner en tom rad
   // og ikke lagrer den samme utgiften én gang til.
   const gamle = felt.map(el => el.value);
   felt.forEach(el => { el.value = ''; });
-  const id = await lagre(() => leggTilUtgift(s, { beskrivelse, belop, dato }));
+  const id = await lagre(() => leggTilUtgift(s, { beskrivelse, belop: sum, dato }));
   if (id) tegn();
   else felt.forEach((el, i) => { el.value = gamle[i]; });
 }

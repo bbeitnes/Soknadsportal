@@ -7,7 +7,7 @@
 import { tilstand, innkjopFor, fakturaerFor, filBytes } from '../data/index.js';
 import { pott, fakturaDekker, giverandel, posttittel } from '../data/beregning.js';
 import { posterFor } from '../sider/revisjon.js';
-import { kr, datoFelt } from './format.js';
+import { belop, datoFelt } from './format.js';
 
 const PDF_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
 let lasting = null;
@@ -78,16 +78,16 @@ export async function lagRevisjonsrapport(s) {
   tekst(s.tittel || 'Søknad', MARG, 24, fet); y -= 20;
   tekst(`${giver?.navn || 'Ukjent giver'} · Revisjonsrapport · ${dato}`, MARG, 11, font, graa); y -= 36;
   const linje = (etikett, verdi, f = font) => { tekst(etikett, MARG, 12, f); hoyre(verdi, A4[0] - MARG, 12, f); y -= 8; strek(); y -= 18; };
-  linje('Søkt', kr(p.sokt));
-  linje('Innvilget', p.innvilget == null ? '–' : kr(p.innvilget));
-  linje('Disponert (tilbud og utgifter)', kr(p.disponertFull));
-  linje('Brukt (fakturert)', kr(fakturert), fet);
-  linje('Gjenstående av innvilget', p.innvilget == null ? '–' : kr(p.innvilget - (p.harMoms ? giverandel(fakturert, p.prosent) : fakturert)));
+  linje('Søkt', belop(p.sokt));
+  linje('Innvilget', p.innvilget == null ? '–' : belop(p.innvilget));
+  linje('Disponert (tilbud og utgifter)', belop(p.disponertFull));
+  linje('Brukt (fakturert)', belop(fakturert), fet);
+  linje('Gjenstående av innvilget', p.innvilget == null ? '–' : belop(p.innvilget - (p.harMoms ? giverandel(fakturert, p.prosent) : fakturert)));
   if (p.harMoms) {
     y -= 10;
     tekst('Fordeling av det fakturerte', MARG, 10, fet, graa); y -= 20;
-    linje(`Fra giver (${p.giverProsent} %)`, kr(giverandel(fakturert, p.prosent)));
-    linje(`Fra momskompensasjon (${p.prosent} %) – forventes mottatt neste år`, kr(fakturert - giverandel(fakturert, p.prosent)));
+    linje(`Fra giver (${p.giverProsent} %)`, belop(giverandel(fakturert, p.prosent)));
+    linje(`Fra momskompensasjon (${p.prosent} %) – forventes mottatt neste år`, belop(fakturert - giverandel(fakturert, p.prosent)));
   }
   y -= 20;
   for (const l of brytTekst(`Rapporten inneholder ${fakturaer.length} ${fakturaer.length === 1 ? 'faktura' : 'fakturaer'} med løpenummer 1–${fakturaer.length}. Løpenummeret er stamplet øverst til høyre på hvert bilag.`, 10, A4[0] - 2 * MARG)) { tekst(l, MARG, 10, font, graa); y -= 14; }
@@ -111,13 +111,13 @@ export async function lagRevisjonsrapport(s) {
     tekst(f.fakturanr || '–', kol.fnr, 9);
     tekst(f.dato ? datoFelt(f.dato) : '–', kol.dato, 9);
     for (const l of brytTekst(f.leverandor || '–', 9, kol.belop - 90 - kol.lev).slice(0, 2)) { tekst(l, kol.lev, 9); }
-    hoyre(f.belop == null ? '–' : kr(f.belop), kol.belop, 10, fet);
+    hoyre(f.belop == null ? '–' : belop(f.belop), kol.belop, 10, fet);
     let yy = y;
     for (const l of linjer) { side.drawText(trygg(l), { x: kol.gjelder, y: yy, size: 9, font, color: svart }); yy -= 12; }
     y -= hoyde - 8; strek(); y -= 16;
   }
   y -= 4; strek(1.5, svart); y -= 16;
-  tekst('Sum fakturert', kol.nr, 11, fet); hoyre(kr(fakturert), kol.belop, 12, fet);
+  tekst('Sum fakturert', kol.nr, 11, fet); hoyre(belop(fakturert), kol.belop, 12, fet);
   y -= 24;
   tekst('Summen stemmer med «Brukt (fakturert)» på forsiden.', MARG, 9, font, graa);
 
@@ -155,7 +155,7 @@ export async function lagRevisjonsrapport(s) {
       const melding = f.fil ? `Vedlegget «${f.fil.navn}» kunne ikke tas med (ukjent format).` : 'Vedlegg mangler.';
       for (const l of brytTekst(melding, 12, A4[0] - 2 * MARG)) { tekst(l, MARG, 12, fet, graa); y -= 16; }
       y -= 8;
-      tekst(`${f.leverandor || 'Ukjent leverandør'} · ${f.fakturanr || 'uten nummer'} · ${f.dato ? datoFelt(f.dato) : 'uten dato'} · ${f.belop == null ? '–' : kr(f.belop) + ' kr'}`, MARG, 10, font, graa);
+      tekst(`${f.leverandor || 'Ukjent leverandør'} · ${f.fakturanr || 'uten nummer'} · ${f.dato ? datoFelt(f.dato) : 'uten dato'} · ${f.belop == null ? '–' : belop(f.belop) + ' kr'}`, MARG, 10, font, graa);
     }
   }
 

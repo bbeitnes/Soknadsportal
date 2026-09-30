@@ -4,14 +4,15 @@
 // Markering i HTML:
 //   data-felt="samling/dokumentId/feltsti"   hva som skal lagres
 //   data-verdi="…"                           verdien som ble tegnet
-//   data-type="tekst|tall|dato|prosent"      hvordan verdien tolkes
+//   data-type="tekst|tall|belop|dato|prosent" hvordan verdien tolkes (belop = med øre)
 //   data-paakrevd                            tomt felt godtas ikke
-import { escapeHtml, kr, tolkTall, tolkDato, datoFelt } from './format.js';
+import { escapeHtml, kr, belop, tolkTall, tolkBelop, tolkDato, datoFelt } from './format.js';
 
 // Verdien slik den vises i feltet.
 export function visVerdi(verdi, type) {
   if (verdi == null || verdi === '') return '';
   if (type === 'tall') return kr(verdi);
+  if (type === 'belop') return belop(verdi);
   if (type === 'dato') return datoFelt(verdi);
   return String(verdi);
 }
@@ -35,9 +36,9 @@ export function tolkFelt(el) {
   if (el.hasAttribute('data-paakrevd') && raa.trim() === '') {
     return { ok: false, melding: 'Feltet kan ikke være tomt' };
   }
-  if (type === 'tall') {
-    const n = tolkTall(raa);
-    return Number.isNaN(n) ? { ok: false, melding: `«${raa}» er ikke et gyldig tall` } : { ok: true, verdi: n };
+  if (type === 'tall' || type === 'belop') {
+    const n = type === 'tall' ? tolkTall(raa) : tolkBelop(raa);
+    return Number.isNaN(n) ? { ok: false, melding: `«${raa}» er ikke et gyldig ${type === 'tall' ? 'tall' : 'beløp'}` } : { ok: true, verdi: n };
   }
   if (type === 'prosent') {
     const n = tolkTall(raa.replace('%', ''));

@@ -142,7 +142,7 @@ export function utgiftsliste(soknad) {
 }
 
 export function sumUtgifter(soknad) {
-  return utgiftsliste(soknad).reduce((sum, u) => sum + (Number(u.belop) || 0), 0);
+  return Math.round(utgiftsliste(soknad).reduce((sum, u) => sum + (Number(u.belop) || 0), 0) * 100) / 100;
 }
 
 export function erInnvilget(soknad) {
@@ -617,6 +617,10 @@ export function nesteLopenummer(fakturaer, soknadId) {
   return fakturaliste(fakturaer, soknadId).reduce((m, f) => Math.max(m, f.lopenummer ?? 0), 0) + 1;
 }
 
+// Fakturaer og utgifter har øre. Summer avrundes til øre, så flyttall ikke
+// gir «avvik» på en tusendels øre.
+const ore = n => Math.round(n * 100) / 100;
+
 // Alt potten er brukt på: valgte linjer i alle innkjøp + løse utgifter.
 // `tittelFor(innkjop, linje)` og `levNavn(innkjop, sid)` gir tekstene,
 // slik at beregningslaget slipper å kjenne søknaden og registeret.
@@ -637,7 +641,7 @@ export function revisjonsposter(soknad, innkjopListe, { tittelFor, levNavn }) {
         under: `${levNavn(i, v.valgtSid)} · ${i.navn || 'Innkjøp'}`,
         alternativ: (i.priser?.[l.id]?.[v.valgtSid]?.alternativ || '').trim(),
         etterSoknad: !!sl?.etterSoknad, notat: (sl?.notat || '').trim(),
-        tilbudt: v.sum,
+        tilbudt: ore(v.sum),
       });
     }
   }
@@ -671,12 +675,12 @@ export function fakturaDekker(faktura) {
 
 export function fakturaavvik(faktura, poster) {
   const ider = fakturaDekker(faktura);
-  const tilbudt = ider.reduce((s, id) => s + (poster.find(p => p.id === id)?.tilbudt || 0), 0);
-  return { tilbudt, avvik: ider.length ? (Number(faktura.belop) || 0) - tilbudt : 0, koblet: ider.length > 0 };
+  const tilbudt = ore(ider.reduce((s, id) => s + (poster.find(p => p.id === id)?.tilbudt || 0), 0));
+  return { tilbudt, avvik: ider.length ? ore((Number(faktura.belop) || 0) - tilbudt) : 0, koblet: ider.length > 0 };
 }
 
 export function sumFakturert(fakturaer, soknadId) {
-  return fakturaliste(fakturaer, soknadId).reduce((s, f) => s + (Number(f.belop) || 0), 0);
+  return ore(fakturaliste(fakturaer, soknadId).reduce((s, f) => s + (Number(f.belop) || 0), 0));
 }
 
 // Oppsummeringen øverst i Revisjon: hva som er fakturert, hva som mangler
@@ -695,7 +699,7 @@ export function revisjonsoppsummering(fakturaer, poster) {
     if (!a.koblet) ikkeKoblet++;
     else if (a.avvik) { avvikSum += a.avvik; avvikAntall++; }
   }
-  return { fakturert: fakturaer.reduce((s, f) => s + (Number(f.belop) || 0), 0), manglerFaktura, avvikSum, avvikAntall, ikkeKoblet, perPost };
+  return { fakturert: ore(fakturaer.reduce((s, f) => s + (Number(f.belop) || 0), 0)), manglerFaktura, avvikSum: ore(avvikSum), avvikAntall, ikkeKoblet, perPost };
 }
 
 // ——— Import av behovsliste fra regneark ———

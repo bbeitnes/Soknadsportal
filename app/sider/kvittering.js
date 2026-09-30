@@ -3,7 +3,7 @@
 // løpenummer under Revisjon, «ikke koblet» til den kobles på PC.
 import { tilstand, innkjopFor, opprettKvittering } from '../data/index.js';
 import { pott, erInnvilget } from '../data/beregning.js';
-import { escapeHtml, kr, tolkTall, tidspunkt, fornavn } from '../ui/format.js';
+import { escapeHtml, kr, belop, tolkBelop, tidspunkt, fornavn } from '../ui/format.js';
 import { lagre, visMelding } from '../ui/lagring.js';
 import { tegn, gaaTil } from '../ui/visning.js';
 import { klargjorBilde } from '../ui/bilde.js';
@@ -58,7 +58,7 @@ function stegBelop() {
       <div style="min-width:0"><div class="etikett">Kvittering til</div><div class="kv-tittel">${escapeHtml(s?.tittel || '')}</div><div class="undertekst">${escapeHtml(ui.fil?.name || '')}</div><button type="button" class="kv-tilbake" style="padding:0; margin-top:2px" data-handling="tilbake-bilde">Ta bildet på nytt</button></div>
     </div>
     <form class="kv-skjema" id="kv-skjema">
-      <label class="felt"><span class="etikett">Beløp</span><div class="kv-belop"><input id="kv-belop" inputmode="numeric" autocomplete="off" value="${escapeHtml(ui.belop)}" placeholder="0"><span>kr</span></div></label>
+      <label class="felt"><span class="etikett">Beløp</span><div class="kv-belop"><input id="kv-belop" inputmode="decimal" autocomplete="off" value="${escapeHtml(ui.belop)}" placeholder="0,00"><span>kr</span></div></label>
       <label class="felt"><span class="etikett">Fakturanummer</span><input class="inndata" id="kv-fakturanr" inputmode="numeric" autocomplete="off" value="${escapeHtml(ui.fakturanr)}" placeholder="Valgfritt" style="height:44px; font-size:17px"></label>
       <div class="hint">Leverandør og kobling gjøres på PC.</div>
       <button type="submit" class="kv-stor primar" ${ui.lagrer ? 'disabled' : ''}>${ui.lagrer ? 'Legger inn …' : 'Legg inn kvittering'}</button>
@@ -70,7 +70,7 @@ function stegFerdig() {
   return `<div class="kv-ferdig">
       <div style="width:56px; height:56px; background:var(--color-text); display:flex; align-items:center; justify-content:center">${HAK}</div>
       <h1>Kvittering ${f.lopenummer} er lagt inn</h1>
-      <div style="font-size:15px; color:var(--color-neutral-700); line-height:1.45">${kr(f.belop)} kr på <span class="fet" style="color:var(--color-text)">${escapeHtml(f.tittel)}</span>. Den ligger nå under Revisjon som «ikke koblet», klar til å kobles mot linjer eller utgifter på PC.</div>
+      <div style="font-size:15px; color:var(--color-neutral-700); line-height:1.45">${belop(f.belop)} kr på <span class="fet" style="color:var(--color-text)">${escapeHtml(f.tittel)}</span>. Den ligger nå under Revisjon som «ikke koblet», klar til å kobles mot linjer eller utgifter på PC.</div>
       <div style="border-top:2px solid var(--color-divider); padding-top:14px" class="undertekst">Lagt inn av ${escapeHtml(fornavn(tilstand.meg.navn, tilstand.meg.epost))}, ${tidspunkt(Date.now())}</div>
     </div>
     <div class="kv-knapper" style="padding-bottom:40px">
@@ -86,15 +86,15 @@ document.addEventListener('submit', async e => {
   if (!s || ui.lagrer) return;
   ui.belop = document.getElementById('kv-belop').value;
   ui.fakturanr = document.getElementById('kv-fakturanr').value.trim();
-  const belop = tolkTall(ui.belop);
-  if (belop == null || Number.isNaN(belop) || belop <= 0) { visMelding('Skriv inn beløpet på kvitteringen'); document.getElementById('kv-belop').focus(); return; }
+  const sum = tolkBelop(ui.belop);
+  if (sum == null || Number.isNaN(sum) || sum <= 0) { visMelding('Skriv inn beløpet på kvitteringen'); document.getElementById('kv-belop').focus(); return; }
   // På telefon flytter ikke et trykk på knappen fokus ut av feltet, og da
   // ville tegningen ventet på det. Vi tar fokus ut selv.
   document.activeElement?.blur?.();
   ui.lagrer = true; tegn();
-  const lopenummer = await lagre(() => opprettKvittering(s.id, { belop, fakturanr: ui.fakturanr, fil: ui.fil }));
+  const lopenummer = await lagre(() => opprettKvittering(s.id, { belop: sum, fakturanr: ui.fakturanr, fil: ui.fil }));
   ui.lagrer = false;
-  if (lopenummer) { ui.ferdig = { lopenummer, belop, tittel: s.tittel }; ui.steg = 4; ui.fil = null; ui.forhandsvisning = null; ui.belop = ''; ui.fakturanr = ''; }
+  if (lopenummer) { ui.ferdig = { lopenummer, belop: sum, tittel: s.tittel }; ui.steg = 4; ui.fil = null; ui.forhandsvisning = null; ui.belop = ''; ui.fakturanr = ''; }
   tegn();
 });
 

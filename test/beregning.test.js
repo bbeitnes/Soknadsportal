@@ -518,3 +518,25 @@ test('linjer uten valgt leverandør er ikke poster, men listes for seg', async (
   assert.deepEqual(linjerUtenValg([i]).map(x => x.linje.id), ['b', 'c']);
   assert.deepEqual(revisjonsposter({}, [i], { tittelFor: (_, l) => l.id, levNavn: () => '' }).map(p => p.id), ['i1/a']);
 });
+
+test('beløp med øre: visning, tolking og avvik uten flyttallsstøy', async () => {
+  const { belop, tolkBelop, tolkTall } = await import('../app/ui/format.js');
+  const { fakturaavvik, sumFakturert, revisjonsoppsummering, sumUtgifter } = await import('../app/data/beregning.js');
+  assert.equal(belop(8060.8), '8 060,80');
+  assert.equal(belop(30600), '30 600,00');
+  assert.equal(belop(0.1 + 0.2), '0,30');
+  assert.equal(belop(-1234.5), '−1 234,50');
+  assert.equal(tolkBelop('1 234,56'), 1234.56);
+  assert.equal(tolkBelop('1.234,56'), 1234.56);
+  assert.equal(tolkBelop('8060,8 kr'), 8060.8);
+  assert.equal(tolkBelop(''), null);
+  assert.ok(Number.isNaN(tolkBelop('abc')));
+  assert.equal(tolkTall('1 234,56'), 1235); // antall og estimater er fortsatt hele tall
+  const poster = [{ id: 'a', tilbudt: 8060.8 }, { id: 'b', tilbudt: 0.1 }, { id: 'c', tilbudt: 0.2 }];
+  assert.deepEqual(fakturaavvik({ belop: 8061.1, dekker: { a: true, b: true, c: true } }, poster), { tilbudt: 8061.1, avvik: 0, koblet: true });
+  assert.equal(fakturaavvik({ belop: 8060.85, dekker: { a: true } }, poster).avvik, 0.05);
+  const fakturaer = [{ soknadId: 's', belop: 0.1 }, { soknadId: 's', belop: 0.2 }];
+  assert.equal(sumFakturert(fakturaer, 's'), 0.3);
+  assert.equal(revisjonsoppsummering(fakturaer, []).fakturert, 0.3);
+  assert.equal(sumUtgifter({ utgifter: { a: { belop: 0.1 }, b: { belop: 0.2 } } }), 0.3);
+});

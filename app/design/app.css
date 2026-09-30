@@ -220,3 +220,43 @@ table.matrise { border-collapse: separate; border-spacing: 0; min-width: 100%; f
 
 /* Faktura-panelet: avkryssede poster */
 .valgliste > button .boks { flex: 0 0 auto; }
+
+/* ——— Kvittering fra mobil ——— */
+.kvittering { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; max-width: 520px; width: 100%; margin: 0 auto; padding: 0 0 24px; }
+.kv-hode { padding: 12px 20px 14px; border-bottom: 2px solid var(--color-divider); }
+.kv-hode h1 { font-family: var(--font-heading); font-weight: 800; font-size: 26px; line-height: 1.1; margin: 2px 0 0; }
+.kv-tilbake { border: 0; background: transparent; padding: 0; font-size: 14px; color: var(--color-accent-700); cursor: pointer; font-weight: 600; }
+.kv-hint { padding: 14px 20px 6px; font-size: 14px; color: var(--color-neutral-700); }
+.kv-liste { display: flex; flex-direction: column; }
+.kv-liste button { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border: 0; border-bottom: 1px solid var(--color-neutral-300); background: transparent; text-align: left; cursor: pointer; color: var(--color-text); }
+.kv-liste button:hover { background: var(--color-neutral-100); }
+.kv-tittel { display: block; font-weight: 600; font-size: 16px; }
+.kv-under { display: block; font-size: 13px; color: var(--color-neutral-700); }
+.kv-lenke { display: block; padding: 20px; font-weight: 600; font-size: 14px; text-decoration: none; }
+.kv-knapper { display: flex; flex-direction: column; gap: 10px; padding: 16px 20px; }
+.kv-stor { display: flex; align-items: center; padding: 14px 16px; border: 2px solid var(--color-divider); background: transparent; font-weight: 600; font-size: 16px; cursor: pointer; color: var(--color-text); text-align: left; }
+.kv-stor.primar { background: var(--color-accent); color: var(--color-neutral-100); border-color: var(--color-accent); }
+.kv-stor:disabled { opacity: 0.6; }
+.kv-forhand { display: flex; align-items: center; gap: 14px; padding: 12px 20px 14px; border-bottom: 2px solid var(--color-divider); }
+.kv-forhand img, .kv-pdf { width: 54px; height: 72px; flex: 0 0 auto; object-fit: cover; border: 2px solid var(--color-divider); }
+.kv-pdf { display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; color: var(--color-neutral-600); }
+.kv-skjema { display: flex; flex-direction: column; gap: 16px; padding: 18px 20px 0; }
+.kv-belop { display: flex; align-items: baseline; gap: 8px; border: 2px solid var(--color-accent); background: var(--color-neutral-100); padding: 4px 14px; }
+.kv-belop input { flex: 1; min-width: 0; border: 0; background: transparent; font-family: var(--font-heading); font-weight: 800; font-size: 34px; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--color-text); outline: none; }
+.kv-belop span { font-size: 16px; color: var(--color-neutral-600); }
+.kv-ferdig { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 18px; padding: 20px; }
+.kv-ferdig h1 { font-family: var(--font-heading); font-weight: 800; font-size: 28px; line-height: 1.1; margin: 0; }
+
+/* Toppmenyen på telefon og på kvitteringssiden */
+.meny-kvittering { display: none; }
+@media (max-width: 700px) {
+  .toppmeny { padding: 0 16px; height: auto; min-height: 44px; flex-wrap: wrap; }
+  .toppmeny .merke { margin-right: 8px; }
+  .toppmeny nav a { padding: 0 8px; font-size: 13px; }
+  .toppmeny .meg span { display: none; }
+  .lagrestatus-rolig { display: none; }
+  .meny-kvittering { display: inline-flex; }
+  .sidehode, .innhold { padding-left: 16px; padding-right: 16px; }
+}
+body.mobilside .toppmeny nav a:not(.meny-kvittering) { display: none; }
+body.mobilside .meny-kvittering { display: inline-flex; }

@@ -10,7 +10,7 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
 - Forenkle. Ikke bygg inn funksjonalitet som ikke er beskrevet — spør først.
 - Ingen lagreknapper: felt lagres ved blur, «Lagret»/feil vises i toppmenyen.
 - Minimal scrolling: faner, faste tabelloverskrifter/sumrader, detaljer i sidepanel.
-- Bygges i trinn a–e, og brukeren tester mellom hvert.
+- Bygget i trinn a–e (alle ferdige per 2026-09-30); brukeren tester på test-siden mellom endringer.
 
 ## Mappekart
 | Sti | Ansvar |
@@ -38,8 +38,12 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
 - Alle dokumenter har `organisasjonId`; `lytt()` filtrerer på det.
 - Samlinger: `brukere` (ID = e-post), `givere`, `behov`, `soknader` (linjer,
   utgifter og dokumenter som kart på dokumentet), `innkjop` (én per
-  tilbudsrunde: linjer, leverandorer, priser[lid][sid].raa, valgt[lid]).
+  tilbudsrunde: linjer, leverandorer{leverandorId,frakt,vedlegg}, priser[lid][sid].raa, valgt[lid]),
+  `leverandorer` (register), `fakturaer` (løpenummer per søknad, dekker{innkjopId|lid} eller
+  {utgift|uid}, fraMobil).
 - Priser lagres slik de ble skrevet («1200 -15%»); `tolkPris()` gir netto.
+- Mobil: `#/kvittering` (default-rute på smal skjerm). `ui/bilde.js` gjør om store bilder til JPEG.
+- Revisjonsrapporten (`ui/rapport.js`) bruker pdf-lib fra cdnjs og `getBytes` fra Storage — krever CORS på bøtta (OPPSETT.md §6).
 - Endres `firebase/firestore.rules`, må HELE filen limes inn i Console for
   begge databasene — si fra om det i svaret.
 

@@ -86,6 +86,6 @@ export function visMelding(tekst) {
 function forklar(err) {
   const kode = err?.code || '';
   if (kode.includes('permission-denied')) return 'Kunne ikke lagre: mangler tilgang';
-  if (/^(Giveren|Behovet|Leverandøren) /.test(err?.message || '')) return err.message;
+  if (/^(Giveren|Behovet|Leverandøren|Brukeren) /.test(err?.message || '')) return err.message;
   return 'Kunne ikke lagre siste endring';
 }

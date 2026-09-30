@@ -6,7 +6,7 @@ import {
   sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 import {
-  getFirestore, collection, doc, query, where, onSnapshot, getDoc, addDoc, updateDoc,
+  getFirestore, collection, doc, query, where, onSnapshot, getDoc, addDoc, setDoc, updateDoc,
   deleteDoc, deleteField,
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 import {
@@ -51,6 +51,9 @@ export const lager = {
   async opprett(samling, data) {
     const d = await medTidsfrist(addDoc(collection(db, samling), { ...data, organisasjonId: ORGANISASJON_ID }));
     return d.id;
+  },
+  sett(samling, id, data) {
+    return medTidsfrist(setDoc(doc(db, samling, id), { ...data, organisasjonId: ORGANISASJON_ID }));
   },
   oppdater(samling, id, felt) {
     return medTidsfrist(updateDoc(doc(db, samling, id), tilFirestore(felt)));

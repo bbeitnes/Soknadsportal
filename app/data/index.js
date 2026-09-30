@@ -18,10 +18,11 @@ export const tilstand = {
   innkjop: [],
   leverandorer: [],
   fakturaer: [],
+  brukere: [],
   lastet: new Set(),
 };
 
-const SAMLINGER = ['givere', 'behov', 'soknader', 'innkjop', 'leverandorer', 'fakturaer'];
+const SAMLINGER = ['givere', 'behov', 'soknader', 'innkjop', 'leverandorer', 'fakturaer', 'brukere'];
 
 export function erAdmin() {
   return tilstand.meg?.rolle === 'administrator';
@@ -388,4 +389,49 @@ export async function lastOppFakturafil(faktura, fil) {
 
 export function filBytes(sti) {
   return lager.hentBytes(sti);
+}
+
+// ——— Kvittering fra mobil ———
+// Filen lastes opp først, så opprettes fakturaen med den. Da finnes det
+// aldri en faktura uten bilag fra mobilen.
+export async function opprettKvittering(soknadId, { belop, fakturanr, fil }) {
+  const id = nyId('k');
+  const trygtNavn = fil.name.replace(/[^\w.\-æøåÆØÅ ]/g, '_');
+  const sti = await lager.lastOpp(`fakturaer/${id}/${Date.now()}-${trygtNavn}`, fil);
+  const lopenummer = nesteLopenummer(tilstand.fakturaer, soknadId);
+  await lager.sett('fakturaer', id, {
+    soknadId, lopenummer, leverandor: '', fakturanr: fakturanr || '', dato: new Date().toISOString().slice(0, 10),
+    belop, fil: { navn: fil.name, sti, type: fil.type || '' }, dekker: {}, fraMobil: true,
+    lagtInnAv: { epost: tilstand.meg.epost, navn: tilstand.meg.navn }, tid: Date.now(), ...signatur(),
+  });
+  return lopenummer;
+}
+
+// ——— Brukere (administrator) ———
+// Dokument-ID er e-posten med små bokstaver; det er den innloggingen
+// slås opp på. Ingen e-post sendes: administrator kopierer en lenke og
+// sender den selv. Status blir «aktiv» ved første innlogging.
+
+export function inviterBruker(epost, rolle) {
+  const id = epost.trim().toLowerCase();
+  if (tilstand.brukere.some(b => b.id === id)) return Promise.reject(new Error('Brukeren er alt invitert'));
+  return lager.sett('brukere', id, {
+    epost: id, navn: '', rolle, status: 'invitert',
+    invitertAv: { epost: tilstand.meg.epost, navn: tilstand.meg.navn }, invitertTid: Date.now(),
+  }).then(() => id);
+}
+
+export function oppdaterBruker(id, felt) {
+  return lager.oppdater('brukere', id, felt);
+}
+
+export function fjernBruker(id) {
+  if (id === tilstand.meg.epost) return Promise.reject(new Error('Brukeren kan ikke fjerne seg selv'));
+  return lager.slett('brukere', id);
+}
+
+// Teksten administrator sender til den inviterte.
+export function invitasjonstekst(bruker) {
+  const url = location.origin + location.pathname;
+  return `Du er invitert til Søknadsportal.\n\nGå til ${url} og logg inn med Google-kontoen din, eller be om en innloggingslenke på e-post. Bruk adressen ${bruker.epost}.`;
 }

@@ -54,6 +54,9 @@ export const lager = {
     await skriv(samling, s => { s[id] = { ...kopi(innhold), organisasjonId: ORGANISASJON_ID }; });
     return id;
   },
+  sett(samling, id, innhold) {
+    return skriv(samling, s => { s[id] = { ...kopi(innhold), organisasjonId: ORGANISASJON_ID }; });
+  },
   oppdater(samling, id, felt) {
     return skriv(samling, s => {
       if (!s[id]) throw new Error('Dokumentet finnes ikke');

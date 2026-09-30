@@ -54,3 +54,18 @@ printf '[{"origin":["https://beitnes.net","http://beitnes.net","http://localhost
 ```
 
 Får portalen ny adresse, må den legges til i `origin`-listen.
+
+## 7. Lokal dev-server (Docker)
+Forhåndsvisning på egen maskin før noe pushes til `test`. Krever Docker Desktop.
+
+```bash
+docker compose up -d
+```
+
+Gjøres én gang fra prosjektmappa; containeren `soknadsportal-dev` starter
+deretter sammen med Docker. `app/` er montert rett inn, så endringer vises ved
+omlasting.
+- `http://localhost:8430/?demo` – oppdiktede data i minnet, ingen innlogging.
+- `http://localhost:8430/` – lokal kode mot testdatabasen (krever innlogging).
+
+Porten må være 8430: den står i CORS-listen (§6).

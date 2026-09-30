@@ -22,6 +22,7 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
 | `app/ui/` | Felles UI: format, felt-lagring, lagrestatus, sidepanel, utskrift |
 | `app/sider/` | Én fil per skjerm: `tegn()` gir HTML, `klikk()` håndterer knapper. `innkjop.js` er Innkjøp-fanen og kalles fra `soknad.js` |
 | `firebase/` | Regler som limes inn manuelt i Firebase Console |
+| `docker-compose.yml` | Lokal dev-server (publiseres ikke) |
 | `test/` | `node --test test/` |
 
 ## Konvensjoner
@@ -64,8 +65,13 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
 - Endres `firebase/firestore.rules`, må HELE filen limes inn i Console for
   begge databasene — si fra om det i svaret.
 
-## Kjøre lokalt
-- Preview-serveren `soknadsportal` (`.claude/launch.json`) serverer `app/`.
+## Kjøre lokalt (dev)
+- Dev-serveren er en Docker-container (`docker-compose.yml`, Apache som på ProISP, `app/` montert
+  inn). Den står på `http://localhost:8430` og kommer opp sammen med Docker. Svarer den ikke:
+  `docker compose up -d`. Preview-oppsettet `soknadsportal` (`.claude/launch.json`) kobler seg til
+  den og starter ingen egen server.
+- **Arbeidsflyt: dev → test → prod.** Alle endringer vises først på dev. Push til `test` først når
+  brukeren har sett på dem der og sier fra.
 - `http://localhost:8430/?demo` = data i minnet, ingen innlogging. `demoFeil = true`
   i konsollen simulerer lagringsfeil.
 - Uten `?demo` på localhost brukes testdatabasen (krever innlogging).

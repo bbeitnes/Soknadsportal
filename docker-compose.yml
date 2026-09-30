@@ -1,0 +1,24 @@
+# Lokal dev-server: forhåndsvisning av app/ før noe pushes til test.
+#
+#   docker compose up -d      start (kommer opp igjen sammen med Docker)
+#   docker compose down       stopp
+#
+# http://localhost:8430/?demo   data i minnet, ingen innlogging
+# http://localhost:8430/        lokal kode mot testdatabasen (krever innlogging)
+#
+# Apache som på ProISP, så app/.htaccess gjelder her også. app/ er montert
+# rett inn: endringer i filene vises ved omlasting, uten ny bygging.
+# Porten må være 8430 – den står i CORS-listen for Storage (OPPSETT.md §6).
+name: soknadsportal-dev
+
+services:
+  dev:
+    image: httpd:2.4-alpine
+    container_name: soknadsportal-dev
+    ports:
+      - "127.0.0.1:8430:80"
+    volumes:
+      - ./app:/usr/local/apache2/htdocs:ro
+    # Standardoppsettet ser bort fra .htaccess; slå det på for htdocs.
+    command: sh -c "sed -i 's/AllowOverride None/AllowOverride All/' conf/httpd.conf && exec httpd-foreground"
+    restart: unless-stopped

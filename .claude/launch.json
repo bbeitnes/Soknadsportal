@@ -3,10 +3,8 @@
   "configurations": [
     {
       "name": "soknadsportal",
-      "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "cd app && python3 -c \"import http.server as h; B = h.BaseHTTPRequestHandler; h.SimpleHTTPRequestHandler.end_headers = lambda s: (s.send_header('Cache-Control', 'no-store'), B.end_headers(s)); h.test(h.SimpleHTTPRequestHandler, port=${PORT:-8430})\""],
-      "port": 8430,
-      "autoPort": true
+      "url": "http://localhost:8430",
+      "port": 8430
     }
   ]
 }

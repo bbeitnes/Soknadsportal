@@ -131,7 +131,7 @@ function matrise(s, i) {
           <div>
             <input class="celleinn antall" style="width:48px; text-align:center" inputmode="numeric" ${feltAttr(n(`linjer.${l.id}.antall`), l.antall, 'tall')}>
             <span>stk</span>
-            ${Number(l.antall) >= 2 ? `<button type="button" class="ikonknapp m-fjern" data-handling="del-linje" data-lid="${l.id}" title="Del linjen i to, så antallet kan fordeles på flere leverandører">${DEL}</button>` : ''}
+            ${Number(l.antall) >= 2 ? `<button type="button" class="ikonknapp m-fjern" data-handling="del-linje" data-lid="${l.id}" title="Del linjen i to, så antallet kan fordeles på flere leverandører">${DEL}</button>` : '<span class="m-plass"></span>'}
             <button type="button" class="ikonknapp m-fjern" data-handling="fjern-linje" data-lid="${l.id}" title="Fjern linjen fra innkjøpet">${IKON.fjern}</button>
           </div>
           ${sl?.etterSoknad ? '<div class="undertekst aksent" style="font-weight:600" title="Lagt til etter søknaden">etter søknaden</div>' : soktAntall(s, l) != null ? `<div class="undertekst">søkt ${soktAntall(s, l)}${delt.has(l.soknadLinjeId) ? ' · <span title="Linjen er delt, så antallet kan fordeles på flere leverandører">delt</span>' : ''}</div>` : !l.soknadLinjeId ? '<div class="undertekst" title="Ligger bare i innkjøpet, ikke i søknaden">fri linje</div>' : ''}

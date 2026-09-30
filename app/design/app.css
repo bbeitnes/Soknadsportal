@@ -200,7 +200,10 @@ table.matrise { border-collapse: separate; border-spacing: 0; min-width: 100%; f
 /* Navn og beskrivelse til venstre, antall til høyre – én lav rad per linje */
 .m-rad { display: flex; align-items: center; gap: 12px; }
 .m-navn { flex: 1 1 auto; min-width: 0; }
-.m-antall { flex: 0 0 auto; display: flex; flex-direction: column; gap: 1px; font-size: 13px; color: var(--color-neutral-700); }
+/* Fast bredde, så antallsfeltene står rett under hverandre uansett knapper og undertekst */
+.m-antall { flex: 0 0 136px; width: 136px; display: flex; flex-direction: column; gap: 1px; font-size: 13px; color: var(--color-neutral-700); }
+.m-plass { flex: 0 0 24px; width: 24px; }
+.m-antall .undertekst { white-space: nowrap; }
 .m-antall > div:first-child { display: flex; align-items: center; gap: 6px; }
 .m-antall .undertekst { line-height: 1.2; }
 .m-fjern { width: 24px; height: 24px; opacity: 0; }

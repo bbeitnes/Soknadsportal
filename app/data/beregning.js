@@ -326,7 +326,8 @@ export function tolkPris(raa) {
 // Tusenskille i undertekstene — samme som ui/format.js, gjentatt her så
 // beregningslaget ikke avhenger av UI-laget.
 function kr(n) {
-  return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  const [hele, ore] = (Math.round(n * 100) / 100).toFixed(2).split('.');
+  return hele.replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ',' + ore;
 }
 
 // Alt matrisen trenger for å tegnes: netto per celle, valgt per linje,

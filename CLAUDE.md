@@ -42,9 +42,10 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   tilbudsrunde: linjer, leverandorer{leverandorId,frakt,vedlegg}, priser[lid][sid]{raa,alternativ,vedleggId,side,tekst}, valgt[lid]),
   `leverandorer` (register), `fakturaer` (løpenummer per søknad, dekker{innkjopId|lid} eller
   {utgift|uid}, fraMobil).
-- Beløp med øre: fakturaer, løse utgifter og kvitteringer bruker felttypen `belop` (`tolkBelop()`,
-  vises med `belop()` → «8 060,80»). Revisjon-fanen og PDF-rapporten viser alltid øre. Antall,
-  estimater og pottlinjen er hele kroner (`tall`/`kr()`), og summer i beregningslaget avrundes til øre.
+- Alle beløp vises med to desimaler: `kr()` (= `belop()`) gir «8 060,80» / «12 000,00». `heltall()`
+  er for antall og redigerbare `tall`-felt. Fakturaer, løse utgifter og kvitteringer lagres med øre
+  (felttype `belop`, `tolkBelop()`); antall og estimater lagres som hele tall (`tall`, `tolkTall()`).
+  Summer i beregningslaget avrundes til øre.
 - Priser lagres slik de ble skrevet («1200 -15%»); `tolkPris()` gir netto.
 - Tilbudspanelet (`•••` i en priscelle) kobler prisen til et tilbudsdokument (vedlegg + side) og
   har feltet `alternativ` (leverandøren tilbyr et annet produkt). E-posttekst limes inn og lagres

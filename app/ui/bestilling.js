@@ -2,18 +2,10 @@
 // hvem vi er, hvem den går til, linjene som er valgt hos leverandøren med
 // antall, pris og rabatt, frakt og total. Lastes ned; sendes av brukeren selv.
 import { hentPdfLib, trygg } from './rapport.js';
-import { kr } from './format.js';
+import { belop } from './format.js';
 
 const A4 = [595.28, 841.89];
 const MARG = 48;
-
-// Hele kroner uten desimaler, ellers to desimaler («8 060,80»).
-function belop(n) {
-  const r = Math.round((Number(n) || 0) * 100) / 100;
-  if (Number.isInteger(r)) return kr(r);
-  const [hele, orer] = r.toFixed(2).split('.');
-  return `${kr(Number(hele))},${orer}`;
-}
 
 const linjerAv = tekst => String(tekst || '').split('\n').map(l => l.trim()).filter(Boolean);
 

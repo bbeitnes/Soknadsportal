@@ -6,12 +6,15 @@ import {
   linjeliste, sumEstimert, soktBelop, behovsinfo, velgbareBehov, SOKNADSFILTRE, nesteRekkefolge,
 } from '../app/data/beregning.js';
 
-test('kr bruker hardt mellomrom som tusenskille', () => {
-  assert.equal(kr(12000), '12 000');
-  assert.equal(kr(1234567), '1 234 567');
-  assert.equal(kr(0), '0');
-  assert.equal(kr(-1500), '−1 500');
-  assert.equal(kr(999.6), '1 000');
+test('kr viser alltid to desimaler, med hardt mellomrom som tusenskille', async () => {
+  const { heltall } = await import('../app/ui/format.js');
+  assert.equal(kr(12000), '12 000,00');
+  assert.equal(kr(1234567), '1 234 567,00');
+  assert.equal(kr(0), '0,00');
+  assert.equal(kr(-1500), '−1 500,00');
+  assert.equal(kr(999.6), '999,60');
+  assert.equal(heltall(12000), '12 000');
+  assert.equal(heltall(999.6), '1 000');
 });
 
 test('tolkTall tåler tusenskille og kr', () => {
@@ -163,8 +166,8 @@ test('tolkPris: stykkpris, prosentrabatt og kronerabatt', async () => {
   assert.equal(tolkPris('1200 -15%').netto, 1020);
   assert.equal(tolkPris('1200 -180').netto, 1020);
   assert.equal(tolkPris('1 200-15 %').netto, 1020);
-  assert.equal(tolkPris('8900 -10%').under, 'Liste 8 900 −10 %');
-  assert.equal(tolkPris('1200 -180').under, 'Liste 1 200 −180');
+  assert.equal(tolkPris('8900 -10%').under, 'Liste 8 900,00 −10 %');
+  assert.equal(tolkPris('1200 -180').under, 'Liste 1 200,00 −180,00');
   assert.equal(tolkPris('1200').under, 'vår pris');
   assert.equal(tolkPris(''), null);
   assert.equal(tolkPris('abc'), null);
@@ -465,7 +468,7 @@ test('tilbud: forslag til kobling mot varelinjer', async () => {
 test('bestilling: linjene som er valgt hos én leverandør', async () => {
   const { bestilling, tolkPris } = await import('../app/data/beregning.js');
   assert.equal(tolkPris('1000 -10%').rabatt, '10 %');
-  assert.equal(tolkPris('1000 -180').rabatt, '180');
+  assert.equal(tolkPris('1000 -180').rabatt, '180,00');
   assert.equal(tolkPris('1000').rabatt, '');
   const i = {
     linjer: { a: { antall: 4, rekkefolge: 1 }, b: { antall: 2, rekkefolge: 2 }, c: { antall: 1, rekkefolge: 3 } },
@@ -480,7 +483,7 @@ test('bestilling: linjene som er valgt hos én leverandør', async () => {
   const valg = { tittelFor: l => 'Linje ' + l.id, rekkefolge: ['c', 'a', 'b'] };
   const x = bestilling(i, 'x', valg);
   assert.deepEqual(x.linjer, [
-    { vare: 'Linje c', varLinje: '', antall: 1, liste: 50, rabatt: '5', netto: 45, sum: 45 },
+    { vare: 'Linje c', varLinje: '', antall: 1, liste: 50, rabatt: '5,00', netto: 45, sum: 45 },
     { vare: '100 Acme kornett', varLinje: 'Linje a', antall: 4, liste: 1000, rabatt: '10 %', netto: 900, sum: 3600 },
   ]);
   assert.deepEqual([x.sum, x.frakt, x.total, x.dokumenter], [3645, 500, 4145, ['Tilbud.pdf']]);

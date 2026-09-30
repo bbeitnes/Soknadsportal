@@ -6,12 +6,12 @@
 //   data-verdi="…"                           verdien som ble tegnet
 //   data-type="tekst|tall|belop|dato|prosent" hvordan verdien tolkes (belop = med øre)
 //   data-paakrevd                            tomt felt godtas ikke
-import { escapeHtml, kr, belop, tolkTall, tolkBelop, tolkDato, datoFelt } from './format.js';
+import { escapeHtml, heltall, belop, tolkTall, tolkBelop, tolkDato, datoFelt } from './format.js';
 
 // Verdien slik den vises i feltet.
 export function visVerdi(verdi, type) {
   if (verdi == null || verdi === '') return '';
-  if (type === 'tall') return kr(verdi);
+  if (type === 'tall') return heltall(verdi);
   if (type === 'belop') return belop(verdi);
   if (type === 'dato') return datoFelt(verdi);
   return String(verdi);

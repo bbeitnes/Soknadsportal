@@ -12,20 +12,23 @@ export function escapeHtml(tekst) {
     .replace(/'/g, '&#39;');
 }
 
-// 12000 → «12 000» (hardt mellomrom, så beløpet aldri brytes over to linjer).
-export function kr(n) {
+// Hele tall med tusenskille: 12000 → «12 000» (hardt mellomrom, så tallet
+// aldri brytes over to linjer). Brukes for antall og i redigerbare tallfelt.
+export function heltall(n) {
   const tall = Math.round(Number(n) || 0);
   const tegn = tall < 0 ? '−' : '';
   return tegn + String(Math.abs(tall)).replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
 }
 
-// Nøyaktig beløp med øre: 8060.8 → «8 060,80». Brukes der ørene teller
-// (fakturaer, utgifter, revisjon). Estimater og summer ellers bruker kr().
-export function belop(n) {
+// Beløp, alltid med to desimaler: 8060.8 → «8 060,80», 12000 → «12 000,00».
+// Alle summer i portalen vises slik.
+export function kr(n) {
   const r = Math.round((Number(n) || 0) * 100) / 100;
   const [hele, ore] = Math.abs(r).toFixed(2).split('.');
-  return (r < 0 ? '−' : '') + kr(Number(hele)) + ',' + ore;
+  return (r < 0 ? '−' : '') + heltall(Number(hele)) + ',' + ore;
 }
+
+export const belop = kr;
 
 // Beløp/antall fra et tekstfelt. Tåler mellomrom som tusenskille og «kr».
 // Tomt felt gir null, slik at kallstedet kan skille «tomt» fra 0.

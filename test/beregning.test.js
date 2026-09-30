@@ -489,3 +489,24 @@ test('bestilling: linjene som er valgt hos én leverandør', async () => {
   // Ingenting valgt hos leverandøren: tom bestilling, og frakten teller ikke.
   assert.deepEqual([bestilling(i, 'z', valg).linjer.length, bestilling(i, 'z', valg).total], [0, 0]);
 });
+
+test('delt linje: to innkjøpslinjer fra samme søknadslinje, hver sin leverandør', async () => {
+  const { grupperInnkjopslinjer, innkjopsberegning, revisjonsposter, bestilling, anskaffetPerBehov, ikkeFordelte } = await import('../app/data/beregning.js');
+  const s = soknad('s1', 'innvilget', { a: { behovId: 'kornett', antall: 4, rekkefolge: 1 }, b: { behovId: 'horn', antall: 1, rekkefolge: 2 } });
+  // Kornettene er delt 3 + 1. Den nye delen (k2) ligger rett etter den gamle.
+  const i = {
+    id: 'i1', soknadId: 's1', status: 'fakturert', navn: 'Instrumenter',
+    linjer: { k1: { soknadLinjeId: 'a', antall: 3, rekkefolge: 1 }, h: { soknadLinjeId: 'b', antall: 1, rekkefolge: 2 }, k2: { soknadLinjeId: 'a', antall: 1, rekkefolge: 1.5 } },
+    leverandorer: { x: { frakt: 0 }, y: { frakt: 0 } },
+    priser: { k1: { x: { raa: '1000' }, y: { raa: '900' } }, k2: { x: { raa: '1000' }, y: { raa: '900' } }, h: { x: { raa: '500' } } },
+    valgt: { k1: 'x', k2: 'y', h: 'x' },
+  };
+  const behov = [{ id: 'kornett' }, { id: 'horn' }];
+  assert.deepEqual(grupperInnkjopslinjer(i, s, behov)[0].linjer.map(l => l.id), ['k1', 'k2', 'h']);
+  assert.equal(innkjopsberegning(i).total, 3 * 1000 + 900 + 500);
+  const valg = { tittelFor: (_, l) => 'Linje ' + (l?.id ?? _.id), levNavn: (_, sid) => sid };
+  assert.deepEqual(revisjonsposter(s, [i], valg).map(p => [p.id, p.tilbudt]), [['i1/k1', 3000], ['i1/k2', 900], ['i1/h', 500]]);
+  assert.deepEqual(bestilling(i, 'y', { tittelFor: l => l.id }).linjer.map(l => [l.vare, l.antall, l.sum]), [['k2', 1, 900]]);
+  assert.equal(anskaffetPerBehov([s], [i], []).get('kornett'), 4);
+  assert.deepEqual(ikkeFordelte(s, [i]), []);
+});

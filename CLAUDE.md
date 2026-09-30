@@ -63,6 +63,9 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   `lager.flett()` (setDoc merge) – aldri `sett()`, som ville slettet de andre feltene.
 - Bestilling: `bestilling()` (beregning) gir linjene som er valgt hos én leverandør; `ui/bestilling.js`
   lager PDF-en med pdf-lib. Knappen ligger i leverandørpanelet i Innkjøp. Portalen sender den ikke.
+- En vare fordeles på flere leverandører ved å dele innkjøpslinjen (`delInnkjopslinje()`): to linjer
+  med samme `soknadLinjeId`, hver med sitt antall og sin valgte leverandør. `valgt[lid]` er fortsatt
+  én leverandør per linje. Priser fra «Les priser» gjelder alle delene av en delt linje.
 - Tabellene er bevisst tette (lav radhøyde). I matrisen står antallet til høyre for varenavnet.
 - Linjer lagt til i en søknad som ikke lenger er utkast får `etterSoknad: true` og `notat` (fritekst).
   De teller ikke i `sumEstimert()`/søkt beløp (`soktLinjer()` / `tilleggslinjer()`), men går i innkjøp,

@@ -7,7 +7,7 @@
 // laveste netto per linje. Etterpå kan enkeltceller justeres med ett klikk.
 import {
   tilstand, innkjopFor, opprettInnkjop, oppdaterInnkjop, slettInnkjop,
-  leggSoknadslinjeIInnkjop, leggFriLinjeIInnkjop, fjernInnkjopslinje,
+  leggSoknadslinjeIInnkjop, leggFriLinjeIInnkjop, fjernInnkjopslinje, delInnkjopslinje,
   leggTilLeverandor, fjernLeverandor, settPris, settPriser, velgPris, settValgt,
   lastOppVedlegg, slettVedlegg, dokumentUrl, opprettLeverandor,
   leggSoknadslinjerIInnkjop, fellesTyperekkefolge, leggBehovISoknadOgInnkjop, anskaffet,
@@ -32,6 +32,7 @@ const navn = lev => leverandorNavn(lev, tilstand.leverandorer);
 
 const MER = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
 const KLIPS = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>';
+const DEL = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3"/><path d="m15 9 6-6"/></svg>';
 const HAK = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 
 function aktivtInnkjop(s) {
@@ -114,6 +115,9 @@ function matrise(s, i) {
   const prosent = momsProsent(s);
   // Linjer lagt til etter søknaden har notatet sitt her også (samme felt som
   // i Søknad-fanen), så man kan skrive hvorfor der man legger dem til.
+  // En linje kan deles i to (samme linje i søknaden) når antallet skal
+  // fordeles på flere leverandører. Da merkes begge «delt».
+  const delt = new Set(b.linjer.map(l => l.soknadLinjeId).filter((id, n, alle) => id && alle.indexOf(id) !== n));
   const rad = l => { const sl = l.soknadLinjeId ? s.linjer?.[l.soknadLinjeId] : null; return `
     <tr>
       <td class="m-linje"><div class="m-rad">
@@ -127,9 +131,10 @@ function matrise(s, i) {
           <div>
             <input class="celleinn antall" style="width:48px; text-align:center" inputmode="numeric" ${feltAttr(n(`linjer.${l.id}.antall`), l.antall, 'tall')}>
             <span>stk</span>
+            ${Number(l.antall) >= 2 ? `<button type="button" class="ikonknapp m-fjern" data-handling="del-linje" data-lid="${l.id}" title="Del linjen i to, så antallet kan fordeles på flere leverandører">${DEL}</button>` : ''}
             <button type="button" class="ikonknapp m-fjern" data-handling="fjern-linje" data-lid="${l.id}" title="Fjern linjen fra innkjøpet">${IKON.fjern}</button>
           </div>
-          ${sl?.etterSoknad ? '<div class="undertekst aksent" style="font-weight:600" title="Lagt til etter søknaden">etter søknaden</div>' : soktAntall(s, l) != null ? `<div class="undertekst">søkt ${soktAntall(s, l)}</div>` : !l.soknadLinjeId ? '<div class="undertekst" title="Ligger bare i innkjøpet, ikke i søknaden">fri linje</div>' : ''}
+          ${sl?.etterSoknad ? '<div class="undertekst aksent" style="font-weight:600" title="Lagt til etter søknaden">etter søknaden</div>' : soktAntall(s, l) != null ? `<div class="undertekst">søkt ${soktAntall(s, l)}${delt.has(l.soknadLinjeId) ? ' · <span title="Linjen er delt, så antallet kan fordeles på flere leverandører">delt</span>' : ''}</div>` : !l.soknadLinjeId ? '<div class="undertekst" title="Ligger bare i innkjøpet, ikke i søknaden">fri linje</div>' : ''}
         </div>
       </div></td>
       ${b.leverandorer.map(lev => celle(s, i, b, l, lev)).join('')}
@@ -145,7 +150,7 @@ function matrise(s, i) {
   const tomt = !b.linjer.length
     ? `<tr><td class="m-linje dempet" style="padding:24px 24px">Ingen linjer enda. Bruk «behov ikke fordelt» eller «+ Fri linje».</td>${b.leverandorer.map(() => '<td></td>').join('')}<td class="m-valgt"></td></tr>` : '';
   return `
-    <div class="hint" style="flex:0 0 auto">Klikk en pris for å velge, dobbeltklikk for å endre (<code>1200 -15%</code> eller <code>1200 -180</code>). <span style="letter-spacing:1px">•••</span> i cellen: alternativt produkt og tilbudsdokument. Be leverandøren om pris per linje – vi sammenligner netto stykkpris. Lim inn fra regneark for å fylle flere celler.</div>
+    <div class="hint" style="flex:0 0 auto">Klikk en pris for å velge, dobbeltklikk for å endre (<code>1200 -15%</code> eller <code>1200 -180</code>). <span style="letter-spacing:1px">•••</span> i cellen: alternativt produkt og tilbudsdokument. Be leverandøren om pris per linje – vi sammenligner netto stykkpris. Lim inn fra regneark for å fylle flere celler. Skal en vare fordeles på flere leverandører, del linjen med pilene ved antallet.</div>
     <div class="tabellramme" data-rull="matrise">
       <table class="matrise">
         <thead><tr>
@@ -603,6 +608,7 @@ export const innkjopFane = {
         return true;
       }
       case 'fjern-linje': if (i) lagre(() => fjernInnkjopslinje(i, lid)); return true;
+      case 'del-linje': if (i) lagre(() => delInnkjopslinje(i, lid)); return true;
       case 'leverandor-ny': ui.sok = ''; apne('velg-leverandor'); return true;
       case 'velg-leverandor': {
         if (!i) return true;
@@ -683,6 +689,16 @@ export const innkjopFane = {
           ...(r.lid === NY ? { ny: { tittel: r.beskrivelse, antall: r.antall } } : { linjeId: r.lid }),
           raa: r.raa.trim(), side: r.side, tekst: radtekst(r),
         }));
+        // En delt linje (flere linjer fra samme linje i søknaden) er samme
+        // vare: prisen gjelder alle delene som ikke er koblet for seg.
+        const koblet = new Set(rader.map(r => r.linjeId).filter(Boolean));
+        for (const r of [...rader]) {
+          const soknadLinjeId = r.linjeId && i.linjer[r.linjeId]?.soknadLinjeId;
+          if (!soknadLinjeId) continue;
+          for (const [id, l] of Object.entries(i.linjer)) {
+            if (l.soknadLinjeId === soknadLinjeId && !koblet.has(id)) { rader.push({ ...r, linjeId: id }); koblet.add(id); }
+          }
+        }
         les.lagrer = true;
         const ok = await lagre(() => settTilbudspriser(i, les.sid, les.vid, rader));
         les.lagrer = false;

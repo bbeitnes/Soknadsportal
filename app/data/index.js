@@ -309,6 +309,23 @@ export function leggFriLinjeIInnkjop(innkjop) {
   }).then(() => id);
 }
 
+// Deler en linje i to, så antallet kan fordeles på flere leverandører. Den
+// nye linjen får ett stykk (antallet justeres etterpå i begge) og de samme
+// prisene, men ingen valgt leverandør. Begge peker på samme linje i
+// søknaden, og den nye legger seg rett under den gamle.
+export function delInnkjopslinje(innkjop, linjeId) {
+  const l = innkjop.linjer?.[linjeId];
+  const antall = Number(l?.antall) || 0;
+  if (!l || antall < 2) return Promise.resolve(null);
+  const id = nyId('l');
+  const felt = {
+    [`linjer.${linjeId}.antall`]: antall - 1,
+    [`linjer.${id}`]: { soknadLinjeId: l.soknadLinjeId ?? null, tittel: l.tittel || '', antall: 1, rekkefolge: (l.rekkefolge ?? 0) + 0.5 },
+  };
+  if (innkjop.priser?.[linjeId]) felt[`priser.${id}`] = innkjop.priser[linjeId];
+  return oppdaterInnkjop(innkjop.id, felt).then(() => id);
+}
+
 export function fjernInnkjopslinje(innkjop, linjeId) {
   return oppdaterInnkjop(innkjop.id, { [`linjer.${linjeId}`]: SLETT, [`priser.${linjeId}`]: SLETT, [`valgt.${linjeId}`]: SLETT });
 }

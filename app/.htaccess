@@ -1,0 +1,8 @@
+# Filnavnene har ingen versjon, så nettleseren må spørre serveren om filen
+# er endret hver gang (svaret er et lite «304 uendret» når den ikke er det).
+# Uten dette kan telefonen bruke en gammel kopi i timevis etter en deploy.
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|js|css)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>

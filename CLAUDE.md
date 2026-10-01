@@ -91,6 +91,10 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   `ramme` = innvilget + egne; `disponert` = det som belaster giveren; `disponertRamme` = brukt av
   rammen; `gjenstar` = ramme − disponertRamme. `fordelingPerKategori()` gir sluttoppgjøret per type
   (kostnad, egne midler, fra giver, momskomp.) til Revisjon og PDF-rapporten.
+- Egeninnsats (dugnad): `utgifter.<uid>.egeninnsats = true` (avkrysning i Utgifter-fanen). Estimert
+  verdi uten faktura; hele beløpet er egne midler (`utgiftEgne()`). Posten får `egeninnsats`, teller
+  ikke som «mangler faktura», kan ikke kobles til faktura, og rapporten regner den som brukt
+  («Brukt i alt») og lister den under fakturaoversikten.
 - Behovsstatus «Finansiert»: det er valgt en pris for søknadslinjen i et innkjøp
   (`finansierteLinjer()` → `behovsinfo(…, finansierte)`; sider henter settet med `finansierte()`).
   Det gamle krysset `linjer.<id>.finansieres` er fjernet fra skjermen og leses ikke lenger.

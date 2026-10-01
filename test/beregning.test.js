@@ -689,3 +689,24 @@ test('egne midler fordeles per post og summeres per kategori', async () => {
   assert.deepEqual(f.sum, { tilbudt: 5600, fakturert: 4000, kostnad: 5800, egne: 1800.5, giver: 3679.54, moms: 319.96 });
   assert.equal(giverandelOre(1000.55, null), 1000.55);
 });
+
+test('egeninnsats: løs utgift uten faktura, hele beløpet er egne midler', async () => {
+  const { pott, revisjonsposter, revisjonsoppsummering, fordelteEgneMidler, utgiftEgne } = await import('../app/data/beregning.js');
+  const s = soknad('s1', 'innvilget', {}, {
+    innvilget: 100000, egenandel: 20000,
+    utgifter: {
+      d: { beskrivelse: 'Dugnad, 60 timer à 300 kr', belop: 18000, egeninnsats: true, egneMidler: 5, rekkefolge: 1 },
+      u: { beskrivelse: 'Frakt', belop: 2000, rekkefolge: 2 },
+    },
+  });
+  assert.equal(utgiftEgne(s.utgifter.d), 18000); // hele beløpet, uansett hva som står i egneMidler
+  assert.equal(fordelteEgneMidler(s), 18000);
+  const poster = revisjonsposter(s, [], { tittelFor: () => '', levNavn: () => '' });
+  assert.deepEqual(poster.map(p => [p.id, p.egeninnsats, p.egne, p.under]), [['utgift/d', true, 18000, 'Egeninnsats'], ['utgift/u', false, 0, 'Løs utgift']]);
+  const o = revisjonsoppsummering([], poster);
+  assert.equal(o.manglerFaktura, 1); // bare frakten – dugnaden skal ikke ha faktura
+  assert.equal(o.egeninnsats, 18000);
+  // Potten: dugnaden er en del av egenandelen, så giveren belastes ikke for den.
+  const p = pott(s);
+  assert.deepEqual([p.ramme, p.disponertFull, p.egenBrukt, p.disponert, p.gjenstar], [120000, 20000, 20000, 0, 100000]);
+});

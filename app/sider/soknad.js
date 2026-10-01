@@ -197,30 +197,31 @@ function utgiftsfane(s) {
       <td><input class="celleinn tekst" style="font-weight:400" ${feltAttr(n(u, 'beskrivelse'), u.beskrivelse, 'tekst', { paakrevd: true })}></td>
       <td><input class="celleinn tekst" style="min-width:110px; font-weight:400" placeholder="dd.mm.åååå" ${feltAttr(n(u, 'dato'), u.dato, 'dato')}></td>
       <td class="tall"><input class="celleinn" style="width:110px; font-weight:600" inputmode="decimal" ${feltAttr(n(u, 'belop'), u.belop, 'belop')}></td>
+      <td>${avkryss(!!u.egeninnsats, u.egeninnsats ? 'Ja' : 'Nei', 'egeninnsats', `data-id="${u.id}" title="Dugnad og annen egeninnsats: estimert verdi uten faktura. Hele beløpet regnes som egne midler."`)}</td>
       <td class="smal dempet">${escapeHtml(fornavn(u.lagtInnAv?.navn, u.lagtInnAv?.epost))}</td>
       <td style="width:44px; padding-left:0; text-align:center"><button type="button" class="ikonknapp" data-handling="fjern-utgift" data-id="${u.id}" title="Slett utgiften">${IKON.fjern}</button></td>
     </tr>`).join('');
   return `
     <div class="verktoyrad">
       <div class="etikett">Løse utgifter</div>
-      <div class="hint">Trekkes fra potten. Kobles til faktura under Revisjon.</div>
+      <div class="hint">Trekkes fra potten. Kobles til faktura under Revisjon. Dugnad og annen egeninnsats uten faktura krysses av som egeninnsats – da er hele beløpet egne midler.</div>
     </div>
     <div class="tabellramme" data-rull="utgifter" style="flex:0 1 auto">
       <table class="liste">
-        <thead><tr><th>Beskrivelse</th><th style="width:130px">Dato</th><th class="tall" style="width:140px">Beløp</th><th style="width:150px">Lagt inn av</th><th style="width:44px"></th></tr></thead>
+        <thead><tr><th>Beskrivelse</th><th style="width:130px">Dato</th><th class="tall" style="width:140px">Beløp</th><th style="width:130px">Egeninnsats</th><th style="width:150px">Lagt inn av</th><th style="width:44px"></th></tr></thead>
         <tbody>
           ${rader}
           <tr class="ny-utgift">
             <td><input class="celleinn tekst ny" id="ny-utgift-beskrivelse" placeholder="Ny utgift – beskrivelse"></td>
             <td><input class="celleinn tekst ny" id="ny-utgift-dato" placeholder="dd.mm.åååå"></td>
             <td class="tall"><input class="celleinn ny" id="ny-utgift-belop" inputmode="decimal" placeholder="0,00" style="width:110px"></td>
-            <td colspan="2" class="undertekst">Lagres når beskrivelse og beløp er fylt ut</td>
+            <td colspan="3" class="undertekst">Lagres når beskrivelse og beløp er fylt ut</td>
           </tr>
         </tbody>
         <tfoot><tr>
           <td colspan="2" class="dempet">Sum løse utgifter</td>
           <td class="tall sum">${belop(sumUtgifter(s))}</td>
-          <td colspan="2" class="dempet">${liste.length} ${liste.length === 1 ? 'utgift' : 'utgifter'}</td>
+          <td colspan="3" class="dempet">${liste.length} ${liste.length === 1 ? 'utgift' : 'utgifter'}</td>
         </tr></tfoot>
       </table>
     </div>`;
@@ -513,6 +514,7 @@ export const soknadSide = {
       }
       case 'fjern-linje': lagre(() => fjernLinje(s.id, linje)); break;
       case 'fjern-utgift': lagre(() => fjernUtgift(s.id, el.dataset.id)); break;
+      case 'egeninnsats': lagre(() => oppdaterUtgift(s.id, el.dataset.id, { egeninnsats: !s.utgifter?.[el.dataset.id]?.egeninnsats })); break;
       case 'slett-soknad': {
         const antallUtgifter = utgiftsliste(s).length;
         const antallFakturaer = tilstand.fakturaer.filter(f => f.soknadId === s.id).length;

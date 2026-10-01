@@ -99,6 +99,12 @@ egne midler i Revisjon.
 - Revisjon viser egne midler per post, gruppert per kategori med delsum.
   Revisjonsrapporten viser per kategori kostnad, egne midler og hva giveren dekker.
 
+**Egeninnsats (dugnad)** føres som løs utgift og krysses av som «Egeninnsats»:
+estimert verdi, uten faktura. Hele beløpet er egne midler (en del av egenandelen).
+Revisjon viser «Egeninnsats» i stedet for «Mangler faktura». Rapporten regner den
+som brukt («Brukt (fakturert)» + «Egeninnsats uten faktura» = «Brukt i alt») og
+lister den for seg under fakturaoversikten.
+
 ## Momskompensasjon
 Noen givere krever at vi trekker ut forventet momskompensasjon. Eksempel:
 varen koster 1 000 kr, momskompensasjonen er 8 %. Da dekker giveren 920 kr,
@@ -221,7 +227,7 @@ Fast topp: tittel (klikk = bytt søknad), status, giver, frist, sendt, sist endr
 Faner:
 - **Søknad:** behovstabell (antall og est. stykkpris redigerbare, kostnad, fra giver / fra momskompensasjon når giveren krever det, sumrad). Under: egenandel (med valget beløp/andel når innvilget er et annet beløp enn søkt), søkt beløp (foreslått som giverens andel etter egenandel, kan overstyres), innvilget beløp med hint om estimatet er over/under, momsprosent. Høyre kolonne: giver, tittel, frist, sendt, status, revisjon av/på, dokumenter (opplasting). «Skriv ut» gir behovslisten med de fire første kolonnene.
 - **Innkjøp:** innkjøpene som chips over matrisen (navn + sum valgt, status, «+»). Én matrise: linjer nedover med redigerbart antall, leverandører bortover, netto stykkpris i cellene med listepris/rabatt i liten tekst. Klikk celle = velg, dobbeltklikk = rediger (`1200 -15%` / `1200 -180`), klikk leverandørnavn = alt fra én, «Billigst per linje», innliming fra Excel. Fraktrad, «alt hos én»-sumrad og «valgt kombinasjon» (med egne midler og giverens andel). Egne midler på en vare settes i panelet bak `•••` på den valgte prisen. Binders i cellen for leverandører med flere vedlegg; leverandørpanel med kontakt og vedlegg. «N behov ikke fordelt» åpner panel der behov kan legges i innkjøpet.
-- **Utgifter:** enkel liste (beskrivelse, dato, beløp, lagt inn av). Nederste rad er alltid en tom ny utgift.
+- **Utgifter:** enkel liste (beskrivelse, dato, beløp, egeninnsats ja/nei, lagt inn av). Nederste rad er alltid en tom ny utgift.
 - **Revisjon:** oppsummering (fakturert av disponert, linjer uten faktura, avvik). Fakturaliste med løpenummer, leverandør, fakturanr, dato, beløp, avvik; klikk gir panel med felter, vedlegg og avhuking av hvilke tilbudslinjer/utgifter fakturaen dekker (flere per faktura). «Hva potten er brukt på»: alle valgte linjer og utgifter med Faktura N / Mangler faktura. Har søknaden egne midler eller egenandel, får hver post et felt «Egne midler» (samme tall som i Innkjøp), postene grupperes per kategori med delsum, og summen står over tabellen. «Revisjonsrapport (PDF)» lager forside (med fordeling per kategori når søknaden har egne midler), oversiktstabell og én side per faktura med løpenummer stemplet.
 
 ### Behov (behovslisten)

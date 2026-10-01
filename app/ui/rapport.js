@@ -3,6 +3,7 @@
 //      (+ fordeling egne midler / giver / momskompensasjon når det gjelder,
 //      og samme fordeling per kategori når søknaden har egenandel).
 //   2. Oversiktstabell over fakturaene. Summen stemmer med forsiden.
+//      Egeninnsats uten faktura (dugnad) listes for seg under tabellen.
 //   3. Alle fakturaene i rekkefølge, med løpenummer stamplet i hjørnet.
 //      Bilder blir egne sider; PDF-er kopieres inn side for side.
 import { tilstand, innkjopFor, fakturaerFor, filBytes } from '../data/index.js';
@@ -49,8 +50,13 @@ export async function lagRevisjonsrapport(s) {
   // utenfor fordelingen mellom giver og momskompensasjon.
   const fordelt = sumEgneMidler(poster);
   const harEgne = p.egne > 0;
-  const egne = Math.min(p.egne, Math.max(0, fakturert));
-  const fraGiver = giverandelOre(fakturert - egne, p.prosent);
+  // Egeninnsats (dugnad) har ingen faktura, men er brukt: estimert verdi,
+  // dekket av egne midler.
+  const egeninnsats = poster.filter(x => x.egeninnsats);
+  const sumEgeninnsats = egeninnsats.reduce((sum, x) => sum + x.tilbudt, 0);
+  const brukt = fakturert + sumEgeninnsats;
+  const egne = Math.min(p.egne, Math.max(0, brukt));
+  const fraGiver = giverandelOre(brukt - egne, p.prosent);
   const dato = new Date().toLocaleDateString('nb-NO');
 
   // ——— Tegnehjelpere ———
@@ -93,14 +99,18 @@ export async function lagRevisjonsrapport(s) {
     linje('Ramme (innvilget + egne midler)', p.ramme == null ? '–' : belop(p.ramme));
   }
   linje('Disponert (tilbud og utgifter)', belop(p.disponertFull));
-  linje('Brukt (fakturert)', belop(fakturert), fet);
+  linje('Brukt (fakturert)', belop(fakturert), sumEgeninnsats ? font : fet);
+  if (sumEgeninnsats) {
+    linje('Egeninnsats uten faktura (estimert)', belop(sumEgeninnsats));
+    linje('Brukt i alt', belop(brukt), fet);
+  }
   linje('Gjenstående av innvilget', p.innvilget == null ? '–' : belop(p.innvilget - fraGiver));
   if (p.harMoms || harEgne) {
     y -= 10;
-    tekst('Fordeling av det fakturerte', MARG, 10, fet, graa); y -= 20;
+    tekst(sumEgeninnsats ? 'Fordeling av det som er brukt' : 'Fordeling av det fakturerte', MARG, 10, fet, graa); y -= 20;
     if (harEgne) linje('Egne midler', belop(egne));
     linje(p.harMoms ? `Fra giver (${p.giverProsent} %${harEgne ? ' etter egne midler' : ''})` : 'Fra giver', belop(fraGiver));
-    if (p.harMoms) linje(`Fra momskompensasjon (${p.prosent} %) – forventes mottatt neste år`, belop(fakturert - egne - fraGiver));
+    if (p.harMoms) linje(`Fra momskompensasjon (${p.prosent} %) – forventes mottatt neste år`, belop(brukt - egne - fraGiver));
   }
   // Samme fordeling per kategori, slik giveren kan se at egenandelen er innfridd.
   if (harEgne) {
@@ -119,7 +129,7 @@ export async function lagRevisjonsrapport(s) {
     for (const g of f.grupper) { rad(g.navn, g); y -= 6; strek(); y -= 14; }
     y += 2; strek(1.5, svart); y -= 16;
     rad('Sum', f.sum, fet, 11); y -= 18;
-    const merknad = 'Kostnad er fakturert beløp. Poster uten faktura står med tilbudt pris, og fakturaer som ikke er koblet til en post er ikke med.'
+    const merknad = 'Kostnad er fakturert beløp. Poster uten faktura står med tilbudt pris (egeninnsats med estimert verdi), og fakturaer som ikke er koblet til en post er ikke med.'
       + (p.egenandel > fordelt ? ` Av egenandelen er ${belop(p.egenandel - fordelt)} ikke fordelt på poster.` : '')
       + (p.egenandel > 0 && fordelt > p.egenandel ? ` Det er lagt ${belop(fordelt - p.egenandel)} mer på poster enn egenandelen.` : '');
     for (const l of brytTekst(merknad, 9, A4[0] - 2 * MARG)) { tekst(l, MARG, 9, font, graa); y -= 12; }
@@ -158,6 +168,23 @@ export async function lagRevisjonsrapport(s) {
   tekst('Sum fakturert', kol.nr, 11, fet); hoyre(belop(fakturert), kol.belop, 12, fet);
   y -= 24;
   tekst('Summen stemmer med «Brukt (fakturert)» på forsiden.', MARG, 9, font, graa);
+
+  // Egeninnsats har ingen bilag, og listes derfor for seg.
+  if (egeninnsats.length) {
+    if (y - (egeninnsats.length + 4) * 20 < MARG + 40) nySide(); else y -= 40;
+    tekst('Egeninnsats uten faktura', MARG, 14, fet); y -= 16;
+    tekst('Estimert verdi av dugnad og annen egeninnsats. Dekkes av egne midler og har ikke bilag.', MARG, 9, font, graa); y -= 22;
+    tekst('BESKRIVELSE', MARG, 8, fet, graa); hoyre('BELØP', A4[0] - MARG, 8, fet, graa);
+    y -= 6; strek(1.5, svart); y -= 16;
+    for (const x of egeninnsats) {
+      if (y < MARG + 40) nySide();
+      tekst(brytTekst(`${x.tittel}${x.under.includes('·') ? ` (${x.under.split('· ')[1]})` : ''}`, 10, A4[0] - 2 * MARG - 110)[0] || '', MARG, 10);
+      hoyre(belop(x.tilbudt), A4[0] - MARG, 10, fet);
+      y -= 6; strek(); y -= 16;
+    }
+    y += 2; strek(1.5, svart); y -= 16;
+    tekst('Sum egeninnsats', MARG, 11, fet); hoyre(belop(sumEgeninnsats), A4[0] - MARG, 12, fet);
+  }
 
   // ——— 3. Bilagene ———
   // Samme dokument på flere oppføringer (faktura + kreditnota) tas med én gang.

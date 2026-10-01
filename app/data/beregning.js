@@ -193,10 +193,16 @@ export function erInnvilget(soknad) {
   return soknad?.status === 'innvilget' || soknad?.status === 'avsluttet';
 }
 
+// Egeninnsats (dugnad o.l.) er en løs utgift uten faktura: verdien er
+// estimert, ingen betaler den, og hele beløpet er egne midler.
+export function utgiftEgne(utgift) {
+  return utgift?.egeninnsats ? Number(utgift.belop) || 0 : Number(utgift?.egneMidler) || 0;
+}
+
 // Egne midler fordelt på det vi kjøper: valgte innkjøpslinjer og løse utgifter.
 export function fordelteEgneMidler(soknad, innkjopListe = []) {
   const linjer = innkjopListe.reduce((sum, i) => sum + innkjopsberegning(i).egne, 0);
-  return Math.round((linjer + utgiftsliste(soknad).reduce((sum, u) => sum + (Number(u.egneMidler) || 0), 0)) * 100) / 100;
+  return Math.round((linjer + utgiftsliste(soknad).reduce((sum, u) => sum + utgiftEgne(u), 0)) * 100) / 100;
 }
 
 // Potten: rammen (innvilget + egne midler), hva som er disponert av den
@@ -704,7 +710,8 @@ const ore = n => Math.round(n * 100) / 100;
 // slik at beregningslaget slipper å kjenne søknaden og registeret.
 // `alternativ` er satt når den valgte leverandøren tilbød et annet produkt
 // enn det vi ba om. `etterSoknad` og `notat` følger linjer som ble lagt til
-// etter at søknaden var sendt. `kategori` er typen linjen har i søknaden
+// etter at søknaden var sendt. `egeninnsats` = løs utgift uten faktura
+// (dugnad), der hele beløpet er egne midler. `kategori` er typen linjen har i søknaden
 // (trenger `behovliste`), og `egne` er egne midler på posten (`egneMidler`
 // på innkjøpslinjen, satt i Innkjøp, eller på utgiften).
 export function revisjonsposter(soknad, innkjopListe, { tittelFor, levNavn, behovliste = [] }) {
@@ -727,7 +734,7 @@ export function revisjonsposter(soknad, innkjopListe, { tittelFor, levNavn, beho
     }
   }
   for (const u of utgiftsliste(soknad)) {
-    poster.push({ id: `utgift/${u.id}`, type: 'utgift', utgiftId: u.id, tittel: u.beskrivelse || 'Uten beskrivelse', under: `Løs utgift${u.dato ? ` · ${u.dato.split('-').reverse().join('.')}` : ''}`, tilbudt: Number(u.belop) || 0, egne: Number(u.egneMidler) || 0 });
+    poster.push({ id: `utgift/${u.id}`, type: 'utgift', utgiftId: u.id, tittel: u.beskrivelse || 'Uten beskrivelse', under: `${u.egeninnsats ? 'Egeninnsats' : 'Løs utgift'}${u.dato ? ` · ${u.dato.split('-').reverse().join('.')}` : ''}`, tilbudt: Number(u.belop) || 0, egne: utgiftEgne(u), egeninnsats: !!u.egeninnsats });
   }
   return poster;
 }
@@ -824,19 +831,22 @@ export function sumFakturert(fakturaer, soknadId) {
 // faktura, og hva som avviker fra tilbud.
 // Avviket regnes per post: fakturert (alle fakturaer og kreditnotaer på
 // posten) mot tilbudt. perPost[id] = { nr: [løpenummer], fakturert, avvik }.
+// Egeninnsats skal ikke ha faktura: den teller ikke som «mangler faktura»,
+// og summeres for seg i `egeninnsats`.
 export function revisjonsoppsummering(fakturaer, poster) {
-  let manglerFaktura = 0, avvikSum = 0, avvikAntall = 0;
+  let manglerFaktura = 0, avvikSum = 0, avvikAntall = 0, egeninnsats = 0;
   const fakturert = fakturertPerPost(fakturaer, poster);
   const perPost = {};
   for (const p of poster) {
     const fs = fakturaer.filter(f => fakturaDekker(f).includes(p.id));
     const avvik = fs.length ? ore((fakturert[p.id] || 0) - p.tilbudt) : 0;
     perPost[p.id] = { nr: fs.map(f => f.lopenummer), fakturert: fs.length ? fakturert[p.id] || 0 : null, avvik };
-    if (!fs.length) manglerFaktura++;
+    if (p.egeninnsats) egeninnsats += p.tilbudt;
+    else if (!fs.length) manglerFaktura++;
     else if (avvik) { avvikSum += avvik; avvikAntall++; }
   }
   const ikkeKoblet = fakturaer.filter(f => !fakturaDekker(f).length).length;
-  return { fakturert: ore(fakturaer.reduce((s, f) => s + (Number(f.belop) || 0), 0)), manglerFaktura, avvikSum: ore(avvikSum), avvikAntall, ikkeKoblet, perPost };
+  return { fakturert: ore(fakturaer.reduce((s, f) => s + (Number(f.belop) || 0), 0)), manglerFaktura, avvikSum: ore(avvikSum), avvikAntall, ikkeKoblet, egeninnsats: ore(egeninnsats), perPost };
 }
 
 // ——— Import av behovsliste fra regneark ———

@@ -80,6 +80,17 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
 - Linjer lagt til i en søknad som ikke lenger er utkast får `etterSoknad: true` og `notat` (fritekst).
   De teller ikke i `sumEstimert()`/søkt beløp (`soktLinjer()` / `tilleggslinjer()`), men går i innkjøp,
   pott og revisjon. PDF-rapporten viser dem ikke spesielt (bare på skjerm).
+- Egenandel: `soknader.<id>.egenandel` er beløpet i søknaden (trekkes fra i `soktForslag()`).
+  `egenandelValg` ('belop' standard / 'andel') avgjør hva som gjelder etter tildeling (`egenandel()`).
+  `pott()` gir `egenandel`, `ramme` (innvilget + egenandel) og `gjenstar` av rammen; egenandelen
+  brukes først og er utenfor momsfordelingen. Fordelingen per kjøp gjøres i Revisjon: `egneMidler`
+  (beløp med øre) på innkjøpslinjen (`innkjop.<id>.linjer.<lid>.egneMidler`) eller utgiften
+  (`utgifter.<uid>.egneMidler`) → `egne` på revisjonsposten. `fordelingPerKategori()` gir
+  sluttoppgjøret per type (kostnad, egne midler, fra giver, momskomp.) til Revisjon og PDF-rapporten.
+  Tilbudsmatrisen er ikke berørt.
+- Behovsstatus «Finansiert»: det er valgt en pris for søknadslinjen i et innkjøp
+  (`finansierteLinjer()` → `behovsinfo(…, finansierte)`; sider henter settet med `finansierte()`).
+  Det gamle krysset `linjer.<id>.finansieres` er fjernet fra skjermen og leses ikke lenger.
 - Anskaffet antall i behovslisten: `anskaffetPerBehov()` – valgt innkjøpslinje som er dekket av en
   faktura eller ligger i et innkjøp med status «Fakturert». Sider henter kartet med `anskaffet()`.
 - Behov har `type` (fritekst: Instrument, Uniform …). En søknadslinje kan overstyre med

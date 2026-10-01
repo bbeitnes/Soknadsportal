@@ -2,11 +2,11 @@
 // revisjonsrapporten (PDF). Brukes av sider/soknad.js.
 import {
   tilstand, innkjopFor, fakturaerFor, oppdaterSoknad, opprettFaktura, slettFaktura,
-  settDekker, lastOppFakturafil, dokumentUrl,
+  settDekker, lastOppFakturafil, dokumentUrl, fellesTyperekkefolge,
 } from '../data/index.js';
 import {
   revisjonsposter, fakturaavvik, fakturaDekker, revisjonsoppsummering, pott, sumFakturert,
-  leverandorNavn, posttittel, linjerUtenValg,
+  leverandorNavn, posttittel, linjerUtenValg, fordelingPerKategori, sumEgneMidler, typerekkefolgeFor,
 } from '../data/beregning.js';
 import { escapeHtml, kr, belop, datoFelt, tidspunkt, fornavn } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
@@ -38,7 +38,18 @@ export function posterFor(s) {
   return revisjonsposter(s, innkjopFor(s.id), {
     tittelFor: tittelFor(s),
     levNavn: (i, sid) => leverandorNavn(i.leverandorer?.[sid], tilstand.leverandorer) || 'Ukjent leverandør',
+    behovliste: tilstand.behov,
   });
+}
+
+// Sluttoppgjøret per kategori, i søknadens typerekkefølge.
+export function fordelingFor(s, poster, perPost, prosent) {
+  return fordelingPerKategori(poster, perPost, prosent, typerekkefolgeFor(s, fellesTyperekkefolge()));
+}
+
+// Feltet der egne midler fordeles på en post: på innkjøpslinjen eller utgiften.
+function egneFelt(s, post) {
+  return post.type === 'utgift' ? `soknader/${s.id}/utgifter.${post.utgiftId}.egneMidler` : `innkjop/${post.innkjopId}/linjer.${post.linjeId}.egneMidler`;
 }
 
 function avvikTekst(avvik) {
@@ -97,6 +108,15 @@ export const revisjonFane = {
     const p = pott(s, innkjopFor(s.id));
     const valgt = fakturaer.find(f => f.id === ui.panel);
     if (ui.panel && !valgt) ui.panel = null;
+    // Egenandelen fordeles her, per post. Da grupperes postene per kategori
+    // med delsum, så det går fram hvor mye vi dekker selv i hver.
+    const fordelt = sumEgneMidler(poster);
+    const visEgne = p.egenandel > 0 || fordelt > 0;
+    const grupper = visEgne ? fordelingFor(s, poster, o.perPost, p.prosent).grupper : [{ poster }];
+    const postrad = x => {
+      const { nr, fakturert, avvik } = o.perPost[x.id];
+      return `<tr><td>${escapeHtml(x.tittel)}<div class="celleunder">${escapeHtml(x.under)}</div>${x.etterSoknad ? `<div class="celleunder" style="color:var(--color-text)" title="${escapeHtml(x.notat)}">Lagt til etter søknaden${x.notat ? `: ${escapeHtml(x.notat)}` : ''}</div>` : ''}${x.alternativ ? `<div class="celleunder aksent" style="font-weight:600" title="Leverandøren tilbød et annet produkt enn det vi ba om">Alternativt produkt: ${escapeHtml(x.alternativ)}</div>` : ''}</td><td class="tall">${belop(x.tilbudt)}</td><td class="tall fet">${fakturert == null ? '–' : belop(fakturert)}</td><td class="tall fet smal aksent">${avvik ? avvikTekst(avvik) : ''}</td>${visEgne ? `<td class="tall"><input class="celleinn" inputmode="decimal" placeholder="–" title="Egne midler brukt på denne posten" ${feltAttr(egneFelt(s, x), x.egne || null, 'belop')}></td>` : ''}<td class="smal"><span class="merkelapp ${nr.length ? 'm-pa' : 'm-varsel'}">${nr.length ? `Faktura ${nr.join(', ')}` : 'Mangler faktura'}</span></td></tr>`;
+    };
     const html = `
       <div class="verktoyrad">
         <div class="hint" style="flex:1 1 auto; min-width:0">Fakturert <span class="fet" style="color:var(--color-text)">${belop(o.fakturert)}</span> av disponert ${belop(p.disponertFull)} · ${o.manglerFaktura ? `${o.manglerFaktura} ${o.manglerFaktura === 1 ? 'linje' : 'linjer'} mangler faktura` : 'alt er fakturert'} · ${o.avvikAntall ? `${o.avvikAntall} avvik fra tilbud` : 'ingen avvik'}${o.ikkeKoblet ? ` · ${o.ikkeKoblet} ${o.ikkeKoblet === 1 ? 'faktura' : 'fakturaer'} ikke koblet` : ''}</div>
@@ -105,7 +125,7 @@ export const revisjonFane = {
           <button type="button" class="knapp knapp-primar" data-handling="rapport" ${ui.lagerRapport ? 'disabled' : ''}>${ui.lagerRapport ? 'Lager rapport …' : 'Revisjonsrapport (PDF)'}</button>
         </div>
       </div>
-      <div style="flex:1 1 auto; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:0 28px">
+      <div style="flex:1 1 auto; min-height:0; display:grid; grid-template-columns:${visEgne ? 'minmax(0,6fr) minmax(0,7fr)' : 'minmax(0,1fr) minmax(0,1fr)'}; gap:0 28px">
         <div style="min-height:0; display:flex; flex-direction:column; gap:8px">
           <div class="etikett">Fakturaer</div>
           <div class="tabellramme" data-rull="fakturaer">
@@ -127,14 +147,13 @@ export const revisjonFane = {
           </div>
         </div>
         <div style="min-height:0; display:flex; flex-direction:column; gap:8px">
-          <div class="etikett">Hva potten er brukt på</div>
+          <div style="display:flex; justify-content:space-between; align-items:baseline; gap:12px"><span class="etikett">Hva potten er brukt på</span>${visEgne ? `<span class="hint" title="Egenandelen fordeles på postene i kolonnen «Egne midler». Fordelingen vises per kategori i revisjonsrapporten.">Egne midler fordelt <span class="fet ${fordelt === p.egenandel ? '' : 'aksent'}" style="${fordelt === p.egenandel ? 'color:var(--color-text)' : ''}">${belop(fordelt)}</span> av egenandelen ${belop(p.egenandel)}</span>` : ''}</div>
           <div class="tabellramme" data-rull="poster">
-            <table class="liste">
-              <thead><tr><th>Gjelder</th><th class="tall">Tilbudt</th><th class="tall">Fakturert</th><th class="tall">Avvik</th><th>Faktura</th></tr></thead>
-              <tbody>${poster.map(x => {
-                const { nr, fakturert, avvik } = o.perPost[x.id];
-                return `<tr><td>${escapeHtml(x.tittel)}<div class="celleunder">${escapeHtml(x.under)}</div>${x.etterSoknad ? `<div class="celleunder" style="color:var(--color-text)" title="${escapeHtml(x.notat)}">Lagt til etter søknaden${x.notat ? `: ${escapeHtml(x.notat)}` : ''}</div>` : ''}${x.alternativ ? `<div class="celleunder aksent" style="font-weight:600" title="Leverandøren tilbød et annet produkt enn det vi ba om">Alternativt produkt: ${escapeHtml(x.alternativ)}</div>` : ''}</td><td class="tall">${belop(x.tilbudt)}</td><td class="tall fet">${fakturert == null ? '–' : belop(fakturert)}</td><td class="tall fet smal aksent">${avvik ? avvikTekst(avvik) : ''}</td><td class="smal"><span class="merkelapp ${nr.length ? 'm-pa' : 'm-varsel'}">${nr.length ? `Faktura ${nr.join(', ')}` : 'Mangler faktura'}</span></td></tr>`;
-              }).join('') || '<tr class="tom-rad"><td colspan="5">Ingen valgte tilbudslinjer eller utgifter enda.</td></tr>'}</tbody>
+            <table class="liste ${visEgne ? 'med-egne' : ''}">
+              <thead><tr><th>Gjelder</th><th class="tall">Tilbudt</th><th class="tall">Fakturert</th><th class="tall">Avvik</th>${visEgne ? '<th class="tall">Egne midler</th>' : ''}<th>Faktura</th></tr></thead>
+              <tbody>${poster.length ? grupper.map(g => `
+                ${visEgne ? `<tr class="gruppe"><td>${escapeHtml(g.navn)}</td><td class="tall">${belop(g.tilbudt)}</td><td class="tall">${g.fakturert ? belop(g.fakturert) : '–'}</td><td></td><td class="tall">${g.egne ? belop(g.egne) : '–'}</td><td></td></tr>` : ''}
+                ${g.poster.map(postrad).join('')}`).join('') : `<tr class="tom-rad"><td colspan="${visEgne ? 6 : 5}">Ingen valgte tilbudslinjer eller utgifter enda.</td></tr>`}</tbody>
             </table>
           </div>
           ${utenValgTekst(s)}

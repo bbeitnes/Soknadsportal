@@ -32,16 +32,16 @@ export function lagDemodata() {
     b10: { organisasjonId: org, type: 'Instrument', tittel: 'Marsjtrommer', beskrivelse: 'To tenortrommer med bæresele.', antall: 2, estPris: 5200, statusOverstyring: null, ...av(...kari, 3) },
   };
 
-  const linje = (behovId, antall, estPris, finansieres, rekkefolge) => ({ behovId, tittel: '', antall, estPris, finansieres, rekkefolge });
+  const linje = (behovId, antall, estPris, rekkefolge) => ({ behovId, tittel: '', antall, estPris, rekkefolge });
 
   const soknader = {
     s1: {
       organisasjonId: org, giverId: 'g1', tittel: 'Instrumenter til aspirantkorpset 2026', frist: '2026-03-15', sendt: '2026-03-03',
-      status: 'innvilget', soktOverstyrt: null, innvilget: 150000, momsProsent: 8, revisjon: true,
+      status: 'innvilget', soktOverstyrt: null, egenandel: 10000, innvilget: 150000, momsProsent: 8, revisjon: true,
       linjer: {
-        l1: linje('b1', 4, 8500, true, 1), l2: linje('b2', 2, 12000, true, 2), l3: linje('b3', 2, 10000, true, 3),
-        l4: linje('b4', 1, 21000, true, 4), l6: { ...linje('b6', 12, 450, true, 5), type: 'Inventar' }, l7: linje('b7', 2, 6500, false, 6),
-        l8: { ...linje('b10', 2, 5200, true, 7), etterSoknad: true, notat: 'I stedet for klarinettene – to nye slagverkere i høst' },
+        l1: linje('b1', 4, 8500, 1), l2: linje('b2', 2, 12000, 2), l3: linje('b3', 2, 10000, 3),
+        l4: linje('b4', 1, 21000, 4), l6: { ...linje('b6', 12, 450, 5), type: 'Inventar' }, l7: linje('b7', 2, 6500, 6),
+        l8: { ...linje('b10', 2, 5200, 7), etterSoknad: true, notat: 'I stedet for klarinettene – to nye slagverkere i høst' },
       },
       utgifter: {
         u1: { beskrivelse: 'Frakt av notestativ fra lager', belop: 1200, dato: '2026-05-12', lagtInnAv: { epost: kari[0], navn: kari[1] }, rekkefolge: 1 },
@@ -57,19 +57,19 @@ export function lagDemodata() {
     s2: {
       organisasjonId: org, giverId: 'g2', tittel: 'Klarinetter og kornetter', frist: '2026-06-01', sendt: '2026-05-28',
       status: 'sendt', soktOverstyrt: 43000, momsProsent: null, revisjon: false,
-      linjer: { l1: linje('b1', 2, 8500, false, 1), l2: linje('b7', 4, 6500, false, 2) },
+      linjer: { l1: linje('b1', 2, 8500, 1), l2: linje('b7', 4, 6500, 2) },
       dokumenter: {}, ...av(...kari, 124),
     },
     s3: {
       organisasjonId: org, giverId: 'g3', tittel: 'Uniformer 2026', frist: '2026-02-01', sendt: '2026-01-20',
       status: 'innvilget', soktOverstyrt: null, innvilget: 42000, momsProsent: 8, revisjon: true,
-      linjer: { l1: linje('b9', 30, 1400, true, 1) },
+      linjer: { l1: linje('b9', 30, 1400, 1) },
       dokumenter: {}, ...av(...per, 109),
     },
     s4: {
       organisasjonId: org, giverId: 'g4', tittel: 'Seminarhelg høsten 2026', frist: '2026-10-15', sendt: null,
       status: 'utkast', soktOverstyrt: null, momsProsent: null, revisjon: false,
-      linjer: { l1: { behovId: null, tittel: 'Instruktørhonorar', antall: 2, estPris: 6000, finansieres: false, rekkefolge: 1 } },
+      linjer: { l1: { behovId: null, tittel: 'Instruktørhonorar', antall: 2, estPris: 6000, rekkefolge: 1 } },
       dokumenter: {}, ...av(...per, 7),
     },
     s6: {
@@ -94,7 +94,7 @@ export function lagDemodata() {
         k1: { soknadLinjeId: 'l1', tittel: 'Kornett Bb', antall: 4, rekkefolge: 1 },
         k2: { soknadLinjeId: 'l2', tittel: 'Althorn Eb', antall: 2, rekkefolge: 2 },
         k3: { soknadLinjeId: 'l3', tittel: 'Trombone, tenor', antall: 2, rekkefolge: 3 },
-        k4: { soknadLinjeId: 'l4', tittel: 'Baryton', antall: 1, rekkefolge: 4 },
+        k4: { soknadLinjeId: 'l4', tittel: 'Baryton', antall: 1, rekkefolge: 4, egneMidler: 6000 },
         k6: { soknadLinjeId: 'l6', tittel: 'Notestativ', antall: 12, rekkefolge: 5 },
         k8: { soknadLinjeId: 'l8', tittel: 'Marsjtrommer', antall: 2, rekkefolge: 6 },
       },

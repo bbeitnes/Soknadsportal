@@ -103,7 +103,7 @@ function tegnNaa() {
     endret: aktiv.value !== aktiv.dataset.verdi,
     utvalg: [aktiv.selectionStart, aktiv.selectionEnd],
   } : null;
-  // Knapper (f.eks. «Finansieres» etter Tab fra prisfeltet) finnes igjen på
+  // Knapper (f.eks. en avkrysning etter Tab fra et felt) finnes igjen på
   // handling + id-attributtene sine.
   const knapp = !felt && aktiv?.matches?.('[data-handling]') && rot.contains(aktiv)
     ? '[data-handling="' + CSS.escape(aktiv.dataset.handling) + '"]'

@@ -7,7 +7,7 @@
 // hverandre på samme felt: siste lagring per felt vinner.
 import { lager, innlogging, SLETT } from './lager.js';
 import { ORGANISASJON_ID } from '../config/app-config.js';
-import { linjeliste, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer, linjetype, erInnvilget, anskaffetPerBehov } from './beregning.js';
+import { linjeliste, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer, linjetype, anskaffetPerBehov, finansierteLinjer } from './beregning.js';
 
 export { innlogging };
 
@@ -119,6 +119,11 @@ export function anskaffet() {
   return anskaffetPerBehov(tilstand.soknader, tilstand.innkjop, tilstand.fakturaer);
 }
 
+// Søknadslinjer som har fått valgt en pris i et innkjøp («soknadId/linjeId»).
+export function finansierte() {
+  return finansierteLinjer(tilstand.innkjop);
+}
+
 export function slettBehov(id) {
   const iBruk = tilstand.soknader.some(s => linjeliste(s).some(l => l.behovId === id));
   if (iBruk) return Promise.reject(new Error('Behovet ligger i en søknad og kan ikke slettes'));
@@ -144,11 +149,9 @@ export function oppdaterSoknad(id, felt) {
 }
 
 // Er søknaden ikke lenger et utkast, er en ny linje «lagt til etter
-// søknaden»: den endrer ikke det vi søkte om. I en innvilget søknad er den
-// lagt til for å kjøpes av bevilgningen, så den starter som finansiert.
+// søknaden»: den endrer ikke det vi søkte om.
 function etterSoknadFelt(soknad) {
-  if (soknad.status === 'utkast') return { finansieres: false };
-  return { etterSoknad: true, notat: '', finansieres: erInnvilget(soknad) };
+  return soknad.status === 'utkast' ? {} : { etterSoknad: true, notat: '' };
 }
 
 // Et valgt behov får antall = gjenstående og behovets estimerte stykkpris.
@@ -183,12 +186,6 @@ export function leggFriLinjeISoknad(soknad) {
   return oppdaterSoknad(soknad.id, {
     [`linjer.${id}`]: { behovId: null, type: null, tittel: '', antall: 1, estPris: 0, rekkefolge: nesteRekkefolge(soknad), ...etterSoknadFelt(soknad) },
   }).then(() => id);
-}
-
-export function oppdaterLinje(soknadId, linjeId, felt) {
-  const stier = {};
-  for (const [k, v] of Object.entries(felt)) stier[`linjer.${linjeId}.${k}`] = v;
-  return oppdaterSoknad(soknadId, stier);
 }
 
 export function fjernLinje(soknadId, linjeId) {

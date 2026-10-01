@@ -2,7 +2,7 @@
 // grunndata, status, revisjon av/på og dokumenter). Innkjøp, Utgifter og
 // Revisjon kommer i senere trinn.
 import {
-  tilstand, oppdaterSoknad, oppdaterLinje, leggBehovISoknad, leggFlereBehovISoknad, leggFriLinjeISoknad, fjernLinje,
+  tilstand, oppdaterSoknad, leggBehovISoknad, leggFlereBehovISoknad, leggFriLinjeISoknad, fjernLinje,
   lastOppDokument, slettDokument, dokumentUrl, slettSoknad, innkjopFor,
   leggTilUtgift, oppdaterUtgift, fjernUtgift,
   fellesTyperekkefolge, settLinjerekkefolge, settSoknadTyperekkefolge, anskaffet,
@@ -10,9 +10,10 @@ import {
 import {
   SOKNADSSTATUSER, statusNavn, linjeliste, linjekostnad, sumEstimert, soktBelop, soktForslag, velgbareBehov,
   pott, giverandel, momsProsent, utgiftsliste, sumUtgifter, sumFakturert,
+  egenandelPlanlagt, egenandelSomAndel, giverbehov,
   linjetype, grupperPerType, typeliste, flyttIListe, typerekkefolgeFor, soktLinjer, tilleggslinjer, etterRekkefolgeOgTittel,
 } from '../data/beregning.js';
-import { escapeHtml, kr, belop, datoFelt, tidspunkt, fornavn, tolkBelop, tolkDato } from '../ui/format.js';
+import { escapeHtml, kr, belop, heltall, datoFelt, tidspunkt, fornavn, tolkBelop, tolkDato } from '../ui/format.js';
 import { feltAttr } from '../ui/felt.js';
 import { lagre, visMelding } from '../ui/lagring.js';
 import { tegn, fokuser, gaaTil, avkryss, sidepanel, lukkeknapp, IKON } from '../ui/visning.js';
@@ -79,21 +80,28 @@ function topp(s, fane) {
 
 // Pottlinjen: søkt / innvilget / disponert / gjenstår. Med momskompensasjon
 // er «disponert» giverens andel, og en linje under viser full kostnad og
-// hva som forventes fra momskompensasjonen neste år.
+// hva som forventes fra momskompensasjonen neste år. Med egenandel er rammen
+// innvilget + egenandel, og «gjenstår» er det som er igjen av den. Linjen
+// under viser da regnestykket: rammen, og hvordan det vi betaler deles på
+// egenandel, giver og momskompensasjon.
 function pottlinje(s) {
   const p = pott(s, innkjopFor(s.id));
   const strek = '–';
   const negativ = p.gjenstar != null && p.gjenstar < 0;
+  const egen = p.egenandel > 0;
+  const tall = n => `<span style="color:var(--color-text); font-variant-numeric:tabular-nums">${kr(n)}</span>`;
   return `
     <div>
-      <div class="nokkeltall">
+      <div class="nokkeltall" ${egen ? 'style="column-gap:26px"' : ''}>
         <div><div class="etikett">Søkt</div><div class="tall">${kr(p.sokt)}</div></div>
         <div><div class="etikett">Innvilget</div><div class="tall">${p.innvilget == null ? strek : kr(p.innvilget)}</div></div>
-        <div><div class="etikett">${p.harMoms ? 'Disponert (giverandel)' : 'Disponert'}</div><div class="tall">${kr(p.disponert)}</div></div>
+        ${egen ? `<div title="Det vi dekker selv. Rammen er innvilget + egenandel."><div class="etikett">Egenandel</div><div class="tall">${kr(p.egenandel)}</div></div>` : ''}
+        <div ${egen ? 'title="Det som er valgt i innkjøp og ført som utgifter, uten momskompensasjonen"' : ''}><div class="etikett">${egen ? 'Disponert av rammen' : p.harMoms ? 'Disponert (giverandel)' : 'Disponert'}</div><div class="tall">${kr(p.disponert)}</div></div>
         <div><div class="etikett">Fakturert</div><div class="tall">${kr(sumFakturert(tilstand.fakturaer, s.id))}</div></div>
-        <div><div class="etikett">Gjenstår</div><div class="tall ${negativ ? 'aksent' : ''}">${p.gjenstar == null ? strek : kr(p.gjenstar)}</div></div>
+        <div ${egen ? 'title="Innvilget + egenandel − disponert"' : ''}><div class="etikett">Gjenstår</div><div class="tall ${negativ ? 'aksent' : ''}">${p.gjenstar == null ? strek : kr(p.gjenstar)}</div></div>
       </div>
-      ${p.harMoms ? `<div class="hint" style="margin-top:8px">Giver dekker ${p.giverProsent} % av det vi faktisk betaler (${kr(p.disponertFull)}). Momskompensasjon ${p.prosent} %: <span style="color:var(--color-text); font-variant-numeric:tabular-nums">${kr(p.moms)}</span>, forventes mottatt neste år.</div>` : ''}
+      ${egen ? `<div class="hint" style="margin-top:8px">${p.ramme == null ? '' : `Ramme ${tall(p.ramme)} (innvilget + egenandel). `}${p.harMoms ? `Vi betaler ${kr(p.disponertFull)}: egenandel ${tall(p.egenBrukt)} + giver ${p.giverProsent} % av resten ${tall(p.disponert - p.egenBrukt)} + momskompensasjon ${p.prosent} % ${tall(p.moms)}, som forventes mottatt neste år.` : ''}</div>`
+        : p.harMoms ? `<div class="hint" style="margin-top:8px">Giver dekker ${p.giverProsent} % av det vi faktisk betaler (${kr(p.disponertFull)}). Momskompensasjon ${p.prosent} %: ${tall(p.moms)}, forventes mottatt neste år.</div>` : ''}
     </div>`;
 }
 
@@ -104,8 +112,10 @@ function behovstabell(s) {
   const prosent = momsProsent(s);
   const moms = prosent != null;
   const n = (l, f) => `soknader/${s.id}/linjer.${l.id}.${f}`;
-  const finansieres = [...linjer, ...tillegg].filter(l => l.finansieres).length;
   const sum = sumEstimert(s), sumGiver = giverandel(sum, prosent);
+  // Med egenandel står det vi søker om (estimatet minus egenandelen) under summen.
+  const egen = egenandelPlanlagt(s), etterEgen = Math.max(0, sum - egen), etterEgenGiver = giverandel(etterEgen, prosent);
+  const under = tekst => egen ? `<div class="undertekst" style="font-weight:400">${tekst}</div>` : '';
   const rad = l => {
     const b = l.behovId ? behovMedId(l.behovId) : null;
     const kostnad = linjekostnad(l), fraGiver = giverandel(kostnad, prosent);
@@ -123,7 +133,6 @@ function behovstabell(s) {
         <td class="tall"><input class="celleinn" inputmode="numeric" ${feltAttr(n(l, 'estPris'), l.estPris, 'tall')}></td>
         <td class="tall fet">${kr(kostnad)}</td>
         ${moms ? `<td class="tall">${kr(fraGiver)}</td><td class="tall dempet">${kr(kostnad - fraGiver)}</td>` : ''}
-        <td>${avkryss(!!l.finansieres, l.finansieres ? 'Ja' : 'Nei', 'finansieres', `data-linje="${l.id}"`)}</td>
         <td style="width:40px; padding-left:0"><button type="button" class="ikonknapp" data-handling="fjern-linje" data-linje="${l.id}" title="Fjern fra søknaden">${IKON.fjern}</button></td>
       </tr>`;
   };
@@ -131,40 +140,41 @@ function behovstabell(s) {
   const rader = grupperPerType(linjer, l => linjetype(l, tilstand.behov), typerekkefolgeFor(s, fellesTyperekkefolge())).map(g => {
     const delsum = g.elementer.reduce((a, l) => a + linjekostnad(l), 0), delGiver = giverandel(delsum, prosent);
     return `
-      <tr class="gruppe" data-slippmal="type:${escapeHtml(g.type)}"><td colspan="4"><span class="dra" draggable="true" data-dra="type:${escapeHtml(g.type)}" title="Dra for å flytte hele typen i denne søknaden">⠿</span>${escapeHtml(g.type || 'Uten type')}</td><td class="tall">${kr(delsum)}</td>${moms ? `<td class="tall">${kr(delGiver)}</td><td class="tall">${kr(delsum - delGiver)}</td>` : ''}<td colspan="2">${g.elementer.length} ${g.elementer.length === 1 ? 'linje' : 'linjer'}</td></tr>
+      <tr class="gruppe" data-slippmal="type:${escapeHtml(g.type)}"><td colspan="4"><span class="dra" draggable="true" data-dra="type:${escapeHtml(g.type)}" title="Dra for å flytte hele typen i denne søknaden">⠿</span>${escapeHtml(g.type || 'Uten type')}<span style="font-weight:400; letter-spacing:0; text-transform:none; font-size:12px; color:var(--color-neutral-600)"> · ${g.elementer.length} ${g.elementer.length === 1 ? 'linje' : 'linjer'}</span></td><td class="tall">${kr(delsum)}</td>${moms ? `<td class="tall">${kr(delGiver)}</td><td class="tall">${kr(delsum - delGiver)}</td>` : ''}<td></td></tr>
       ${g.elementer.map(rad).join('')}`;
   }).join('');
   const tilleggSum = tillegg.reduce((a, l) => a + linjekostnad(l), 0), tilleggGiver = giverandel(tilleggSum, prosent);
   const tilleggsrader = tillegg.length ? `
-      <tr class="gruppe tillegg"><td colspan="4">Lagt til etter søknaden <span>· teller ikke i søkt beløp</span></td><td class="tall">${kr(tilleggSum)}</td>${moms ? `<td class="tall">${kr(tilleggGiver)}</td><td class="tall">${kr(tilleggSum - tilleggGiver)}</td>` : ''}<td colspan="2">${tillegg.length} ${tillegg.length === 1 ? 'linje' : 'linjer'}</td></tr>
+      <tr class="gruppe tillegg"><td colspan="4">Lagt til etter søknaden <span>· ${tillegg.length} ${tillegg.length === 1 ? 'linje' : 'linjer'} · teller ikke i søkt beløp</span></td><td class="tall">${kr(tilleggSum)}</td>${moms ? `<td class="tall">${kr(tilleggGiver)}</td><td class="tall">${kr(tilleggSum - tilleggGiver)}</td>` : ''}<td></td></tr>
       ${tillegg.map(rad).join('')}` : '';
-  const kolonner = moms ? 9 : 7;
+  const kolonner = moms ? 8 : 6;
   return `
     <div class="tabellramme" data-rull="soknad-behov">
       <table class="liste tett">
         <thead><tr>
           <th>Behov</th><th>Type</th><th class="tall">Antall</th><th class="tall">Est. stk.pris</th><th class="tall">Kostnad</th>
           ${moms ? `<th class="tall">Fra giver<br>(${100 - prosent} %)</th><th class="tall">Fra moms-<br>komp. (${prosent} %)</th>` : ''}
-          <th>Finansieres</th><th></th>
+          <th></th>
         </tr></thead>
         <tbody>${rader || `<tr class="tom-rad"><td colspan="${kolonner}">Ingen behov i søknaden enda. Legg til fra behovslisten eller som fri linje.</td></tr>`}${tilleggsrader}</tbody>
         <tfoot><tr>
-          <td colspan="4" class="dempet">Sum estimert</td>
-          <td class="tall sum">${kr(sum)}</td>
-          ${moms ? `<td class="tall sum">${kr(sumGiver)}</td><td class="tall fet dempet">${kr(sum - sumGiver)}<div class="undertekst" style="font-weight:400">forventes mottatt neste år</div></td>` : ''}
-          <td colspan="2" class="dempet smal">${finansieres} av ${linjer.length + tillegg.length} finansieres</td>
+          <td colspan="4" class="dempet">Sum estimert${under(`Etter egenandel ${kr(egen)}`)}</td>
+          <td class="tall sum">${kr(sum)}${under(kr(etterEgen))}</td>
+          ${moms ? `<td class="tall sum">${kr(sumGiver)}${under(kr(etterEgenGiver))}</td><td class="tall fet dempet">${kr(sum - sumGiver)}<div class="undertekst" style="font-weight:400">${egen ? kr(etterEgen - etterEgenGiver) : 'forventes mottatt neste år'}</div></td>` : ''}
+          <td></td>
         </tr></tfoot>
       </table>
       <datalist id="typer">${typeliste(tilstand.behov, tilstand.soknader).map(t => `<option value="${escapeHtml(t)}">`).join('')}</datalist>
     </div>`;
 }
 
-// Hint under «Innvilget beløp»: er estimatet (giverandelen) over eller under?
+// Hint under «Innvilget beløp»: er estimatet (giverandelen, etter
+// egenandelen som gjelder nå) over eller under?
 function innvilgetHint(s) {
   const p = pott(s, innkjopFor(s.id));
   if (p.innvilget == null) return 'Fylles inn når svaret kommer';
-  const estimat = soktForslag(s);
-  const hva = p.harMoms ? 'Estimatet (giverandel)' : 'Estimatet';
+  const estimat = giverbehov(s);
+  const hva = (p.harMoms ? 'Estimatet (giverandel)' : 'Estimatet') + (p.egenandel > 0 ? ' etter egenandel' : '');
   if (estimat > p.innvilget) return `${hva} er ${kr(estimat - p.innvilget)} over innvilget – juster antall`;
   if (estimat < p.innvilget) return `${kr(p.innvilget - estimat)} til overs mot estimatet`;
   return 'Innvilget som søkt';
@@ -248,6 +258,27 @@ function dokumenter(s) {
     </div>`;
 }
 
+// Egenandel: beløpet vi oppga i søknaden. Blir innvilget et annet beløp enn
+// søkt, velger vi om vi holder på beløpet eller på andelen.
+function egenandelfelt(s, p) {
+  const planlagt = egenandelPlanlagt(s);
+  const andel = (egen, giver) => egen + giver > 0 ? `${(egen / (egen + giver) * 100).toFixed(1).replace('.', ',')} %` : '–';
+  const kanVelge = planlagt > 0 && p.innvilget != null && p.innvilget !== p.sokt;
+  const valg = s.egenandelValg === 'andel' ? 'andel' : 'belop';
+  let hint = 'Det vi dekker selv. Trekkes fra søkt beløp.';
+  if (planlagt > 0 && p.innvilget == null) hint = `${andel(planlagt, p.sokt)} av ${kr(planlagt + p.sokt)}. Trekkes fra søkt beløp.`;
+  else if (planlagt > 0) hint = `${andel(p.egenandel, p.innvilget)} av rammen ${kr(p.ramme)}${kanVelge ? ` · i søknaden ${andel(planlagt, p.sokt)}` : ''}`;
+  return `
+          <div class="felt"><span class="etikett">Egenandel</span>
+            <input class="inndata tall" style="text-align:left" inputmode="numeric" placeholder="0" ${feltAttr(`soknader/${s.id}/egenandel`, s.egenandel, 'tall')}>
+            ${kanVelge ? `<div class="segment fyll">
+              <button type="button" data-handling="egenandel-valg" data-id="belop" aria-pressed="${valg === 'belop'}" title="Innvilget er et annet beløp enn søkt. Behold egenandelen som samme beløp som i søknaden.">Beløp ${heltall(planlagt)}</button>
+              <button type="button" data-handling="egenandel-valg" data-id="andel" aria-pressed="${valg === 'andel'}" title="Innvilget er et annet beløp enn søkt. Behold egenandelen som samme andel av rammen som i søknaden.">Andel ${heltall(egenandelSomAndel(s))}</button>
+            </div>` : ''}
+            <span class="undertekst">${hint}</span>
+          </div>`;
+}
+
 function soknadsfane(s) {
   const n = f => `soknader/${s.id}/${f}`;
   const forslag = soktForslag(s);
@@ -266,10 +297,11 @@ function soknadsfane(s) {
           </div>
         </div>
         ${behovstabell(s)}
-        <div class="tre-kol" style="flex:0 0 auto">
+        <div class="tre-kol" style="flex:0 0 auto; align-items:start${p.harMoms ? '; grid-template-columns:repeat(4, minmax(0, 1fr))' : ''}">
+          ${egenandelfelt(s, p)}
           <label class="felt"><span class="etikett">Søkt beløp</span>
             <input class="inndata tall" style="text-align:left" inputmode="numeric" ${feltAttr(n('soktOverstyrt'), soktBelop(s), 'tall')}>
-            <span class="undertekst">${overstyrt ? `Overstyrt. Foreslått ${kr(forslag)} – tøm feltet for å bruke forslaget.` : (p.harMoms ? `Foreslått: giverens andel (${p.giverProsent} %) av estimatet` : 'Foreslått: sum av estimatene')}</span>
+            <span class="undertekst">${overstyrt ? `Overstyrt. Foreslått ${kr(forslag)} – tøm feltet for å bruke forslaget.` : (p.harMoms ? `Foreslått: giverens andel (${p.giverProsent} %) av estimatet` : 'Foreslått: sum av estimatene') + (p.egenandelPlanlagt > 0 ? ' etter egenandel' : '')}</span>
           </label>
           <label class="felt"><span class="etikett">Innvilget beløp</span>
             <input class="inndata tall" style="text-align:left" inputmode="numeric" ${feltAttr(n('innvilget'), s.innvilget, 'tall')}>
@@ -482,8 +514,8 @@ export const soknadSide = {
         if (ok) gaaTil('#/soknader');
         break;
       }
-      case 'finansieres': lagre(() => oppdaterLinje(s.id, linje, { finansieres: !s.linjer[linje]?.finansieres })); break;
       case 'status': lagre(() => oppdaterSoknad(s.id, { status: el.dataset.id })); break;
+      case 'egenandel-valg': lagre(() => oppdaterSoknad(s.id, { egenandelValg: el.dataset.id })); break;
       case 'revisjon': lagre(() => oppdaterSoknad(s.id, { revisjon: !s.revisjon })); break;
       case 'apne-dok': {
         const d = s.dokumenter?.[el.dataset.id];

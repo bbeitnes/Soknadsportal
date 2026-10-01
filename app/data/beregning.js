@@ -123,14 +123,49 @@ export function giverandel(belop, prosent) {
   return Math.round(belop * (100 - prosent) / 100);
 }
 
-// Foreslått søkt beløp: giverens andel av estimatet.
+// Samme med øre – for faktiske beløp i sluttoppgjøret.
+export function giverandelOre(belop, prosent) {
+  return Math.round(belop * (100 - (prosent ?? 0))) / 100;
+}
+
+// Foreslått søkt beløp: giverens andel av estimatet, etter egenandelen.
 export function soktForslag(soknad) {
-  return giverandel(sumEstimert(soknad), momsProsent(soknad));
+  return giverbehov(soknad, egenandelPlanlagt(soknad));
 }
 
 // Søkt beløp: overstyrt verdi hvis satt, ellers forslaget.
 export function soktBelop(soknad) {
   return soknad?.soktOverstyrt ?? soktForslag(soknad);
+}
+
+// ——— Egenandel ———
+// Det vi har sagt til giveren at vi dekker selv. `egenandel` på søknaden er
+// beløpet vi oppga da vi søkte, og trekkes fra før giverens andel regnes ut
+// (vi får ikke momskompensasjon fra oss selv). Blir innvilget beløp et annet
+// enn søkt, velger vi (`egenandelValg`) om vi holder på beløpet ('belop',
+// standard) eller på andelen ('andel': egenandelen følger innvilget/søkt).
+// Egenandelen er en ramme for hele søknaden. Hvilke kjøp den faktisk går til,
+// fordeles etterpå per post i Revisjon (`egneMidler`, se revisjonsposter()).
+
+export function egenandelPlanlagt(soknad) {
+  return Number(soknad?.egenandel) || 0;
+}
+
+// Egenandelen hvis vi holder på andelen etter tildeling.
+export function egenandelSomAndel(soknad) {
+  const sokt = soktBelop(soknad), innvilget = soknad?.innvilget;
+  if (innvilget == null || !(sokt > 0)) return egenandelPlanlagt(soknad);
+  return Math.round(egenandelPlanlagt(soknad) * innvilget / sokt);
+}
+
+// Egenandelen som gjelder nå.
+export function egenandel(soknad) {
+  return soknad?.egenandelValg === 'andel' ? egenandelSomAndel(soknad) : egenandelPlanlagt(soknad);
+}
+
+// Det giveren må dekke for at estimatet skal gå opp med en gitt egenandel.
+export function giverbehov(soknad, egen = egenandel(soknad)) {
+  return giverandel(Math.max(0, sumEstimert(soknad) - egen), momsProsent(soknad));
 }
 
 // ——— Løse utgifter og pott ———
@@ -153,24 +188,33 @@ export function erInnvilget(soknad) {
 // løse utgifter) og hva som gjenstår. Med moms-innstilling er «disponert»
 // giverens andel av det vi faktisk betaler; resten dekkes av
 // momskompensasjonen neste år.
+// Med egenandel er rammen innvilget + egenandel. Egenandelen brukes først
+// og er holdt utenfor momsfordelingen: «disponert» er da egenandelen pluss
+// giverens andel av resten.
 export function pott(soknad, innkjopListe = []) {
   const prosent = momsProsent(soknad);
   const innvilget = soknad?.innvilget ?? null;
   const innkjop = innkjopListe.reduce((sum, i) => sum + sumInnkjop(i), 0);
   const disponertFull = sumUtgifter(soknad) + innkjop;
-  const disponert = giverandel(disponertFull, prosent);
+  const egen = egenandel(soknad);
+  const egenBrukt = Math.min(egen, Math.max(0, disponertFull));
+  const disponert = egenBrukt + giverandel(disponertFull - egenBrukt, prosent);
   return {
     harMoms: prosent != null,
     prosent,
     giverProsent: prosent == null ? 100 : 100 - prosent,
     sokt: soktBelop(soknad),
     innvilget,
+    egenandel: egen,
+    egenandelPlanlagt: egenandelPlanlagt(soknad),
+    egenBrukt,
+    ramme: innvilget == null ? null : innvilget + egen,
     disponertFull,
     innkjop,
     utgifter: sumUtgifter(soknad),
     disponert,
     moms: disponertFull - disponert,
-    gjenstar: innvilget == null ? null : innvilget - disponert,
+    gjenstar: innvilget == null ? null : innvilget + egen - disponert,
   };
 }
 
@@ -191,8 +235,15 @@ function tellerMed(soknad) {
   return soknad.status !== 'avslatt';
 }
 
-function erFinansiert(soknad, linje) {
-  return (soknad.status === 'innvilget' || soknad.status === 'avsluttet') && !!linje.finansieres;
+// En søknadslinje er finansiert når det er valgt en pris for den hos en
+// leverandør i et innkjøp. Gir nøklene «soknadId/linjeId» for dem.
+export function finansierteLinjer(innkjopListe) {
+  const ut = new Set();
+  for (const i of innkjopListe) {
+    const b = innkjopsberegning(i);
+    for (const l of b.linjer) if (l.soknadLinjeId && b.perLinje[l.id].valgtSid != null) ut.add(`${i.soknadId}/${l.soknadLinjeId}`);
+  }
+  return ut;
 }
 
 // Anskaffet antall per behov, summert fra fakturerte innkjøp: linjen er
@@ -214,18 +265,20 @@ export function anskaffetPerBehov(soknader, innkjopListe, fakturaer) {
   return ut;
 }
 
-// Status for ett behov. `anskaffet` kommer fra anskaffetPerBehov().
-export function behovsinfo(behov, soknader, anskaffet = 0) {
+// Status for ett behov. `anskaffet` kommer fra anskaffetPerBehov(), og
+// `finansierte` fra finansierteLinjer().
+export function behovsinfo(behov, soknader, anskaffet = 0, finansierte = new Set()) {
   const total = Number(behov.antall) || 0;
   const gjenstar = Math.max(0, total - anskaffet);
   const bruk = behovIBruk(behov.id, soknader);
   const aktiv = bruk.filter(b => tellerMed(b.soknad));
   const iSoknader = aktiv.reduce((sum, b) => sum + (Number(b.linje.antall) || 0), 0);
+  const erFinansiert = b => tellerMed(b.soknad) && finansierte.has(`${b.soknad.id}/${b.linje.id}`);
 
   let autostatus;
   if (gjenstar === 0) autostatus = 'Anskaffet';
   else if (anskaffet > 0) autostatus = 'Delvis anskaffet';
-  else if (aktiv.some(b => erFinansiert(b.soknad, b.linje))) autostatus = 'Finansiert';
+  else if (aktiv.some(erFinansiert)) autostatus = 'Finansiert';
   else if (aktiv.length) autostatus = 'Søkt';
   else autostatus = 'Ikke søkt';
 
@@ -239,7 +292,7 @@ export function behovsinfo(behov, soknader, anskaffet = 0) {
     overstyrt: !!overstyrt,
     erApent: !overstyrt && gjenstar > 0,
     gjenstarKr: gjenstar * (Number(behov.estPris) || 0),
-    finansiertI: b => erFinansiert(b.soknad, b.linje),
+    finansiertI: erFinansiert,
   };
 }
 
@@ -627,8 +680,10 @@ const ore = n => Math.round(n * 100) / 100;
 // slik at beregningslaget slipper å kjenne søknaden og registeret.
 // `alternativ` er satt når den valgte leverandøren tilbød et annet produkt
 // enn det vi ba om. `etterSoknad` og `notat` følger linjer som ble lagt til
-// etter at søknaden var sendt.
-export function revisjonsposter(soknad, innkjopListe, { tittelFor, levNavn }) {
+// etter at søknaden var sendt. `kategori` er typen linjen har i søknaden
+// (trenger `behovliste`), og `egne` er egne midler fordelt på posten
+// (`egneMidler` på innkjøpslinjen eller utgiften).
+export function revisjonsposter(soknad, innkjopListe, { tittelFor, levNavn, behovliste = [] }) {
   const poster = [];
   for (const i of innkjopListe) {
     const b = innkjopsberegning(i);
@@ -642,14 +697,46 @@ export function revisjonsposter(soknad, innkjopListe, { tittelFor, levNavn }) {
         under: `${levNavn(i, v.valgtSid)} · ${i.navn || 'Innkjøp'}`,
         alternativ: (i.priser?.[l.id]?.[v.valgtSid]?.alternativ || '').trim(),
         etterSoknad: !!sl?.etterSoknad, notat: (sl?.notat || '').trim(),
-        tilbudt: ore(v.sum),
+        kategori: sl ? linjetype(sl, behovliste) : '',
+        tilbudt: ore(v.sum), egne: Number(l.egneMidler) || 0,
       });
     }
   }
   for (const u of utgiftsliste(soknad)) {
-    poster.push({ id: `utgift/${u.id}`, type: 'utgift', utgiftId: u.id, tittel: u.beskrivelse || 'Uten beskrivelse', under: `Løs utgift${u.dato ? ` · ${u.dato.split('-').reverse().join('.')}` : ''}`, tilbudt: Number(u.belop) || 0 });
+    poster.push({ id: `utgift/${u.id}`, type: 'utgift', utgiftId: u.id, tittel: u.beskrivelse || 'Uten beskrivelse', under: `Løs utgift${u.dato ? ` · ${u.dato.split('-').reverse().join('.')}` : ''}`, tilbudt: Number(u.belop) || 0, egne: Number(u.egneMidler) || 0 });
   }
   return poster;
+}
+
+// Egne midler som er fordelt på postene.
+export function sumEgneMidler(poster) {
+  return ore(poster.reduce((s, p) => s + (p.egne || 0), 0));
+}
+
+// Sluttoppgjøret per kategori: hva vi har betalt, og hvem som dekker det.
+// Tilbudslinjene grupperes på typen de har i søknaden (i søknadens
+// rekkefølge); løse utgifter er en egen gruppe til slutt. `kostnad` er
+// fakturert beløp der posten har faktura, ellers tilbudt pris. Egne midler
+// trekkes fra før giverens andel regnes ut. `perPost` kommer fra
+// revisjonsoppsummering(). Gir { grupper: [{ navn, poster, tilbudt, fakturert,
+// kostnad, egne, giver, moms }], sum: { … } }.
+export function fordelingPerKategori(poster, perPost, prosent, typeRekkefolge = []) {
+  const grupper = grupperPerType(poster.filter(p => p.type !== 'utgift'), p => p.kategori, typeRekkefolge)
+    .map(g => ({ navn: g.type || 'Uten type', poster: g.elementer }));
+  const utgifter = poster.filter(p => p.type === 'utgift');
+  if (utgifter.length) grupper.push({ navn: 'Løse utgifter', poster: utgifter });
+  const ut = grupper.map(g => {
+    const tilbudt = ore(g.poster.reduce((s, p) => s + p.tilbudt, 0));
+    const fakturert = ore(g.poster.reduce((s, p) => s + (perPost[p.id]?.fakturert ?? 0), 0));
+    const kostnad = ore(g.poster.reduce((s, p) => s + (perPost[p.id]?.fakturert ?? p.tilbudt), 0));
+    const egne = sumEgneMidler(g.poster);
+    const giver = giverandelOre(kostnad - egne, prosent);
+    return { ...g, tilbudt, fakturert, kostnad, egne, giver, moms: ore(kostnad - egne - giver) };
+  });
+  // Summen er summen av radene, så tabellen går opp på øret.
+  const sum = {};
+  for (const felt of ['tilbudt', 'fakturert', 'kostnad', 'egne', 'giver', 'moms']) sum[felt] = ore(ut.reduce((s, g) => s + g[felt], 0));
+  return { grupper: ut, sum };
 }
 
 // Innkjøpslinjer uten valgt leverandør. De er ikke «brukt» og vises ikke i

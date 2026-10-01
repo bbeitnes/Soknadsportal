@@ -249,7 +249,7 @@ function ikkeFordeltPanel(s, i, liste) {
       ${grupper.map(g => `
         ${visOverskrift ? `<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:8px"><span class="etikett">${escapeHtml(g.type || 'Uten type')}</span>${g.elementer.length > 1 ? `<button type="button" class="knapp knapp-ramme knapp-liten" style="height:26px; font-size:12px" data-handling="legg-gruppe" data-type="${escapeHtml(g.type)}">Legg alle ${g.elementer.length}</button>` : ''}</div>` : ''}
         ${g.elementer.map(l => `<div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--color-neutral-200)">
-          <div style="flex:1; min-width:0"><div class="fet">${escapeHtml(soknadslinjeTittel(l) || 'Uten tittel')}</div>${under(behovsbeskrivelse(l))}<div class="dempet">${l.antall ?? 0} stk ${l.etterSoknad ? 'lagt til etter søknaden' : 'i søknaden'}${l.finansieres ? ' · finansieres' : ''}</div></div>
+          <div style="flex:1; min-width:0"><div class="fet">${escapeHtml(soknadslinjeTittel(l) || 'Uten tittel')}</div>${under(behovsbeskrivelse(l))}<div class="dempet">${l.antall ?? 0} stk ${l.etterSoknad ? 'lagt til etter søknaden' : 'i søknaden'}</div></div>
           <button type="button" class="knapp knapp-primar knapp-liten" data-handling="legg-i-innkjop" data-lid="${l.id}">Legg til</button>
         </div>`).join('')}`).join('') || '<div class="dempet">Alle behov i søknaden ligger i et innkjøp.</div>'}
     </div>

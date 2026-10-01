@@ -1,12 +1,13 @@
 // Revisjonsrapporten: én samlet PDF laget i nettleseren med pdf-lib.
 //   1. Forside: søknad, giver, søkt, innvilget, brukt, gjenstående
-//      (+ fordeling giver / momskompensasjon når det gjelder).
+//      (+ fordeling egne midler / giver / momskompensasjon når det gjelder,
+//      og samme fordeling per kategori når søknaden har egenandel).
 //   2. Oversiktstabell over fakturaene. Summen stemmer med forsiden.
 //   3. Alle fakturaene i rekkefølge, med løpenummer stamplet i hjørnet.
 //      Bilder blir egne sider; PDF-er kopieres inn side for side.
 import { tilstand, innkjopFor, fakturaerFor, filBytes } from '../data/index.js';
-import { pott, fakturaDekker, giverandel, posttittel } from '../data/beregning.js';
-import { posterFor } from '../sider/revisjon.js';
+import { pott, fakturaDekker, giverandelOre, posttittel, revisjonsoppsummering, sumEgneMidler } from '../data/beregning.js';
+import { posterFor, fordelingFor } from '../sider/revisjon.js';
 import { belop, datoFelt } from './format.js';
 
 const PDF_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
@@ -43,6 +44,11 @@ export async function lagRevisjonsrapport(s) {
   const poster = posterFor(s);
   const p = pott(s, innkjopFor(s.id));
   const fakturert = fakturaer.reduce((sum, f) => sum + (Number(f.belop) || 0), 0);
+  // Egne midler slik de er fordelt på postene. De holdes utenfor fordelingen
+  // mellom giver og momskompensasjon.
+  const egne = sumEgneMidler(poster);
+  const harEgne = p.egenandel > 0 || egne > 0;
+  const fraGiver = giverandelOre(Math.max(0, fakturert - egne), p.prosent);
   const dato = new Date().toLocaleDateString('nb-NO');
 
   // ——— Tegnehjelpere ———
@@ -80,14 +86,35 @@ export async function lagRevisjonsrapport(s) {
   const linje = (etikett, verdi, f = font) => { tekst(etikett, MARG, 12, f); hoyre(verdi, A4[0] - MARG, 12, f); y -= 8; strek(); y -= 18; };
   linje('Søkt', belop(p.sokt));
   linje('Innvilget', p.innvilget == null ? '–' : belop(p.innvilget));
+  if (harEgne) linje(p.egenandel === p.egenandelPlanlagt ? 'Egenandel' : `Egenandel (i søknaden ${belop(p.egenandelPlanlagt)})`, belop(p.egenandel));
   linje('Disponert (tilbud og utgifter)', belop(p.disponertFull));
   linje('Brukt (fakturert)', belop(fakturert), fet);
-  linje('Gjenstående av innvilget', p.innvilget == null ? '–' : belop(p.innvilget - (p.harMoms ? giverandel(fakturert, p.prosent) : fakturert)));
-  if (p.harMoms) {
+  linje('Gjenstående av innvilget', p.innvilget == null ? '–' : belop(p.innvilget - fraGiver));
+  if (p.harMoms || harEgne) {
     y -= 10;
     tekst('Fordeling av det fakturerte', MARG, 10, fet, graa); y -= 20;
-    linje(`Fra giver (${p.giverProsent} %)`, belop(giverandel(fakturert, p.prosent)));
-    linje(`Fra momskompensasjon (${p.prosent} %) – forventes mottatt neste år`, belop(fakturert - giverandel(fakturert, p.prosent)));
+    if (harEgne) linje('Egne midler', belop(egne));
+    linje(p.harMoms ? `Fra giver (${p.giverProsent} %${harEgne ? ' etter egne midler' : ''})` : 'Fra giver', belop(fraGiver));
+    if (p.harMoms) linje(`Fra momskompensasjon (${p.prosent} %) – forventes mottatt neste år`, belop(fakturert - egne - fraGiver));
+  }
+  // Samme fordeling per kategori, slik giveren kan se at egenandelen er innfridd.
+  if (harEgne) {
+    const f = fordelingFor(s, poster, revisjonsoppsummering(fakturaer, poster).perPost, p.prosent);
+    const kol = [A4[0] - MARG - (p.harMoms ? 270 : 180), A4[0] - MARG - (p.harMoms ? 180 : 90), A4[0] - MARG - (p.harMoms ? 90 : 0), A4[0] - MARG];
+    const rad = (navn, g, f1 = font, st = 10) => {
+      tekst(brytTekst(navn, st, kol[0] - 80 - MARG, f1)[0] || '', MARG, st, f1);
+      hoyre(belop(g.kostnad), kol[0], st, f1); hoyre(belop(g.egne), kol[1], st, f1); hoyre(belop(g.giver), kol[2], st, f1);
+      if (p.harMoms) hoyre(belop(g.moms), kol[3], st, f1);
+    };
+    if (y - (f.grupper.length + 3) * 18 - 60 < MARG) nySide(); else y -= 10;
+    tekst('Fordeling per kategori', MARG, 10, fet, graa); y -= 20;
+    tekst('KATEGORI', MARG, 8, fet, graa); hoyre('KOSTNAD', kol[0], 8, fet, graa); hoyre('EGNE MIDLER', kol[1], 8, fet, graa); hoyre('FRA GIVER', kol[2], 8, fet, graa);
+    if (p.harMoms) hoyre('MOMSKOMP.', kol[3], 8, fet, graa);
+    y -= 6; strek(1.5, svart); y -= 16;
+    for (const g of f.grupper) { rad(g.navn, g); y -= 6; strek(); y -= 14; }
+    y += 2; strek(1.5, svart); y -= 16;
+    rad('Sum', f.sum, fet, 11); y -= 18;
+    for (const l of brytTekst('Kostnad er fakturert beløp. Poster uten faktura står med tilbudt pris, og fakturaer som ikke er koblet til en post er ikke med.', 9, A4[0] - 2 * MARG)) { tekst(l, MARG, 9, font, graa); y -= 12; }
   }
   y -= 20;
   for (const l of brytTekst(`Rapporten inneholder ${fakturaer.length} ${fakturaer.length === 1 ? 'faktura' : 'fakturaer'} med løpenummer 1–${fakturaer.length}. Løpenummeret er stamplet øverst til høyre på hvert bilag.`, 10, A4[0] - 2 * MARG)) { tekst(l, MARG, 10, font, graa); y -= 14; }

@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { kr, tolkTall, tolkDato, datoFelt, tidspunkt, fornavn } from '../app/ui/format.js';
 import {
-  linjeliste, sumEstimert, soktBelop, behovsinfo, velgbareBehov, SOKNADSFILTRE, nesteRekkefolge,
+  linjeliste, sumEstimert, soktBelop, behovsinfo, velgbareBehov, SOKNADSFILTRE, nesteRekkefolge, finansierteLinjer,
 } from '../app/data/beregning.js';
 
 test('kr viser alltid to desimaler, med hardt mellomrom som tusenskille', async () => {
@@ -70,16 +70,25 @@ test('behovsstatus følger søknadene', () => {
   assert.equal(behovsinfo(behov, []).status, 'Ikke søkt');
   assert.equal(behovsinfo(behov, []).gjenstarKr, 51000);
 
-  const sendt = soknad('s1', 'sendt', { l: { behovId: 'k', antall: 4, finansieres: true } });
+  const sendt = soknad('s1', 'sendt', { l: { behovId: 'k', antall: 4 } });
   const info = behovsinfo(behov, [sendt]);
-  assert.equal(info.status, 'Søkt'); // finansieres teller først når søknaden er innvilget
+  assert.equal(info.status, 'Søkt');
   assert.equal(info.iSoknader, 4);
 
+  // Finansiert = det er valgt en pris for linjen hos en leverandør i et innkjøp.
   const innvilget = { ...sendt, status: 'innvilget' };
-  assert.equal(behovsinfo(behov, [innvilget]).status, 'Finansiert');
+  assert.equal(behovsinfo(behov, [innvilget]).status, 'Søkt');
+  const innkjopet = { soknadId: 's1', linjer: { a: { soknadLinjeId: 'l', antall: 4 }, fri: { antall: 1 } }, leverandorer: { x: {} }, priser: { a: { x: { raa: '8000' } }, fri: { x: { raa: '10' } } }, valgt: { fri: 'x' } };
+  assert.deepEqual([...finansierteLinjer([innkjopet])], []); // pris, men ikke valgt
+  const valgt = finansierteLinjer([{ ...innkjopet, valgt: { a: 'x', fri: 'x' } }]);
+  assert.deepEqual([...valgt], ['s1/l']);
+  const finansiert = behovsinfo(behov, [innvilget], 0, valgt);
+  assert.equal(finansiert.status, 'Finansiert');
+  assert.equal(finansiert.finansiertI(finansiert.bruk[0]), true);
+  assert.equal(behovsinfo(behov, [innvilget], 4, valgt).status, 'Delvis anskaffet'); // kjøpt går foran
 
   const avslatt = soknad('s2', 'avslatt', { l: { behovId: 'k', antall: 6 } });
-  const iAvslatt = behovsinfo(behov, [avslatt]);
+  const iAvslatt = behovsinfo(behov, [avslatt], 0, new Set(['s2/l']));
   assert.equal(iAvslatt.status, 'Ikke søkt');
   assert.equal(iAvslatt.iSoknader, 0);
   assert.equal(iAvslatt.bruk.length, 1); // vises fortsatt
@@ -567,4 +576,81 @@ test('kreditnota: avvik per post, faktura med negativt beløp', async () => {
   assert.equal(fakturaavvik(fakturaer[2], poster, fakturaer).alene, false);
   const alene = [fakturaer[0], fakturaer[3]];
   assert.deepEqual(fakturaavvik(fakturaer[0], poster, alene), { tilbudt: 30600, avvik: 0, koblet: true, alene: true });
+});
+
+test('egenandel: trekkes fra søkt beløp, og kan følge beløpet eller andelen etter tildeling', async () => {
+  const { soktForslag, soktBelop, egenandel, egenandelSomAndel, giverbehov, pott } = await import('../app/data/beregning.js');
+  const s = soknad('s1', 'sendt', { l: { antall: 1, estPris: 560000 } }, { egenandel: 40000 });
+  assert.equal(soktForslag(s), 520000);
+  assert.equal(egenandel(s), 40000);
+  assert.equal(pott(s).egenandel, 40000);
+  assert.equal(pott(s).ramme, null); // ikke innvilget ennå
+
+  // Innvilget 430 000: samme beløp gir ramme 470 000, samme andel 463 077.
+  const belop = { ...s, status: 'innvilget', innvilget: 430000 };
+  assert.equal(egenandel(belop), 40000);
+  assert.equal(pott(belop).ramme, 470000);
+  assert.equal(giverbehov(belop), 520000); // estimatet er 90 000 over innvilget
+  const andel = { ...belop, egenandelValg: 'andel' };
+  assert.equal(egenandelSomAndel(andel), 33077);
+  assert.equal(egenandel(andel), 33077);
+  assert.equal(pott(andel).ramme, 463077);
+  assert.equal(pott(andel).egenandelPlanlagt, 40000);
+  assert.equal(soktBelop(andel), 520000); // det vi søkte om endres ikke av valget
+
+  // Uten egenandel er alt som før.
+  assert.equal(egenandel(soknad('s2', 'utkast', {})), 0);
+  assert.equal(egenandel({ ...andel, egenandel: null }), 0);
+});
+
+test('pott med egenandel: rammen er innvilget + egenandel, og egenandelen er utenfor momsfordelingen', async () => {
+  const { pott, soktForslag } = await import('../app/data/beregning.js');
+  const s = soknad('s1', 'innvilget', { l: { antall: 1, estPris: 560000 } }, { egenandel: 40000, innvilget: 430000, utgifter: { u: { belop: 300000 } } });
+  const p = pott(s);
+  assert.equal(p.disponert, 300000);
+  assert.equal(p.gjenstar, 170000);
+  assert.equal(p.moms, 0);
+
+  // Med 8 % moms: giveren dekker 92 % av det som er igjen etter egenandelen.
+  const m = { ...s, momsProsent: 8, utgifter: { u: { belop: 500000 } } };
+  assert.equal(soktForslag(m), 478400);
+  const pm = pott(m);
+  assert.equal(pm.disponert, 40000 + 423200);
+  assert.equal(pm.moms, 36800);
+  assert.equal(pm.gjenstar, 6800);
+
+  // Er det brukt mindre enn egenandelen, er ingenting tatt fra giveren.
+  const lite = pott({ ...m, utgifter: { u: { belop: 25000 } } });
+  assert.equal(lite.disponert, 25000);
+  assert.equal(lite.moms, 0);
+  assert.equal(lite.gjenstar, 445000);
+});
+
+test('egne midler fordeles per post og summeres per kategori', async () => {
+  const { revisjonsposter, revisjonsoppsummering, fordelingPerKategori, sumEgneMidler, giverandelOre } = await import('../app/data/beregning.js');
+  const behovliste = [{ id: 'b1', type: 'Instrument' }];
+  const s = soknad('s1', 'innvilget', { x: { behovId: 'b1' }, y: { behovId: 'b1', type: 'Inventar' } }, {
+    utgifter: { u1: { beskrivelse: 'Parkering', belop: 800, egneMidler: 800, rekkefolge: 1 } },
+  });
+  const i = {
+    id: 'i1', navn: 'Instrumenter', ...innkjop,
+    linjer: { l1: { soknadLinjeId: 'x', antall: 4, rekkefolge: 1, egneMidler: 1000.5 }, l2: { soknadLinjeId: 'y', antall: 2, rekkefolge: 2 }, l3: { antall: 1, rekkefolge: 3, egneMidler: 50 } },
+  };
+  const poster = revisjonsposter(s, [i], { tittelFor: (_, l) => l.id, levNavn: () => '', behovliste });
+  assert.deepEqual(poster.map(p => [p.id, p.kategori, p.egne]), [['i1/l1', 'Instrument', 1000.5], ['i1/l2', 'Inventar', 0], ['utgift/u1', undefined, 800]]);
+  assert.equal(sumEgneMidler(poster), 1800.5); // l3 er ikke valgt og teller ikke
+
+  const fakturaer = [{ lopenummer: 1, belop: 4000, dekker: { 'i1|l1': true } }];
+  const f = fordelingPerKategori(poster, revisjonsoppsummering(fakturaer, poster).perPost, 8, ['Inventar']);
+  assert.deepEqual(f.grupper.map(g => g.navn), ['Inventar', 'Instrument', 'Løse utgifter']);
+  const instrument = f.grupper[1];
+  assert.equal(instrument.tilbudt, 3800);
+  assert.equal(instrument.kostnad, 4000); // fakturert går foran tilbudt
+  assert.equal(instrument.egne, 1000.5);
+  assert.equal(instrument.giver, 2759.54); // 92 % av 2 999,50
+  assert.equal(instrument.moms, 239.96);
+  assert.deepEqual([f.grupper[0].kostnad, f.grupper[0].giver, f.grupper[0].moms], [1000, 920, 80]);
+  assert.deepEqual([f.grupper[2].kostnad, f.grupper[2].egne, f.grupper[2].giver], [800, 800, 0]);
+  assert.deepEqual(f.sum, { tilbudt: 5600, fakturert: 4000, kostnad: 5800, egne: 1800.5, giver: 3679.54, moms: 319.96 });
+  assert.equal(giverandelOre(1000.55, null), 1000.55);
 });

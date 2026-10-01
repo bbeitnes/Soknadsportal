@@ -1,5 +1,5 @@
 // Behovslisten: alt korpset trenger, uavhengig av søknad.
-import { tilstand, opprettBehov, oppdaterBehov, slettBehov, importerBehov, fellesTyperekkefolge, settFellesTyperekkefolge, settBehovrekkefolge, anskaffet } from '../data/index.js';
+import { tilstand, opprettBehov, oppdaterBehov, slettBehov, importerBehov, fellesTyperekkefolge, settFellesTyperekkefolge, settBehovrekkefolge, anskaffet, finansierte } from '../data/index.js';
 import { behovsinfo, statusNavn, tolkBehovimport, IMPORTFELT, grupperPerType, typeliste, etterRekkefolgeOgTittel, flyttIListe } from '../data/beregning.js';
 import { escapeHtml, kr, tidspunkt, fornavn } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
@@ -36,8 +36,8 @@ const typeAv = b => (b.type || '').trim();
 const del = nokkel => { const i = nokkel.indexOf(':'); return [nokkel.slice(0, i), nokkel.slice(i + 1)]; };
 
 function beregn() {
-  const kjopt = anskaffet();
-  const alle = sortert().map(b => ({ b, info: behovsinfo(b, tilstand.soknader, kjopt.get(b.id) || 0) }));
+  const kjopt = anskaffet(), valgt = finansierte();
+  const alle = sortert().map(b => ({ b, info: behovsinfo(b, tilstand.soknader, kjopt.get(b.id) || 0, valgt) }));
   const synlig = alle.filter(({ info }) => ui.filter === 'alle' || (ui.filter === 'apne' ? info.erApent : !info.erApent));
   const apne = alle.filter(x => x.info.erApent);
   return {
@@ -71,7 +71,7 @@ function rad({ b, info }) {
 }
 
 function panel(b) {
-  const info = behovsinfo(b, tilstand.soknader, anskaffet().get(b.id) || 0);
+  const info = behovsinfo(b, tilstand.soknader, anskaffet().get(b.id) || 0, finansierte());
   const n = f => `behov/${b.id}/${f}`;
   const valg = [[null, 'Automatisk'], ['trengs-ikke', 'Trengs ikke'], ['anskaffet', 'Anskaffet']];
   const statusNotat = info.overstyrt

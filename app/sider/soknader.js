@@ -39,7 +39,7 @@ function rad(s) {
       <td class="tall">${sokt ? kr(sokt) : STREK}</td>
       <td class="tall fet">${innvilget ? kr(p.innvilget) : STREK}</td>
       <td class="tall">${innvilget ? kr(p.disponert) : STREK}</td>
-      <td class="tall fet ${p.gjenstar < 0 ? 'aksent' : ''}">${innvilget && s.status === 'innvilget' ? kr(p.gjenstar) : STREK}</td>
+      <td class="tall fet ${p.gjenstar < 0 ? 'aksent' : ''}" ${p.egenandel > 0 ? `title="Av innvilget + egenandel ${kr(p.egenandel)}"` : ''}>${innvilget && s.status === 'innvilget' ? kr(p.gjenstar) : STREK}</td>
       <td class="smal dempet">${escapeHtml(sistEndret(s))}</td>
     </tr>`;
 }

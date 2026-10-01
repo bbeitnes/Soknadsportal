@@ -76,25 +76,28 @@ Når søknaden er innvilget, blir innvilget beløp en pott. Den brukes gjennom
 innkjøp med tilbud og/eller løse utgifter; én søknad kan ha begge deler.
 Øverst i søknaden vises alltid: innvilget, disponert, fakturert, gjenstående.
 
-### Egne midler og egenandel
-**Egne midler** er en beslutning vi tar mens vi handler: tenorsaksofonen koster
-50 580, vi dekker 40 000 selv, og søknaden belastes med 10 580.
-- Føres på varen i Innkjøp (panelet bak `•••` på den valgte prisen), og vises
-  under summen i matrisen. Løse utgifter får egne midler i Revisjon.
-- Potten: «disponert» er det som belaster giveren, og «gjenstår» øker straks
-  egne midler legges inn. Linjen under viser hva vi betaler og hvem som dekker det.
+### Egenandel og egne midler
+**Rammen for bruken er alltid tilskudd + egne midler.**
+
+**Egenandel** settes på søknaden: det vi dekker selv, i forhold til søknadsbeløpet.
+- Søkt beløp foreslås som estimatet minus egenandelen.
+- Blir innvilget et annet beløp enn søkt, velger vi om egenandelen beholdes som
+  beløp (standard) eller justeres forholdsmessig («andel»: den følger
+  innvilget/søkt). Rammen følger valget.
+- Topplinjen viser innvilget, egenandel, ramme, disponert og gjenstår av rammen.
+
+**Egne midler på varen** settes i Innkjøp (panelet bak `•••` på den valgte
+prisen) og viser hvilke kjøp egenandelen går til: tenorsaksofonen koster 50 580,
+vi dekker 40 000 selv. Beløpet vises under summen i matrisen. Løse utgifter får
+egne midler i Revisjon.
+- Har søknaden en egenandel, endrer ikke beløpene på varene rammen. Ligger det
+  mer eller mindre på varene enn egenandelen, sier portalen fra.
+- Har søknaden ingen egenandel, er egne midler summen av det som ligger på
+  varene, og rammen er innvilget + den summen.
 - Egne midler holdes utenfor momskompensasjonen: de trekkes fra først, og resten
   fordeles mellom giver og momskompensasjon.
 - Revisjon viser egne midler per post, gruppert per kategori med delsum.
   Revisjonsrapporten viser per kategori kostnad, egne midler og hva giveren dekker.
-
-**Egenandel** (valgfritt felt på søknaden) er det vi har LOVET giveren å dekke selv.
-- Søkt beløp foreslås som estimatet minus egenandelen.
-- Blir innvilget et annet beløp enn søkt, velger vi om egenandelen beholdes som
-  beløp (standard) eller som andel (da følger den innvilget/søkt).
-- Potten regner med det største av lovet egenandel og egne midler lagt på varer,
-  så lovet egenandel er med i «gjenstår» også før den er plassert på et kjøp.
-  Revisjon viser «egne midler X av egenandelen Y».
 
 ## Momskompensasjon
 Noen givere krever at vi trekker ut forventet momskompensasjon. Eksempel:
@@ -213,7 +216,7 @@ Prototypene ligger i prosjektet som `Søknader.dc.html`, `Søknad.dc.html`, `Beh
 - «+ Ny søknad»: sidepanel med giver (viser momsinnstilling), tittel og frist. Opprettes som utkast.
 
 ### Søknad (én søknad)
-Fast topp: tittel (klikk = bytt søknad), status, giver, frist, sendt, sist endret, og pottlinjen søkt / innvilget / disponert / gjenstår. Med momskompensasjon er «disponert» giverens andel, og en linje under viser full kostnad og forventet momskompensasjon neste år. Med egne midler vises de mellom innvilget og disponert, «disponert» er det som belaster giveren, og linjen under viser hvordan det vi betaler deles på egne midler, giver og momskompensasjon.
+Fast topp: tittel (klikk = bytt søknad), status, giver, frist, sendt, sist endret, og pottlinjen søkt / innvilget / disponert / gjenstår. Med momskompensasjon er «disponert» giverens andel, og en linje under viser full kostnad og forventet momskompensasjon neste år. Med egenandel/egne midler vises også egenandelen og rammen (innvilget + egenandel), «disponert» og «gjenstår» gjelder da rammen, og linjen under viser hvordan det vi betaler deles på egne midler, giver og momskompensasjon.
 
 Faner:
 - **Søknad:** behovstabell (antall og est. stykkpris redigerbare, kostnad, fra giver / fra momskompensasjon når giveren krever det, sumrad). Under: egenandel (med valget beløp/andel når innvilget er et annet beløp enn søkt), søkt beløp (foreslått som giverens andel etter egenandel, kan overstyres), innvilget beløp med hint om estimatet er over/under, momsprosent. Høyre kolonne: giver, tittel, frist, sendt, status, revisjon av/på, dokumenter (opplasting). «Skriv ut» gir behovslisten med de fire første kolonnene.

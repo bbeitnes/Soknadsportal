@@ -590,11 +590,17 @@ test('egenandel: trekkes fra søkt beløp, og kan følge beløpet eller andelen 
   const belop = { ...s, status: 'innvilget', innvilget: 430000 };
   assert.equal(egenandel(belop), 40000);
   assert.equal(pott(belop).gjenstar, 470000);
+  assert.equal(pott(belop).ramme, 470000);
   assert.equal(giverbehov(belop), 520000); // estimatet er 90 000 over innvilget
   const andel = { ...belop, egenandelValg: 'andel' };
   assert.equal(egenandelSomAndel(andel), 33077);
   assert.equal(egenandel(andel), 33077);
-  assert.equal(pott(andel).gjenstar, 463077);
+  assert.equal(pott(andel).ramme, 463077);
+  // Rammen følger valget også når det ligger et større beløp på en vare.
+  const medVare = [{ soknadId: 's1', linjer: { t: { antall: 1, egneMidler: 40000 } }, leverandorer: { x: {} }, priser: { t: { x: { raa: '50580' } } }, valgt: { t: 'x' } }];
+  assert.equal(pott(belop, medVare).ramme, 470000);
+  assert.equal(pott(andel, medVare).ramme, 463077);
+  assert.equal(pott(andel, medVare).gjenstar, 463077 - 50580);
   assert.equal(pott(andel).egenandelPlanlagt, 40000);
   assert.equal(soktBelop(andel), 520000); // det vi søkte om endres ikke av valget
 
@@ -619,10 +625,14 @@ test('pott med egne midler på en vare: bare resten belaster søknaden', async (
   const pm = pott({ ...s, momsProsent: 8 }, [sax]);
   assert.deepEqual([pm.disponert, pm.moms, pm.gjenstar], [9734, 846, 90266]);
 
-  // Er det lovet en egenandel, gjelder det største av lovet og fordelt.
-  assert.equal(pott({ ...s, egenandel: 10000 }, [sax]).egne, 40000);
-  const lovetMer = pott({ ...s, egenandel: 45000 }, [sax]);
-  assert.deepEqual([lovetMer.egne, lovetMer.fordelt, lovetMer.disponert, lovetMer.gjenstar], [45000, 40000, 5580, 94420]);
+  assert.deepEqual([p.ramme, p.disponertRamme], [140000, 50580]);
+
+  // Har søknaden en egenandel, er det den som bestemmer rammen. Beløpene på
+  // varene viser bare hvor den går, også når de er større eller mindre.
+  const mindre = pott({ ...s, egenandel: 10000 }, [sax]);
+  assert.deepEqual([mindre.egne, mindre.fordelt, mindre.ramme, mindre.disponert, mindre.gjenstar], [10000, 40000, 110000, 40580, 59420]);
+  const mer = pott({ ...s, egenandel: 45000 }, [sax]);
+  assert.deepEqual([mer.egne, mer.fordelt, mer.ramme, mer.disponert, mer.gjenstar], [45000, 40000, 145000, 5580, 94420]);
   // Egne midler på en løs utgift teller også.
   assert.equal(fordelteEgneMidler({ utgifter: { u: { belop: 800, egneMidler: 300 } } }, [sax]), 40300);
 });

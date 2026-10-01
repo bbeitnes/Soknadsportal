@@ -80,16 +80,16 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
 - Linjer lagt til i en søknad som ikke lenger er utkast får `etterSoknad: true` og `notat` (fritekst).
   De teller ikke i `sumEstimert()`/søkt beløp (`soktLinjer()` / `tilleggslinjer()`), men går i innkjøp,
   pott og revisjon. PDF-rapporten viser dem ikke spesielt (bare på skjerm).
-- Egne midler: `egneMidler` (beløp med øre) på innkjøpslinjen (`innkjop.<id>.linjer.<lid>.egneMidler`,
-  settes i tilbudspanelet for den valgte prisen) eller på en løs utgift (settes i Revisjon). Teller
-  bare når linjen har valgt pris (`innkjopsberegning().egne`). Det er beslutningen «denne varen
-  dekker vi delvis selv», og det som styrer potten.
-- Egenandel: `soknader.<id>.egenandel` er det vi har LOVET giveren (valgfritt; trekkes fra i
-  `soktForslag()`). `egenandelValg` ('belop' standard / 'andel') avgjør hva som gjelder etter
-  tildeling (`egenandel()`).
-- `pott()`: `egne` = det største av lovet egenandel og fordelte egne midler; `disponert` = det som
-  belaster giveren (giverandel av det vi betaler etter egne midler); `gjenstar` = innvilget −
-  disponert + ubrukt lovet egenandel. `fordelingPerKategori()` gir sluttoppgjøret per type
+- Rammen for bruken er alltid tilskudd + egne midler. `soknader.<id>.egenandel` er egenandelen i
+  søknaden (trekkes fra i `soktForslag()`); `egenandelValg` ('belop' standard / 'andel') avgjør om
+  den beholdes eller justeres forholdsmessig når innvilget ≠ søkt (`egenandel()`).
+- Egne midler på varen: `egneMidler` (beløp med øre) på innkjøpslinjen
+  (`innkjop.<id>.linjer.<lid>.egneMidler`, settes i tilbudspanelet for den valgte prisen) eller på en
+  løs utgift (settes i Revisjon). Teller bare når linjen har valgt pris (`innkjopsberegning().egne`).
+- `pott()`: `egne` = egenandelen hvis den er satt, ellers summen på varene (`fordelt`). Er
+  egenandelen satt, viser beløpene på varene bare hvor den går (avvik varsles i topplinjen).
+  `ramme` = innvilget + egne; `disponert` = det som belaster giveren; `disponertRamme` = brukt av
+  rammen; `gjenstar` = ramme − disponertRamme. `fordelingPerKategori()` gir sluttoppgjøret per type
   (kostnad, egne midler, fra giver, momskomp.) til Revisjon og PDF-rapporten.
 - Behovsstatus «Finansiert»: det er valgt en pris for søknadslinjen i et innkjøp
   (`finansierteLinjer()` → `behovsinfo(…, finansierte)`; sider henter settet med `finansierte()`).

@@ -78,33 +78,37 @@ function topp(s, fane) {
     </nav>`;
 }
 
-// Pottlinjen: søkt / innvilget / disponert / gjenstår. «Disponert» er det
-// som belaster giveren. Med momskompensasjon eller egne midler viser linjen
-// under regnestykket: hva vi betaler, og hvem som dekker det.
+// Pottlinjen: søkt / innvilget / disponert / gjenstår. Med egne midler er
+// rammen innvilget + egne midler, og «disponert» og «gjenstår» gjelder rammen.
+// Med momskompensasjon eller egne midler viser linjen under regnestykket: hva
+// vi betaler, og hvem som dekker det.
 function pottlinje(s) {
   const p = pott(s, innkjopFor(s.id));
   const strek = '–';
   const negativ = p.gjenstar != null && p.gjenstar < 0;
-  const egne = p.egne > 0;
+  const egne = p.egne > 0, lovet = p.egenandel > 0;
   const tall = n => `<span style="color:var(--color-text); font-variant-numeric:tabular-nums">${kr(n)}</span>`;
   const deler = [
     egne ? `egne midler ${tall(p.egenBrukt)}` : '',
     p.harMoms || egne ? `giver${p.harMoms ? ` ${p.giverProsent} %${egne ? ' av resten' : ''}` : ''} ${tall(p.disponert)}` : '',
     p.harMoms ? `momskompensasjon ${p.prosent} % ${tall(p.moms)}, som forventes mottatt neste år` : '',
   ].filter(Boolean).join(' + ');
-  // Lovet egenandel som ikke er brukt ennå, er med i «Gjenstår».
-  const ubrukt = p.egne - p.egenBrukt;
+  // Egenandelen bestemmer rammen. Ligger det et annet beløp på varene, sier vi fra.
+  const plassert = !lovet || p.fordelt === p.egenandel ? ''
+    : p.fordelt > p.egenandel ? ` <span class="aksent">Det ligger ${kr(p.fordelt)} i egne midler på varene – ${kr(p.fordelt - p.egenandel)} mer enn egenandelen. Rammen følger egenandelen.</span>`
+      : ` Av egenandelen er ${tall(p.fordelt)} plassert på varer.`;
   return `
     <div>
-      <div class="nokkeltall" ${egne ? 'style="column-gap:26px"' : ''}>
+      <div class="nokkeltall" ${egne ? 'style="column-gap:24px"' : ''}>
         <div><div class="etikett">Søkt</div><div class="tall">${kr(p.sokt)}</div></div>
         <div><div class="etikett">Innvilget</div><div class="tall">${p.innvilget == null ? strek : kr(p.innvilget)}</div></div>
-        ${egne ? `<div title="${p.egenandel > 0 ? `Egenandel i søknaden ${kr(p.egenandel)}, fordelt på kjøp ${kr(p.fordelt)}. Det største gjelder.` : 'Egne midler lagt på varer i Innkjøp'}"><div class="etikett">Egne midler</div><div class="tall">${kr(p.egne)}</div></div>` : ''}
-        <div title="Det som belaster giveren"><div class="etikett">${p.harMoms ? 'Disponert (giverandel)' : 'Disponert'}</div><div class="tall">${kr(p.disponert)}</div></div>
+        ${egne ? `<div title="${lovet ? 'Egenandelen på søknaden' : 'Egne midler lagt på varer i Innkjøp'}"><div class="etikett">${lovet ? 'Egenandel' : 'Egne midler'}</div><div class="tall">${kr(p.egne)}</div></div>
+        <div title="Innvilget + ${lovet ? 'egenandel' : 'egne midler'}"><div class="etikett">Ramme</div><div class="tall">${p.ramme == null ? strek : kr(p.ramme)}</div></div>` : ''}
+        <div title="${egne ? 'Brukt av rammen: egne midler + det som belaster giveren' : 'Det som belaster giveren'}"><div class="etikett">${egne ? 'Disponert' : p.harMoms ? 'Disponert (giverandel)' : 'Disponert'}</div><div class="tall">${kr(egne ? p.disponertRamme : p.disponert)}</div></div>
         <div><div class="etikett">Fakturert</div><div class="tall">${kr(sumFakturert(tilstand.fakturaer, s.id))}</div></div>
-        <div ${ubrukt > 0 ? 'title="Innvilget − disponert, pluss egne midler som ikke er brukt ennå"' : ''}><div class="etikett">Gjenstår</div><div class="tall ${negativ ? 'aksent' : ''}">${p.gjenstar == null ? strek : kr(p.gjenstar)}</div></div>
+        <div ${egne ? 'title="Ramme − disponert"' : ''}><div class="etikett">Gjenstår</div><div class="tall ${negativ ? 'aksent' : ''}">${p.gjenstar == null ? strek : kr(p.gjenstar)}</div></div>
       </div>
-      ${deler ? `<div class="hint" style="margin-top:8px">Vi betaler ${kr(p.disponertFull)}: ${deler}.${ubrukt > 0 && p.innvilget != null ? ` Gjenstår inkluderer ${tall(ubrukt)} i egne midler som ikke er brukt.` : ''}</div>` : ''}
+      ${deler ? `<div class="hint" style="margin-top:8px">Vi betaler ${kr(p.disponertFull)}: ${deler}.${plassert}</div>` : ''}
     </div>`;
 }
 
@@ -261,17 +265,17 @@ function dokumenter(s) {
     </div>`;
 }
 
-// Egenandel: det vi har lovet giveren å dekke selv (valgfritt). Blir innvilget
-// et annet beløp enn søkt, velger vi om vi holder på beløpet eller på andelen.
-// Egne midler på enkeltvarer legges inn i Innkjøp og krever ikke dette feltet.
+// Egenandel: det vi har sagt i søknaden at vi dekker selv. Blir innvilget et
+// annet beløp enn søkt, velger vi om vi holder på beløpet eller på andelen.
+// Rammen er innvilget + egenandel. Hvilke varer den går til, settes i Innkjøp.
 function egenandelfelt(s, p) {
   const planlagt = egenandelPlanlagt(s);
   const andel = (egen, giver) => egen + giver > 0 ? `${(egen / (egen + giver) * 100).toFixed(1).replace('.', ',')} %` : '–';
   const kanVelge = planlagt > 0 && p.innvilget != null && p.innvilget !== p.sokt;
   const valg = s.egenandelValg === 'andel' ? 'andel' : 'belop';
-  let hint = 'Bare hvis vi har lovet giveren å dekke noe selv. Trekkes fra søkt beløp.';
+  let hint = 'Det vi dekker selv. Trekkes fra søkt beløp, og legges til rammen.';
   if (planlagt > 0 && p.innvilget == null) hint = `${andel(planlagt, p.sokt)} av ${kr(planlagt + p.sokt)}. Trekkes fra søkt beløp.`;
-  else if (planlagt > 0) hint = `${andel(p.egenandel, p.innvilget)} av ${kr(p.innvilget + p.egenandel)}${kanVelge ? ` · i søknaden ${andel(planlagt, p.sokt)}` : ''} · fordelt på kjøp ${kr(p.fordelt)}`;
+  else if (planlagt > 0) hint = `${andel(p.egenandel, p.innvilget)} av rammen ${kr(p.ramme)}${kanVelge ? ` · i søknaden ${andel(planlagt, p.sokt)}` : ''} · <span class="${p.fordelt > p.egenandel ? 'aksent' : ''}">plassert på varer ${kr(p.fordelt)}</span>`;
   return `
           <div class="felt"><span class="etikett">Egenandel</span>
             <input class="inndata tall" style="text-align:left" inputmode="numeric" placeholder="0" ${feltAttr(`soknader/${s.id}/egenandel`, s.egenandel, 'tall')}>

@@ -110,7 +110,7 @@ export const revisjonFane = {
     if (ui.panel && !valgt) ui.panel = null;
     // Egne midler per post (lagt inn i Innkjøp, kan rettes her). Da grupperes
     // postene per kategori med delsum, så det går fram hvor mye vi dekker selv
-    // i hver. Har vi lovet giveren en egenandel, måles fordelingen mot den.
+    // i hver. Har søknaden en egenandel, skal fordelingen gå opp med den.
     const fordelt = sumEgneMidler(poster);
     const visEgne = p.egenandel > 0 || fordelt > 0;
     const somLovet = !p.egenandel || fordelt === p.egenandel;

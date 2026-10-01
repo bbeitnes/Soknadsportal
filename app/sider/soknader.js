@@ -39,7 +39,7 @@ function rad(s) {
       <td class="tall">${sokt ? kr(sokt) : STREK}</td>
       <td class="tall fet">${innvilget ? kr(p.innvilget) : STREK}</td>
       <td class="tall">${innvilget ? kr(p.disponert) : STREK}</td>
-      <td class="tall fet ${p.gjenstar < 0 ? 'aksent' : ''}" ${p.egne > p.egenBrukt ? `title="Inkluderer ${kr(p.egne - p.egenBrukt)} i egne midler som ikke er brukt"` : ''}>${innvilget && s.status === 'innvilget' ? kr(p.gjenstar) : STREK}</td>
+      <td class="tall fet ${p.gjenstar < 0 ? 'aksent' : ''}" ${p.egne > 0 ? `title="Av rammen ${kr(p.ramme)} (innvilget + egne midler ${kr(p.egne)})"` : ''}>${innvilget && s.status === 'innvilget' ? kr(p.gjenstar) : STREK}</td>
       <td class="smal dempet">${escapeHtml(sistEndret(s))}</td>
     </tr>`;
 }

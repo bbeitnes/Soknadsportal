@@ -149,8 +149,12 @@ export function soktBelop(soknad) {
 // dekke selv. Den trekkes fra foreslått søkt beløp og er det vi måler de
 // fordelte egne midlene mot. Blir innvilget beløp et annet enn søkt, velger
 // vi (`egenandelValg`) om vi holder på beløpet ('belop', standard) eller på
-// andelen ('andel': egenandelen følger innvilget/søkt). Potten regner med det
-// største av lovet og fordelt beløp (se pott()).
+// andelen ('andel': egenandelen følger innvilget/søkt).
+//
+// Rammen for bruken er alltid tilskudd + egne midler (se pott()). Er det satt
+// en egenandel på søknaden, er det DEN som er egne midler, og beløpene på
+// varene viser bare hvor den går. Uten egenandel på søknaden er egne midler
+// summen av det som ligger på varene.
 
 export function egenandelPlanlagt(soknad) {
   return Number(soknad?.egenandel) || 0;
@@ -195,23 +199,24 @@ export function fordelteEgneMidler(soknad, innkjopListe = []) {
   return Math.round((linjer + utgiftsliste(soknad).reduce((sum, u) => sum + (Number(u.egneMidler) || 0), 0)) * 100) / 100;
 }
 
-// Potten: innvilget beløp, hva som er disponert av det (valgt i alle innkjøp
-// + løse utgifter) og hva som gjenstår.
-//   disponertFull  det vi faktisk betaler
-//   egne           egne midler: det største av lovet egenandel og det som er
-//                  fordelt på kjøpene. `egenBrukt` er det som er brukt av dem.
-//   disponert      det som belaster giveren: giverens andel av det vi betaler
-//                  etter egne midler
-//   moms           resten, som dekkes av momskompensasjonen neste år
-//   gjenstar       innvilget − disponert, pluss lovet egenandel som ennå
-//                  ikke er brukt
+// Potten: rammen (innvilget + egne midler), hva som er disponert av den
+// (valgt i alle innkjøp + løse utgifter) og hva som gjenstår.
+//   egne            egenandelen på søknaden hvis den er satt, ellers summen
+//                   av egne midler på varene (`fordelt`)
+//   ramme           innvilget + egne
+//   disponertFull   det vi faktisk betaler
+//   egenBrukt       egne midler brukt (de brukes først)
+//   disponert       det som belaster giveren: giverens andel av resten
+//   disponertRamme  egenBrukt + disponert – det som er brukt av rammen
+//   moms            resten, som dekkes av momskompensasjonen neste år
+//   gjenstar        ramme − disponertRamme
 export function pott(soknad, innkjopListe = []) {
   const prosent = momsProsent(soknad);
   const innvilget = soknad?.innvilget ?? null;
   const innkjop = innkjopListe.reduce((sum, i) => sum + sumInnkjop(i), 0);
   const disponertFull = sumUtgifter(soknad) + innkjop;
   const lovet = egenandel(soknad), fordelt = fordelteEgneMidler(soknad, innkjopListe);
-  const egne = Math.max(lovet, fordelt);
+  const egne = lovet > 0 ? lovet : fordelt;
   const egenBrukt = Math.min(egne, Math.max(0, disponertFull));
   const disponert = giverandel(disponertFull - egenBrukt, prosent);
   return {
@@ -225,12 +230,14 @@ export function pott(soknad, innkjopListe = []) {
     fordelt,
     egne,
     egenBrukt,
+    ramme: innvilget == null ? null : innvilget + egne,
     disponertFull,
     innkjop,
     utgifter: sumUtgifter(soknad),
     disponert,
+    disponertRamme: egenBrukt + disponert,
     moms: disponertFull - egenBrukt - disponert,
-    gjenstar: innvilget == null ? null : innvilget - disponert + (egne - egenBrukt),
+    gjenstar: innvilget == null ? null : innvilget + egne - egenBrukt - disponert,
   };
 }
 

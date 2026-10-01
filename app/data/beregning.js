@@ -138,14 +138,19 @@ export function soktBelop(soknad) {
   return soknad?.soktOverstyrt ?? soktForslag(soknad);
 }
 
-// ——— Egenandel ———
-// Det vi har sagt til giveren at vi dekker selv. `egenandel` på søknaden er
-// beløpet vi oppga da vi søkte, og trekkes fra før giverens andel regnes ut
-// (vi får ikke momskompensasjon fra oss selv). Blir innvilget beløp et annet
-// enn søkt, velger vi (`egenandelValg`) om vi holder på beløpet ('belop',
-// standard) eller på andelen ('andel': egenandelen følger innvilget/søkt).
-// Egenandelen er en ramme for hele søknaden. Hvilke kjøp den faktisk går til,
-// fordeles etterpå per post i Revisjon (`egneMidler`, se revisjonsposter()).
+// ——— Egne midler og egenandel ———
+// Egne midler føres på det vi kjøper: `egneMidler` på innkjøpslinjen (settes
+// i Innkjøp når prisen er valgt) eller på en løs utgift. Det er en beslutning
+// vi tar mens vi handler: tenorsaksofonen koster 50 580, vi dekker 40 000
+// selv, og søknaden belastes med 10 580. Egne midler trekkes fra før giverens
+// andel regnes ut (vi får ikke momskompensasjon fra oss selv).
+//
+// `egenandel` på søknaden er noe annet: det vi eventuelt har LOVET giveren å
+// dekke selv. Den trekkes fra foreslått søkt beløp og er det vi måler de
+// fordelte egne midlene mot. Blir innvilget beløp et annet enn søkt, velger
+// vi (`egenandelValg`) om vi holder på beløpet ('belop', standard) eller på
+// andelen ('andel': egenandelen følger innvilget/søkt). Potten regner med det
+// største av lovet og fordelt beløp (se pott()).
 
 export function egenandelPlanlagt(soknad) {
   return Number(soknad?.egenandel) || 0;
@@ -184,37 +189,48 @@ export function erInnvilget(soknad) {
   return soknad?.status === 'innvilget' || soknad?.status === 'avsluttet';
 }
 
-// Potten: innvilget beløp, hva som er disponert (valgt i alle innkjøp +
-// løse utgifter) og hva som gjenstår. Med moms-innstilling er «disponert»
-// giverens andel av det vi faktisk betaler; resten dekkes av
-// momskompensasjonen neste år.
-// Med egenandel er rammen innvilget + egenandel. Egenandelen brukes først
-// og er holdt utenfor momsfordelingen: «disponert» er da egenandelen pluss
-// giverens andel av resten.
+// Egne midler fordelt på det vi kjøper: valgte innkjøpslinjer og løse utgifter.
+export function fordelteEgneMidler(soknad, innkjopListe = []) {
+  const linjer = innkjopListe.reduce((sum, i) => sum + innkjopsberegning(i).egne, 0);
+  return Math.round((linjer + utgiftsliste(soknad).reduce((sum, u) => sum + (Number(u.egneMidler) || 0), 0)) * 100) / 100;
+}
+
+// Potten: innvilget beløp, hva som er disponert av det (valgt i alle innkjøp
+// + løse utgifter) og hva som gjenstår.
+//   disponertFull  det vi faktisk betaler
+//   egne           egne midler: det største av lovet egenandel og det som er
+//                  fordelt på kjøpene. `egenBrukt` er det som er brukt av dem.
+//   disponert      det som belaster giveren: giverens andel av det vi betaler
+//                  etter egne midler
+//   moms           resten, som dekkes av momskompensasjonen neste år
+//   gjenstar       innvilget − disponert, pluss lovet egenandel som ennå
+//                  ikke er brukt
 export function pott(soknad, innkjopListe = []) {
   const prosent = momsProsent(soknad);
   const innvilget = soknad?.innvilget ?? null;
   const innkjop = innkjopListe.reduce((sum, i) => sum + sumInnkjop(i), 0);
   const disponertFull = sumUtgifter(soknad) + innkjop;
-  const egen = egenandel(soknad);
-  const egenBrukt = Math.min(egen, Math.max(0, disponertFull));
-  const disponert = egenBrukt + giverandel(disponertFull - egenBrukt, prosent);
+  const lovet = egenandel(soknad), fordelt = fordelteEgneMidler(soknad, innkjopListe);
+  const egne = Math.max(lovet, fordelt);
+  const egenBrukt = Math.min(egne, Math.max(0, disponertFull));
+  const disponert = giverandel(disponertFull - egenBrukt, prosent);
   return {
     harMoms: prosent != null,
     prosent,
     giverProsent: prosent == null ? 100 : 100 - prosent,
     sokt: soktBelop(soknad),
     innvilget,
-    egenandel: egen,
+    egenandel: lovet,
     egenandelPlanlagt: egenandelPlanlagt(soknad),
+    fordelt,
+    egne,
     egenBrukt,
-    ramme: innvilget == null ? null : innvilget + egen,
     disponertFull,
     innkjop,
     utgifter: sumUtgifter(soknad),
     disponert,
-    moms: disponertFull - disponert,
-    gjenstar: innvilget == null ? null : innvilget + egen - disponert,
+    moms: disponertFull - egenBrukt - disponert,
+    gjenstar: innvilget == null ? null : innvilget - disponert + (egne - egenBrukt),
   };
 }
 
@@ -397,15 +413,16 @@ export function innkjopsberegning(innkjop) {
     for (const s of lev) celle[l.id][s.id] = tolkPris(priser[l.id]?.[s.id]?.raa);
   }
 
-  let sumValgt = 0;
+  // Egne midler på en linje teller først når det er valgt en pris for den.
+  let sumValgt = 0, egne = 0;
   const brukt = new Set();
   const perLinje = {};
   for (const l of linjer) {
     const sid = valgt[l.id];
     const p = sid ? celle[l.id][sid] : null;
     const antall = Number(l.antall) || 0;
-    perLinje[l.id] = { valgtSid: p ? sid : null, sum: p ? antall * p.netto : null };
-    if (p) { sumValgt += antall * p.netto; brukt.add(sid); }
+    perLinje[l.id] = { valgtSid: p ? sid : null, sum: p ? antall * p.netto : null, egne: p ? Number(l.egneMidler) || 0 : 0 };
+    if (p) { sumValgt += antall * p.netto; egne += perLinje[l.id].egne; brukt.add(sid); }
   }
   let frakt = 0;
   const perLeverandor = {};
@@ -421,7 +438,7 @@ export function innkjopsberegning(innkjop) {
   }
   return {
     linjer, leverandorer: lev, celle, perLinje, perLeverandor,
-    sumValgt, frakt, total: sumValgt + frakt, brukt,
+    sumValgt, frakt, total: sumValgt + frakt, brukt, egne,
   };
 }
 
@@ -681,8 +698,8 @@ const ore = n => Math.round(n * 100) / 100;
 // `alternativ` er satt når den valgte leverandøren tilbød et annet produkt
 // enn det vi ba om. `etterSoknad` og `notat` følger linjer som ble lagt til
 // etter at søknaden var sendt. `kategori` er typen linjen har i søknaden
-// (trenger `behovliste`), og `egne` er egne midler fordelt på posten
-// (`egneMidler` på innkjøpslinjen eller utgiften).
+// (trenger `behovliste`), og `egne` er egne midler på posten (`egneMidler`
+// på innkjøpslinjen, satt i Innkjøp, eller på utgiften).
 export function revisjonsposter(soknad, innkjopListe, { tittelFor, levNavn, behovliste = [] }) {
   const poster = [];
   for (const i of innkjopListe) {
@@ -698,7 +715,7 @@ export function revisjonsposter(soknad, innkjopListe, { tittelFor, levNavn, beho
         alternativ: (i.priser?.[l.id]?.[v.valgtSid]?.alternativ || '').trim(),
         etterSoknad: !!sl?.etterSoknad, notat: (sl?.notat || '').trim(),
         kategori: sl ? linjetype(sl, behovliste) : '',
-        tilbudt: ore(v.sum), egne: Number(l.egneMidler) || 0,
+        tilbudt: ore(v.sum), egne: v.egne,
       });
     }
   }

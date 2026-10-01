@@ -196,6 +196,8 @@ table.matrise { border-collapse: separate; border-spacing: 0; min-width: 100%; f
 .matrise .m-th { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-neutral-600); font-weight: 600; }
 .matrise th.m-linje { text-align: left; min-width: 300px; padding: 8px 16px 6px 20px; z-index: 4; }
 .matrise .m-linje { position: sticky; left: 0; z-index: 2; }
+.m-egne { display: block; margin-left: auto; padding: 0; border: 0; background: transparent; cursor: pointer; font-size: 12px; font-weight: 400; color: var(--color-accent-700); }
+.m-egne:hover { text-decoration: underline; }
 .matrise .m-valgt { position: sticky; right: 0; z-index: 2; text-align: right; box-shadow: -2px 0 0 var(--color-divider); font-weight: 600; font-size: 16px; padding: 5px 24px 5px 16px; min-width: 176px; white-space: nowrap; }
 .matrise thead .m-valgt { z-index: 4; }
 .matrise tbody td { border-bottom: 1px solid var(--color-neutral-300); vertical-align: middle; }

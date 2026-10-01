@@ -37,7 +37,7 @@ export function lagDemodata() {
   const soknader = {
     s1: {
       organisasjonId: org, giverId: 'g1', tittel: 'Instrumenter til aspirantkorpset 2026', frist: '2026-03-15', sendt: '2026-03-03',
-      status: 'innvilget', soktOverstyrt: null, egenandel: 10000, innvilget: 150000, momsProsent: 8, revisjon: true,
+      status: 'innvilget', soktOverstyrt: null, innvilget: 150000, momsProsent: 8, revisjon: true,
       linjer: {
         l1: linje('b1', 4, 8500, 1), l2: linje('b2', 2, 12000, 2), l3: linje('b3', 2, 10000, 3),
         l4: linje('b4', 1, 21000, 4), l6: { ...linje('b6', 12, 450, 5), type: 'Inventar' }, l7: linje('b7', 2, 6500, 6),

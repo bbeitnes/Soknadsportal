@@ -138,7 +138,7 @@ function matrise(s, i) {
         </div>
       </div></td>
       ${b.leverandorer.map(lev => celle(s, i, b, l, lev)).join('')}
-      <td class="m-valgt ${b.perLinje[l.id].sum == null ? 'dempet' : ''}">${b.perLinje[l.id].sum == null ? '—' : kr(b.perLinje[l.id].sum)}</td>
+      <td class="m-valgt ${b.perLinje[l.id].sum == null ? 'dempet' : ''}">${b.perLinje[l.id].sum == null ? '—' : kr(b.perLinje[l.id].sum)}${b.perLinje[l.id].egne ? `<button type="button" class="m-egne" data-handling="tilbud-celle" data-lid="${l.id}" data-sid="${b.perLinje[l.id].valgtSid}" title="Egne midler på denne varen. Klikk for å endre.">egne ${kr(b.perLinje[l.id].egne)}</button>` : ''}</td>
     </tr>`; };
   // Gruppert som i søknaden. Har ingen linjer type, vises ingen overskrift.
   const grupper = linjegrupper(s, i);
@@ -150,7 +150,7 @@ function matrise(s, i) {
   const tomt = !b.linjer.length
     ? `<tr><td class="m-linje dempet" style="padding:24px 24px">Ingen linjer enda. Bruk «behov ikke fordelt» eller «+ Fri linje».</td>${b.leverandorer.map(() => '<td></td>').join('')}<td class="m-valgt"></td></tr>` : '';
   return `
-    <div class="hint" style="flex:0 0 auto">Klikk en pris for å velge, dobbeltklikk for å endre (<code>1200 -15%</code> eller <code>1200 -180</code>). <span style="letter-spacing:1px">•••</span> i cellen: alternativt produkt og tilbudsdokument. Be leverandøren om pris per linje – vi sammenligner netto stykkpris. Lim inn fra regneark for å fylle flere celler. Skal en vare fordeles på flere leverandører, del linjen med pilene ved antallet.</div>
+    <div class="hint" style="flex:0 0 auto">Klikk en pris for å velge, dobbeltklikk for å endre (<code>1200 -15%</code> eller <code>1200 -180</code>). <span style="letter-spacing:1px">•••</span> i cellen: alternativt produkt, tilbudsdokument og egne midler. Be leverandøren om pris per linje – vi sammenligner netto stykkpris. Lim inn fra regneark for å fylle flere celler. Skal en vare fordeles på flere leverandører, del linjen med pilene ved antallet.</div>
     <div class="tabellramme" data-rull="matrise">
       <table class="matrise">
         <thead><tr>
@@ -181,7 +181,8 @@ function matrise(s, i) {
             <td class="m-valgt m-kombo">
               <div class="etikett" style="color:var(--color-accent-700)">Valgt kombinasjon</div>
               <div style="font-size:20px; font-weight:700; color:var(--color-accent-800); line-height:1.2">${kr(b.total)}</div>
-              ${prosent != null ? `<div class="undertekst" style="color:var(--color-neutral-700)">Fra giver ${100 - prosent} %: <span class="fet" style="color:var(--color-text)">${kr(giverandel(b.total, prosent))}</span></div>` : ''}
+              ${b.egne ? `<div class="undertekst" style="color:var(--color-neutral-700)">Egne midler: <span class="fet" style="color:var(--color-text)">${kr(b.egne)}</span></div>` : ''}
+              ${prosent != null || b.egne ? `<div class="undertekst" style="color:var(--color-neutral-700)">Fra giver${prosent != null ? ` ${100 - prosent} %` : ''}: <span class="fet" style="color:var(--color-text)">${kr(giverandel(b.total - b.egne, prosent))}</span></div>` : ''}
             </td>
           </tr>
         </tfoot>
@@ -278,6 +279,9 @@ function tilbudPanel(s, i, lid, sid) {
   const antall = Number(l.antall) || 0;
   const n = f => `innkjop/${i.id}/priser.${lid}.${sid}.${f}`;
   const beskrivelse = linjebeskrivelse(s, l);
+  // Egne midler hører til varen, og settes der prisen er valgt.
+  const valgt = !!p && i.valgt?.[lid] === sid;
+  const egne = Number(l.egneMidler) || 0;
   return sidepanel(`
     <div class="panelhode">
       <div><div class="etikett">Tilbud fra ${escapeHtml(navn(lev) || 'leverandøren')}</div><h2>${escapeHtml(linjetittel(s, l) || 'Uten tittel')}</h2>${beskrivelse ? `<div class="ingress" style="margin-top:4px">${escapeHtml(beskrivelse)}</div>` : ''}</div>
@@ -285,6 +289,10 @@ function tilbudPanel(s, i, lid, sid) {
     </div>
     ${p ? `<div class="hint">${kr(p.netto)} per stk${p.liste !== p.netto ? ` (${escapeHtml(p.under)})` : ''} · ${antall} stk = ${kr(antall * p.netto)}</div>` : ''}
     ${pris.tekst ? `<div class="felt"><span class="etikett">I tilbudet står det</span><div style="font-size:14px">${escapeHtml(pris.tekst)}</div></div>` : ''}
+    ${valgt ? `<label class="felt" style="max-width:260px"><span class="etikett">Egne midler</span>
+      <input class="inndata tall" inputmode="decimal" placeholder="0,00" ${feltAttr(`innkjop/${i.id}/linjer.${lid}.egneMidler`, egne || null, 'belop')}>
+      <span class="undertekst">${egne ? `Søknaden belastes med ${kr(antall * p.netto - egne)}.` : 'Det vi dekker selv av denne varen. Resten belastes søknaden.'}</span>
+    </label>` : ''}
     <label class="felt"><span class="etikett">Alternativt produkt</span>
       <input class="inndata" placeholder="F.eks. merke og modell" ${feltAttr(n('alternativ'), pris.alternativ)}>
       <span class="undertekst">Fylles ut når leverandøren tilbyr noe annet enn det vi ba om. Vises i matrisen og i revisjonen.</span>

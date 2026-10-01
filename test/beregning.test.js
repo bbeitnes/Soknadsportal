@@ -584,17 +584,17 @@ test('egenandel: trekkes fra søkt beløp, og kan følge beløpet eller andelen 
   assert.equal(soktForslag(s), 520000);
   assert.equal(egenandel(s), 40000);
   assert.equal(pott(s).egenandel, 40000);
-  assert.equal(pott(s).ramme, null); // ikke innvilget ennå
+  assert.equal(pott(s).gjenstar, null); // ikke innvilget ennå
 
-  // Innvilget 430 000: samme beløp gir ramme 470 000, samme andel 463 077.
+  // Innvilget 430 000: samme beløp gir 470 000 å handle for, samme andel 463 077.
   const belop = { ...s, status: 'innvilget', innvilget: 430000 };
   assert.equal(egenandel(belop), 40000);
-  assert.equal(pott(belop).ramme, 470000);
+  assert.equal(pott(belop).gjenstar, 470000);
   assert.equal(giverbehov(belop), 520000); // estimatet er 90 000 over innvilget
   const andel = { ...belop, egenandelValg: 'andel' };
   assert.equal(egenandelSomAndel(andel), 33077);
   assert.equal(egenandel(andel), 33077);
-  assert.equal(pott(andel).ramme, 463077);
+  assert.equal(pott(andel).gjenstar, 463077);
   assert.equal(pott(andel).egenandelPlanlagt, 40000);
   assert.equal(soktBelop(andel), 520000); // det vi søkte om endres ikke av valget
 
@@ -603,11 +603,35 @@ test('egenandel: trekkes fra søkt beløp, og kan følge beløpet eller andelen 
   assert.equal(egenandel({ ...andel, egenandel: null }), 0);
 });
 
-test('pott med egenandel: rammen er innvilget + egenandel, og egenandelen er utenfor momsfordelingen', async () => {
+test('pott med egne midler på en vare: bare resten belaster søknaden', async () => {
+  const { pott, fordelteEgneMidler, innkjopsberegning } = await import('../app/data/beregning.js');
+  // Tenorsaksofon til 50 580, vi dekker 40 000 selv. Ingen egenandel er lovet.
+  const s = soknad('s1', 'innvilget', {}, { innvilget: 100000 });
+  const sax = { soknadId: 's1', linjer: { t: { antall: 1, egneMidler: 40000 }, a: { antall: 1, egneMidler: 500 } }, leverandorer: { x: {} }, priser: { t: { x: { raa: '50580' } }, a: { x: { raa: '1000' } } }, valgt: { t: 'x' } };
+  assert.equal(innkjopsberegning(sax).perLinje.t.egne, 40000);
+  assert.equal(innkjopsberegning(sax).perLinje.a.egne, 0); // ikke valgt, teller ikke
+  assert.equal(fordelteEgneMidler(s, [sax]), 40000);
+  const p = pott(s, [sax]);
+  assert.deepEqual([p.disponertFull, p.egne, p.egenBrukt, p.disponert, p.gjenstar], [50580, 40000, 40000, 10580, 89420]);
+  assert.equal(pott(s, [{ ...sax, linjer: { ...sax.linjer, t: { antall: 1 } } }]).gjenstar, 49420); // uten egne midler
+
+  // Med 8 % moms deles de 10 580 mellom giver og momskompensasjon.
+  const pm = pott({ ...s, momsProsent: 8 }, [sax]);
+  assert.deepEqual([pm.disponert, pm.moms, pm.gjenstar], [9734, 846, 90266]);
+
+  // Er det lovet en egenandel, gjelder det største av lovet og fordelt.
+  assert.equal(pott({ ...s, egenandel: 10000 }, [sax]).egne, 40000);
+  const lovetMer = pott({ ...s, egenandel: 45000 }, [sax]);
+  assert.deepEqual([lovetMer.egne, lovetMer.fordelt, lovetMer.disponert, lovetMer.gjenstar], [45000, 40000, 5580, 94420]);
+  // Egne midler på en løs utgift teller også.
+  assert.equal(fordelteEgneMidler({ utgifter: { u: { belop: 800, egneMidler: 300 } } }, [sax]), 40300);
+});
+
+test('pott med lovet egenandel: brukes først, og er utenfor momsfordelingen', async () => {
   const { pott, soktForslag } = await import('../app/data/beregning.js');
   const s = soknad('s1', 'innvilget', { l: { antall: 1, estPris: 560000 } }, { egenandel: 40000, innvilget: 430000, utgifter: { u: { belop: 300000 } } });
   const p = pott(s);
-  assert.equal(p.disponert, 300000);
+  assert.equal(p.disponert, 260000); // det som belaster giveren
   assert.equal(p.gjenstar, 170000);
   assert.equal(p.moms, 0);
 
@@ -615,13 +639,14 @@ test('pott med egenandel: rammen er innvilget + egenandel, og egenandelen er ute
   const m = { ...s, momsProsent: 8, utgifter: { u: { belop: 500000 } } };
   assert.equal(soktForslag(m), 478400);
   const pm = pott(m);
-  assert.equal(pm.disponert, 40000 + 423200);
+  assert.equal(pm.disponert, 423200);
   assert.equal(pm.moms, 36800);
   assert.equal(pm.gjenstar, 6800);
 
-  // Er det brukt mindre enn egenandelen, er ingenting tatt fra giveren.
+  // Er det brukt mindre enn egenandelen, er ingenting tatt fra giveren, og
+  // resten av egenandelen er med i det som gjenstår.
   const lite = pott({ ...m, utgifter: { u: { belop: 25000 } } });
-  assert.equal(lite.disponert, 25000);
+  assert.equal(lite.disponert, 0);
   assert.equal(lite.moms, 0);
   assert.equal(lite.gjenstar, 445000);
 });

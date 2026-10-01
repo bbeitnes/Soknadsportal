@@ -108,10 +108,12 @@ export const revisjonFane = {
     const p = pott(s, innkjopFor(s.id));
     const valgt = fakturaer.find(f => f.id === ui.panel);
     if (ui.panel && !valgt) ui.panel = null;
-    // Egenandelen fordeles her, per post. Da grupperes postene per kategori
-    // med delsum, så det går fram hvor mye vi dekker selv i hver.
+    // Egne midler per post (lagt inn i Innkjøp, kan rettes her). Da grupperes
+    // postene per kategori med delsum, så det går fram hvor mye vi dekker selv
+    // i hver. Har vi lovet giveren en egenandel, måles fordelingen mot den.
     const fordelt = sumEgneMidler(poster);
     const visEgne = p.egenandel > 0 || fordelt > 0;
+    const somLovet = !p.egenandel || fordelt === p.egenandel;
     const grupper = visEgne ? fordelingFor(s, poster, o.perPost, p.prosent).grupper : [{ poster }];
     const postrad = x => {
       const { nr, fakturert, avvik } = o.perPost[x.id];
@@ -147,7 +149,7 @@ export const revisjonFane = {
           </div>
         </div>
         <div style="min-height:0; display:flex; flex-direction:column; gap:8px">
-          <div style="display:flex; justify-content:space-between; align-items:baseline; gap:12px"><span class="etikett">Hva potten er brukt på</span>${visEgne ? `<span class="hint" title="Egenandelen fordeles på postene i kolonnen «Egne midler». Fordelingen vises per kategori i revisjonsrapporten.">Egne midler fordelt <span class="fet ${fordelt === p.egenandel ? '' : 'aksent'}" style="${fordelt === p.egenandel ? 'color:var(--color-text)' : ''}">${belop(fordelt)}</span> av egenandelen ${belop(p.egenandel)}</span>` : ''}</div>
+          <div style="display:flex; justify-content:space-between; align-items:baseline; gap:12px"><span class="etikett">Hva potten er brukt på</span>${visEgne ? `<span class="hint" title="Egne midler legges på varen i Innkjøp og kan rettes i kolonnen «Egne midler». Fordelingen vises per kategori i revisjonsrapporten.">Egne midler <span class="fet ${somLovet ? '' : 'aksent'}" style="${somLovet ? 'color:var(--color-text)' : ''}">${belop(fordelt)}</span>${p.egenandel ? ` av egenandelen ${belop(p.egenandel)}` : ''}</span>` : ''}</div>
           <div class="tabellramme" data-rull="poster">
             <table class="liste ${visEgne ? 'med-egne' : ''}">
               <thead><tr><th>Gjelder</th><th class="tall">Tilbudt</th><th class="tall">Fakturert</th><th class="tall">Avvik</th>${visEgne ? '<th class="tall">Egne midler</th>' : ''}<th>Faktura</th></tr></thead>

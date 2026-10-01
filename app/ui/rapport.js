@@ -44,11 +44,13 @@ export async function lagRevisjonsrapport(s) {
   const poster = posterFor(s);
   const p = pott(s, innkjopFor(s.id));
   const fakturert = fakturaer.reduce((sum, f) => sum + (Number(f.belop) || 0), 0);
-  // Egne midler slik de er fordelt på postene. De holdes utenfor fordelingen
+  // Egne midler: det største av lovet egenandel og det som er lagt på postene
+  // (samme regel som potten), brukt først. De holdes utenfor fordelingen
   // mellom giver og momskompensasjon.
-  const egne = sumEgneMidler(poster);
-  const harEgne = p.egenandel > 0 || egne > 0;
-  const fraGiver = giverandelOre(Math.max(0, fakturert - egne), p.prosent);
+  const fordelt = sumEgneMidler(poster);
+  const harEgne = p.egne > 0;
+  const egne = Math.min(p.egne, Math.max(0, fakturert));
+  const fraGiver = giverandelOre(fakturert - egne, p.prosent);
   const dato = new Date().toLocaleDateString('nb-NO');
 
   // ——— Tegnehjelpere ———
@@ -86,7 +88,7 @@ export async function lagRevisjonsrapport(s) {
   const linje = (etikett, verdi, f = font) => { tekst(etikett, MARG, 12, f); hoyre(verdi, A4[0] - MARG, 12, f); y -= 8; strek(); y -= 18; };
   linje('Søkt', belop(p.sokt));
   linje('Innvilget', p.innvilget == null ? '–' : belop(p.innvilget));
-  if (harEgne) linje(p.egenandel === p.egenandelPlanlagt ? 'Egenandel' : `Egenandel (i søknaden ${belop(p.egenandelPlanlagt)})`, belop(p.egenandel));
+  if (p.egenandel > 0) linje(p.egenandel === p.egenandelPlanlagt ? 'Egenandel i søknaden' : `Egenandel (i søknaden ${belop(p.egenandelPlanlagt)})`, belop(p.egenandel));
   linje('Disponert (tilbud og utgifter)', belop(p.disponertFull));
   linje('Brukt (fakturert)', belop(fakturert), fet);
   linje('Gjenstående av innvilget', p.innvilget == null ? '–' : belop(p.innvilget - fraGiver));
@@ -114,7 +116,9 @@ export async function lagRevisjonsrapport(s) {
     for (const g of f.grupper) { rad(g.navn, g); y -= 6; strek(); y -= 14; }
     y += 2; strek(1.5, svart); y -= 16;
     rad('Sum', f.sum, fet, 11); y -= 18;
-    for (const l of brytTekst('Kostnad er fakturert beløp. Poster uten faktura står med tilbudt pris, og fakturaer som ikke er koblet til en post er ikke med.', 9, A4[0] - 2 * MARG)) { tekst(l, MARG, 9, font, graa); y -= 12; }
+    const merknad = 'Kostnad er fakturert beløp. Poster uten faktura står med tilbudt pris, og fakturaer som ikke er koblet til en post er ikke med.'
+      + (p.egenandel > fordelt ? ` Av egenandelen er ${belop(p.egenandel - fordelt)} ikke fordelt på poster.` : '');
+    for (const l of brytTekst(merknad, 9, A4[0] - 2 * MARG)) { tekst(l, MARG, 9, font, graa); y -= 12; }
   }
   y -= 20;
   for (const l of brytTekst(`Rapporten inneholder ${fakturaer.length} ${fakturaer.length === 1 ? 'faktura' : 'fakturaer'} med løpenummer 1–${fakturaer.length}. Løpenummeret er stamplet øverst til høyre på hvert bilag.`, 10, A4[0] - 2 * MARG)) { tekst(l, MARG, 10, font, graa); y -= 14; }

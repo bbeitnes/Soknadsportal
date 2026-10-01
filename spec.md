@@ -76,20 +76,25 @@ Når søknaden er innvilget, blir innvilget beløp en pott. Den brukes gjennom
 innkjøp med tilbud og/eller løse utgifter; én søknad kan ha begge deler.
 Øverst i søknaden vises alltid: innvilget, disponert, fakturert, gjenstående.
 
-### Egenandel
-Vi kan ha sagt til giveren at vi dekker en del selv (f.eks. 40 000 av 560 000).
-- **I søknaden:** ett beløp for hele søknaden. Søkt beløp foreslås som estimatet
-  minus egenandelen.
-- **Etter tildeling:** rammen er innvilget + egenandel. Blir innvilget et annet
-  beløp enn søkt, velger vi om egenandelen beholdes som beløp (standard) eller
-  som andel (da følger den innvilget/søkt). Portalen regner aldri om av seg selv.
-- **Fordeling:** hvilke kjøp egenandelen går til, bestemmes først når vi vet hva
-  som kjøpes. Den fordeles per post under Revisjon («Egne midler»), og kan
-  legges i sin helhet på én vare. Tilbudsmatrisen påvirkes ikke.
-- **Sluttoppgjør:** revisjonsrapporten viser per kategori kostnad, egne midler
-  og hva giveren dekker, så det går fram at egenandelen er innfridd.
+### Egne midler og egenandel
+**Egne midler** er en beslutning vi tar mens vi handler: tenorsaksofonen koster
+50 580, vi dekker 40 000 selv, og søknaden belastes med 10 580.
+- Føres på varen i Innkjøp (panelet bak `•••` på den valgte prisen), og vises
+  under summen i matrisen. Løse utgifter får egne midler i Revisjon.
+- Potten: «disponert» er det som belaster giveren, og «gjenstår» øker straks
+  egne midler legges inn. Linjen under viser hva vi betaler og hvem som dekker det.
 - Egne midler holdes utenfor momskompensasjonen: de trekkes fra først, og resten
   fordeles mellom giver og momskompensasjon.
+- Revisjon viser egne midler per post, gruppert per kategori med delsum.
+  Revisjonsrapporten viser per kategori kostnad, egne midler og hva giveren dekker.
+
+**Egenandel** (valgfritt felt på søknaden) er det vi har LOVET giveren å dekke selv.
+- Søkt beløp foreslås som estimatet minus egenandelen.
+- Blir innvilget et annet beløp enn søkt, velger vi om egenandelen beholdes som
+  beløp (standard) eller som andel (da følger den innvilget/søkt).
+- Potten regner med det største av lovet egenandel og egne midler lagt på varer,
+  så lovet egenandel er med i «gjenstår» også før den er plassert på et kjøp.
+  Revisjon viser «egne midler X av egenandelen Y».
 
 ## Momskompensasjon
 Noen givere krever at vi trekker ut forventet momskompensasjon. Eksempel:
@@ -208,13 +213,13 @@ Prototypene ligger i prosjektet som `Søknader.dc.html`, `Søknad.dc.html`, `Beh
 - «+ Ny søknad»: sidepanel med giver (viser momsinnstilling), tittel og frist. Opprettes som utkast.
 
 ### Søknad (én søknad)
-Fast topp: tittel (klikk = bytt søknad), status, giver, frist, sendt, sist endret, og pottlinjen søkt / innvilget / disponert / gjenstår. Med momskompensasjon er «disponert» giverens andel, og en linje under viser full kostnad og forventet momskompensasjon neste år. Med egenandel vises den mellom innvilget og disponert, «gjenstår» er det som er igjen av rammen (innvilget + egenandel), og linjen under viser rammen og hvordan det vi betaler deles på egenandel, giver og momskompensasjon.
+Fast topp: tittel (klikk = bytt søknad), status, giver, frist, sendt, sist endret, og pottlinjen søkt / innvilget / disponert / gjenstår. Med momskompensasjon er «disponert» giverens andel, og en linje under viser full kostnad og forventet momskompensasjon neste år. Med egne midler vises de mellom innvilget og disponert, «disponert» er det som belaster giveren, og linjen under viser hvordan det vi betaler deles på egne midler, giver og momskompensasjon.
 
 Faner:
 - **Søknad:** behovstabell (antall og est. stykkpris redigerbare, kostnad, fra giver / fra momskompensasjon når giveren krever det, sumrad). Under: egenandel (med valget beløp/andel når innvilget er et annet beløp enn søkt), søkt beløp (foreslått som giverens andel etter egenandel, kan overstyres), innvilget beløp med hint om estimatet er over/under, momsprosent. Høyre kolonne: giver, tittel, frist, sendt, status, revisjon av/på, dokumenter (opplasting). «Skriv ut» gir behovslisten med de fire første kolonnene.
-- **Innkjøp:** innkjøpene som chips over matrisen (navn + sum valgt, status, «+»). Én matrise: linjer nedover med redigerbart antall, leverandører bortover, netto stykkpris i cellene med listepris/rabatt i liten tekst. Klikk celle = velg, dobbeltklikk = rediger (`1200 -15%` / `1200 -180`), klikk leverandørnavn = alt fra én, «Billigst per linje», innliming fra Excel. Fraktrad, «alt hos én»-sumrad og «valgt kombinasjon» (med giverens andel). Binders i cellen for leverandører med flere vedlegg; leverandørpanel med kontakt og vedlegg. «N behov ikke fordelt» åpner panel der behov kan legges i innkjøpet.
+- **Innkjøp:** innkjøpene som chips over matrisen (navn + sum valgt, status, «+»). Én matrise: linjer nedover med redigerbart antall, leverandører bortover, netto stykkpris i cellene med listepris/rabatt i liten tekst. Klikk celle = velg, dobbeltklikk = rediger (`1200 -15%` / `1200 -180`), klikk leverandørnavn = alt fra én, «Billigst per linje», innliming fra Excel. Fraktrad, «alt hos én»-sumrad og «valgt kombinasjon» (med egne midler og giverens andel). Egne midler på en vare settes i panelet bak `•••` på den valgte prisen. Binders i cellen for leverandører med flere vedlegg; leverandørpanel med kontakt og vedlegg. «N behov ikke fordelt» åpner panel der behov kan legges i innkjøpet.
 - **Utgifter:** enkel liste (beskrivelse, dato, beløp, lagt inn av). Nederste rad er alltid en tom ny utgift.
-- **Revisjon:** oppsummering (fakturert av disponert, linjer uten faktura, avvik). Fakturaliste med løpenummer, leverandør, fakturanr, dato, beløp, avvik; klikk gir panel med felter, vedlegg og avhuking av hvilke tilbudslinjer/utgifter fakturaen dekker (flere per faktura). «Hva potten er brukt på»: alle valgte linjer og utgifter med Faktura N / Mangler faktura. Har søknaden egenandel, får hver post et felt «Egne midler», postene grupperes per kategori med delsum, og «fordelt X av egenandelen Y» står over tabellen. «Revisjonsrapport (PDF)» lager forside (med fordeling per kategori når søknaden har egenandel), oversiktstabell og én side per faktura med løpenummer stemplet.
+- **Revisjon:** oppsummering (fakturert av disponert, linjer uten faktura, avvik). Fakturaliste med løpenummer, leverandør, fakturanr, dato, beløp, avvik; klikk gir panel med felter, vedlegg og avhuking av hvilke tilbudslinjer/utgifter fakturaen dekker (flere per faktura). «Hva potten er brukt på»: alle valgte linjer og utgifter med Faktura N / Mangler faktura. Har søknaden egne midler eller egenandel, får hver post et felt «Egne midler» (samme tall som i Innkjøp), postene grupperes per kategori med delsum, og summen står over tabellen. «Revisjonsrapport (PDF)» lager forside (med fordeling per kategori når søknaden har egne midler), oversiktstabell og én side per faktura med løpenummer stemplet.
 
 ### Behov (behovslisten)
 - Tabell: behov, «gjenstår X av Y» med fremdrift, est. stykkpris, gjenstående kroner, søknader behovet ligger i (giver · antall; fylt ramme = finansiert, dvs. pris valgt i et innkjøp), status (Ikke søkt / Søkt / Finansiert / Delvis anskaffet / Anskaffet / Trengs ikke).

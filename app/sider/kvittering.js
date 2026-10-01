@@ -6,9 +6,9 @@ import { pott, erInnvilget } from '../data/beregning.js';
 import { escapeHtml, kr, belop, tolkBelop, tidspunkt, fornavn } from '../ui/format.js';
 import { lagre, visMelding } from '../ui/lagring.js';
 import { tegn, gaaTil } from '../ui/visning.js';
-import { klargjorBilde } from '../ui/bilde.js';
+import { klargjorBilde, bildeTilPdf } from '../ui/bilde.js';
 
-const ui = { steg: 1, soknadId: null, fil: null, forhandsvisning: null, belop: '', fakturanr: '', lagrer: false, ferdig: null };
+const ui = { steg: 1, soknadId: null, fil: null, pdf: null, forhandsvisning: null, belop: '', fakturanr: '', lagrer: false, ferdig: null };
 
 const PIL = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
 const HAK = '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-100)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
@@ -55,7 +55,7 @@ function stegBelop() {
   return `${hode('Beløp', 'tilbake-bilde')}
     <div class="kv-forhand">
       ${ui.forhandsvisning ? `<img src="${ui.forhandsvisning}" alt="">` : `<div class="kv-pdf">PDF</div>`}
-      <div style="min-width:0"><div class="etikett">Kvittering til</div><div class="kv-tittel">${escapeHtml(s?.tittel || '')}</div><div class="undertekst">${escapeHtml(ui.fil?.name || '')}</div><button type="button" class="kv-tilbake" style="padding:0; margin-top:2px" data-handling="tilbake-bilde">Ta bildet på nytt</button></div>
+      <div style="min-width:0"><div class="etikett">Kvittering til</div><div class="kv-tittel">${escapeHtml(s?.tittel || '')}</div><div class="undertekst">${escapeHtml((ui.fil?.name || '').replace(/\.(jpe?g|png)$/i, '.pdf'))}</div><button type="button" class="kv-tilbake" style="padding:0; margin-top:2px" data-handling="tilbake-bilde">Ta bildet på nytt</button></div>
     </div>
     <form class="kv-skjema" id="kv-skjema">
       <label class="felt"><span class="etikett">Beløp</span><div class="kv-belop"><input id="kv-belop" inputmode="decimal" autocomplete="off" value="${escapeHtml(ui.belop)}" placeholder="0,00"><span>kr</span></div></label>
@@ -92,9 +92,9 @@ document.addEventListener('submit', async e => {
   // ville tegningen ventet på det. Vi tar fokus ut selv.
   document.activeElement?.blur?.();
   ui.lagrer = true; tegn();
-  const lopenummer = await lagre(() => opprettKvittering(s.id, { belop: sum, fakturanr: ui.fakturanr, fil: ui.fil }));
+  const lopenummer = await lagre(async () => opprettKvittering(s.id, { belop: sum, fakturanr: ui.fakturanr, fil: await ui.pdf }));
   ui.lagrer = false;
-  if (lopenummer) { ui.ferdig = { lopenummer, belop: sum, tittel: s.tittel }; ui.steg = 4; ui.fil = null; ui.forhandsvisning = null; ui.belop = ''; ui.fakturanr = ''; }
+  if (lopenummer) { ui.ferdig = { lopenummer, belop: sum, tittel: s.tittel }; ui.steg = 4; ui.fil = null; ui.pdf = null; ui.forhandsvisning = null; ui.belop = ''; ui.fakturanr = ''; }
   tegn();
 });
 
@@ -110,7 +110,7 @@ export const kvitteringSide = {
   klikk(handling, el) {
     if (handling === 'velg') { ui.soknadId = el.dataset.id; ui.steg = 2; tegn(); }
     else if (handling === 'tilbake-velg') { ui.steg = 1; tegn(); }
-    else if (handling === 'tilbake-bilde') { ui.steg = 2; ui.fil = null; ui.forhandsvisning = null; tegn(); }
+    else if (handling === 'tilbake-bilde') { ui.steg = 2; ui.fil = null; ui.pdf = null; ui.forhandsvisning = null; tegn(); }
     else if (handling === 'ny-samme') { ui.steg = 2; ui.ferdig = null; tegn(); }
     else if (handling === 'ferdig') { ui.steg = 1; ui.ferdig = null; gaaTil('#/soknader'); }
   },
@@ -120,8 +120,11 @@ export const kvitteringSide = {
     if (!fil) return;
     ui.lagrer = true; tegn();
     try {
-      ui.fil = await klargjorBilde(fil);
+      // Bildet vises i neste steg; det som lastes opp er en PDF. Den lages
+      // (med tekstgjenkjenning) mens brukeren skriver inn beløpet.
+      ui.fil = await klargjorBilde(fil, { rett: true });
       ui.forhandsvisning = ui.fil.type.startsWith('image/') ? URL.createObjectURL(ui.fil) : null;
+      ui.pdf = bildeTilPdf(ui.fil);
       ui.steg = 3;
     } catch (err) {
       visMelding(err.message || 'Kunne ikke lese filen');
@@ -133,5 +136,5 @@ export const kvitteringSide = {
   },
 
   escape() { return false; },
-  forlat() { ui.steg = 1; ui.fil = null; ui.forhandsvisning = null; ui.ferdig = null; },
+  forlat() { ui.steg = 1; ui.fil = null; ui.pdf = null; ui.forhandsvisning = null; ui.ferdig = null; },
 };

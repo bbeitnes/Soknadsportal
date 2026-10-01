@@ -94,6 +94,12 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
 - Innlogging: Google eller Firebase e-postlenke. Administrator kan sende lenken til en bruker fra
   brukerlisten (`sendInnloggingslenkeTil()`); Firebase sender e-posten, portalen ser aldri lenken.
 - Mobil: `#/kvittering` (default-rute på smal skjerm). `ui/bilde.js` gjør om store bilder til JPEG.
+  Kvitteringsbilder fra mobil lagres som PDF (`bildeTilPdf()`: bildet på én A4-side); går det ikke,
+  lagres bildet. PDF-en lages i bakgrunnen mens brukeren skriver beløpet (`ui.pdf` er et løfte).
+  Opplasting på PC (Revisjon) lagrer filen som den er.
+- Søkbar kvitterings-PDF: `ui/tekstgjenkjenning.js` leser ordene med Tesseract.js (cdnjs;
+  motor og norsk språkpakke fra jsdelivr), og `bildeTilPdf()` legger dem usynlig oppå bildet. Feiler
+  det eller tar over 30 s, lagres PDF-en uten tekst.
 - Revisjonsrapporten (`ui/rapport.js`) bruker pdf-lib fra cdnjs og `getBytes` fra Storage — krever CORS på bøtta (OPPSETT.md §6).
 - Endres `firebase/firestore.rules`, må HELE filen limes inn i Console for
   begge databasene — si fra om det i svaret.

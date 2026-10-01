@@ -95,6 +95,8 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   verdi uten faktura; hele beløpet er egne midler (`utgiftEgne()`). Posten får `egeninnsats`, teller
   ikke som «mangler faktura», kan ikke kobles til faktura, og rapporten regner den som brukt
   («Brukt i alt») og lister den under fakturaoversikten.
+- En løs utgift kan ha `type` (valgfritt, fritekst som for behov). Da får posten `kategori` og regnes
+  inn i den typen i `fordelingPerKategori()`; uten type havner den i gruppen «Løse utgifter».
 - Behovsstatus «Finansiert»: det er valgt en pris for søknadslinjen i et innkjøp
   (`finansierteLinjer()` → `behovsinfo(…, finansierte)`; sider henter settet med `finansierte()`).
   Det gamle krysset `linjer.<id>.finansieres` er fjernet fra skjermen og leses ikke lenger.

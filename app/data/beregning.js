@@ -75,7 +75,7 @@ export function typerekkefolgeFor(soknad, felles = []) {
 export function typeliste(behovliste, soknader = []) {
   const typer = new Set();
   for (const b of behovliste) if ((b.type || '').trim()) typer.add(b.type.trim());
-  for (const s of soknader) for (const l of Object.values(s.linjer || {})) if ((l.type || '').trim()) typer.add(l.type.trim());
+  for (const s of soknader) for (const l of [...Object.values(s.linjer || {}), ...Object.values(s.utgifter || {})]) if ((l.type || '').trim()) typer.add(l.type.trim());
   return [...typer].sort((a, b) => a.localeCompare(b, 'nb'));
 }
 
@@ -712,8 +712,9 @@ const ore = n => Math.round(n * 100) / 100;
 // enn det vi ba om. `etterSoknad` og `notat` følger linjer som ble lagt til
 // etter at søknaden var sendt. `egeninnsats` = løs utgift uten faktura
 // (dugnad), der hele beløpet er egne midler. `kategori` er typen linjen har i søknaden
-// (trenger `behovliste`), og `egne` er egne midler på posten (`egneMidler`
-// på innkjøpslinjen, satt i Innkjøp, eller på utgiften).
+// (trenger `behovliste`) eller typen en løs utgift er merket med (valgfritt),
+// og `egne` er egne midler på posten (`egneMidler` på innkjøpslinjen, satt i
+// Innkjøp, eller på utgiften).
 export function revisjonsposter(soknad, innkjopListe, { tittelFor, levNavn, behovliste = [] }) {
   const poster = [];
   for (const i of innkjopListe) {
@@ -734,7 +735,7 @@ export function revisjonsposter(soknad, innkjopListe, { tittelFor, levNavn, beho
     }
   }
   for (const u of utgiftsliste(soknad)) {
-    poster.push({ id: `utgift/${u.id}`, type: 'utgift', utgiftId: u.id, tittel: u.beskrivelse || 'Uten beskrivelse', under: `${u.egeninnsats ? 'Egeninnsats' : 'Løs utgift'}${u.dato ? ` · ${u.dato.split('-').reverse().join('.')}` : ''}`, tilbudt: Number(u.belop) || 0, egne: utgiftEgne(u), egeninnsats: !!u.egeninnsats });
+    poster.push({ id: `utgift/${u.id}`, type: 'utgift', utgiftId: u.id, tittel: u.beskrivelse || 'Uten beskrivelse', under: `${u.egeninnsats ? 'Egeninnsats' : 'Løs utgift'}${u.dato ? ` · ${u.dato.split('-').reverse().join('.')}` : ''}`, tilbudt: Number(u.belop) || 0, egne: utgiftEgne(u), egeninnsats: !!u.egeninnsats, kategori: (u.type || '').trim() });
   }
   return poster;
 }
@@ -746,15 +747,17 @@ export function sumEgneMidler(poster) {
 
 // Sluttoppgjøret per kategori: hva vi har betalt, og hvem som dekker det.
 // Tilbudslinjene grupperes på typen de har i søknaden (i søknadens
-// rekkefølge); løse utgifter er en egen gruppe til slutt. `kostnad` er
+// rekkefølge). Løse utgifter som er merket med en type går inn i den typen;
+// de andre er en egen gruppe til slutt. `kostnad` er
 // fakturert beløp der posten har faktura, ellers tilbudt pris. Egne midler
 // trekkes fra før giverens andel regnes ut. `perPost` kommer fra
 // revisjonsoppsummering(). Gir { grupper: [{ navn, poster, tilbudt, fakturert,
 // kostnad, egne, giver, moms }], sum: { … } }.
 export function fordelingPerKategori(poster, perPost, prosent, typeRekkefolge = []) {
-  const grupper = grupperPerType(poster.filter(p => p.type !== 'utgift'), p => p.kategori, typeRekkefolge)
+  const utenType = p => p.type === 'utgift' && !p.kategori;
+  const grupper = grupperPerType(poster.filter(p => !utenType(p)), p => p.kategori, typeRekkefolge)
     .map(g => ({ navn: g.type || 'Uten type', poster: g.elementer }));
-  const utgifter = poster.filter(p => p.type === 'utgift');
+  const utgifter = poster.filter(utenType);
   if (utgifter.length) grupper.push({ navn: 'Løse utgifter', poster: utgifter });
   const ut = grupper.map(g => {
     const tilbudt = ore(g.poster.reduce((s, p) => s + p.tilbudt, 0));

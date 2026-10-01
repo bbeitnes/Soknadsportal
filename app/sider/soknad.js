@@ -195,6 +195,7 @@ function utgiftsfane(s) {
   const rader = liste.map(u => `
     <tr>
       <td><input class="celleinn tekst" style="font-weight:400" ${feltAttr(n(u, 'beskrivelse'), u.beskrivelse, 'tekst', { paakrevd: true })}></td>
+      <td><input class="celleinn tekst" style="min-width:0; font-weight:400" list="utgiftstyper" placeholder="–" title="Valgfritt. Med type regnes utgiften inn i den kategorien i Revisjon og rapporten." ${feltAttr(n(u, 'type'), u.type)}></td>
       <td><input class="celleinn tekst" style="min-width:110px; font-weight:400" placeholder="dd.mm.åååå" ${feltAttr(n(u, 'dato'), u.dato, 'dato')}></td>
       <td class="tall"><input class="celleinn" style="width:110px; font-weight:600" inputmode="decimal" ${feltAttr(n(u, 'belop'), u.belop, 'belop')}></td>
       <td>${avkryss(!!u.egeninnsats, u.egeninnsats ? 'Ja' : 'Nei', 'egeninnsats', `data-id="${u.id}" title="Dugnad og annen egeninnsats: estimert verdi uten faktura. Hele beløpet regnes som egne midler."`)}</td>
@@ -204,26 +205,28 @@ function utgiftsfane(s) {
   return `
     <div class="verktoyrad">
       <div class="etikett">Løse utgifter</div>
-      <div class="hint">Trekkes fra potten. Kobles til faktura under Revisjon. Dugnad og annen egeninnsats uten faktura krysses av som egeninnsats – da er hele beløpet egne midler.</div>
+      <div class="hint">Trekkes fra potten. Kobles til faktura under Revisjon. Dugnad og annen egeninnsats uten faktura krysses av som egeninnsats – da er hele beløpet egne midler. Type er valgfritt.</div>
     </div>
     <div class="tabellramme" data-rull="utgifter" style="flex:0 1 auto">
       <table class="liste">
-        <thead><tr><th>Beskrivelse</th><th style="width:130px">Dato</th><th class="tall" style="width:140px">Beløp</th><th style="width:130px">Egeninnsats</th><th style="width:150px">Lagt inn av</th><th style="width:44px"></th></tr></thead>
+        <thead><tr><th>Beskrivelse</th><th style="width:150px">Type</th><th style="width:130px">Dato</th><th class="tall" style="width:140px">Beløp</th><th style="width:130px">Egeninnsats</th><th style="width:150px">Lagt inn av</th><th style="width:44px"></th></tr></thead>
         <tbody>
           ${rader}
           <tr class="ny-utgift">
             <td><input class="celleinn tekst ny" id="ny-utgift-beskrivelse" placeholder="Ny utgift – beskrivelse"></td>
+            <td></td>
             <td><input class="celleinn tekst ny" id="ny-utgift-dato" placeholder="dd.mm.åååå"></td>
             <td class="tall"><input class="celleinn ny" id="ny-utgift-belop" inputmode="decimal" placeholder="0,00" style="width:110px"></td>
             <td colspan="3" class="undertekst">Lagres når beskrivelse og beløp er fylt ut</td>
           </tr>
         </tbody>
         <tfoot><tr>
-          <td colspan="2" class="dempet">Sum løse utgifter</td>
+          <td colspan="3" class="dempet">Sum løse utgifter</td>
           <td class="tall sum">${belop(sumUtgifter(s))}</td>
           <td colspan="3" class="dempet">${liste.length} ${liste.length === 1 ? 'utgift' : 'utgifter'}</td>
         </tr></tfoot>
       </table>
+      <datalist id="utgiftstyper">${typeliste(tilstand.behov, tilstand.soknader).map(t => `<option value="${escapeHtml(t)}">`).join('')}</datalist>
     </div>`;
 }
 

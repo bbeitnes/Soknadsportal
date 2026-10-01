@@ -662,7 +662,7 @@ test('pott med lovet egenandel: brukes først, og er utenfor momsfordelingen', a
 });
 
 test('egne midler fordeles per post og summeres per kategori', async () => {
-  const { revisjonsposter, revisjonsoppsummering, fordelingPerKategori, sumEgneMidler, giverandelOre } = await import('../app/data/beregning.js');
+  const { revisjonsposter, revisjonsoppsummering, fordelingPerKategori, sumEgneMidler, giverandelOre, typeliste } = await import('../app/data/beregning.js');
   const behovliste = [{ id: 'b1', type: 'Instrument' }];
   const s = soknad('s1', 'innvilget', { x: { behovId: 'b1' }, y: { behovId: 'b1', type: 'Inventar' } }, {
     utgifter: { u1: { beskrivelse: 'Parkering', belop: 800, egneMidler: 800, rekkefolge: 1 } },
@@ -672,7 +672,7 @@ test('egne midler fordeles per post og summeres per kategori', async () => {
     linjer: { l1: { soknadLinjeId: 'x', antall: 4, rekkefolge: 1, egneMidler: 1000.5 }, l2: { soknadLinjeId: 'y', antall: 2, rekkefolge: 2 }, l3: { antall: 1, rekkefolge: 3, egneMidler: 50 } },
   };
   const poster = revisjonsposter(s, [i], { tittelFor: (_, l) => l.id, levNavn: () => '', behovliste });
-  assert.deepEqual(poster.map(p => [p.id, p.kategori, p.egne]), [['i1/l1', 'Instrument', 1000.5], ['i1/l2', 'Inventar', 0], ['utgift/u1', undefined, 800]]);
+  assert.deepEqual(poster.map(p => [p.id, p.kategori, p.egne]), [['i1/l1', 'Instrument', 1000.5], ['i1/l2', 'Inventar', 0], ['utgift/u1', '', 800]]);
   assert.equal(sumEgneMidler(poster), 1800.5); // l3 er ikke valgt og teller ikke
 
   const fakturaer = [{ lopenummer: 1, belop: 4000, dekker: { 'i1|l1': true } }];
@@ -688,6 +688,14 @@ test('egne midler fordeles per post og summeres per kategori', async () => {
   assert.deepEqual([f.grupper[2].kostnad, f.grupper[2].egne, f.grupper[2].giver], [800, 800, 0]);
   assert.deepEqual(f.sum, { tilbudt: 5600, fakturert: 4000, kostnad: 5800, egne: 1800.5, giver: 3679.54, moms: 319.96 });
   assert.equal(giverandelOre(1000.55, null), 1000.55);
+
+  // En løs utgift kan merkes med en type. Da regnes den inn i den kategorien.
+  const medType = { ...s, utgifter: { u1: { ...s.utgifter.u1, type: ' Instrument ' } } };
+  const typet = revisjonsposter(medType, [i], { tittelFor: (_, l) => l.id, levNavn: () => '', behovliste });
+  assert.equal(typet[2].kategori, 'Instrument');
+  const ft = fordelingPerKategori(typet, revisjonsoppsummering(fakturaer, typet).perPost, 8, ['Inventar']);
+  assert.deepEqual(ft.grupper.map(g => [g.navn, g.kostnad, g.egne]), [['Inventar', 1000, 0], ['Instrument', 4800, 1800.5]]);
+  assert.deepEqual(typeliste(behovliste, [medType]), ['Instrument', 'Inventar']);
 });
 
 test('egeninnsats: løs utgift uten faktura, hele beløpet er egne midler', async () => {

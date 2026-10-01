@@ -28,6 +28,9 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
 ## Konvensjoner
 - Vanilla JS, ES-moduler, ingen byggesteg og ingen npm i `app/`.
 - Bare `app/data/lager-firebase.js` importerer Firebase. Sider bruker `data/index.js`.
+- Firebase API-nøkkelen skal ALDRI i git (repoet er offentlig). Den ligger i
+  `app/config/api-nokkel.js` (i `.gitignore`); deploy-jobbene skriver filen fra GitHub-secret
+  `FIREBASE_API_KEY`. Bytte og begrensninger: OPPSETT.md §8.
 - UI bygges som `innerHTML`-strenger → alt brukerinnhold gjennom `escapeHtml()`.
 - Redigerbare felt merkes `data-felt="samling/id/feltsti"` (se `ui/felt.js`).
   `app.js` lagrer ved focusout hvis verdien er endret. Søknadslinjer ligger som

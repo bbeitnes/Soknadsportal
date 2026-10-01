@@ -84,3 +84,45 @@ omlasting.
 - `http://localhost:8430/` – lokal kode mot testdatabasen (krever innlogging).
 
 Porten må være 8430: den står i CORS-listen (§6).
+
+## 8. API-nøkkelen (Firebase / Google Cloud)
+Nøkkelen ligger ikke i repoet (det er offentlig). `app/config/firebase-config.js` henter den
+fra `app/config/api-nokkel.js`, som står i `.gitignore`:
+- **Lokalt:** kopier `api-nokkel.eksempel.js` til `api-nokkel.js` og lim inn nøkkelen.
+- **Deploy:** GitHub → Settings → Secrets and variables → Actions → secret `FIREBASE_API_KEY`.
+  Deploy-jobbene skriver filen før opplasting, og stopper hvis secreten mangler.
+
+Nettleseren må ha nøkkelen for å snakke med Firebase, så den som åpner portalen kan alltid
+lese den (i filen på serveren og i nettverkskallene). Det som beskytter er derfor
+begrensningene på nøkkelen og `firestore.rules` – ikke at den er skjult.
+
+### Begrensninger på nøkkelen
+Google Cloud Console → APIs & Services → Credentials → nøkkelen:
+- **Application restrictions → Websites:** `https://beitnes.net/*`, `http://beitnes.net/*`,
+  `https://skiensskolemusikk-b5cbc.firebaseapp.com/*` (innloggingsvinduet til Google) og
+  `http://localhost:8430/*` (dev).
+- **API restrictions → Restrict key:** samme liste som Firebase la på den opprinnelige
+  nøkkelen (ca. 25 API-er). Den kopieres ved bytte (under) – ikke plukk dem for hånd.
+
+### Bytte nøkkel
+Prosjektet deles med KorpsApp og Bestillingsportal. Bruker de samme nøkkel, må de ha den
+nye før den gamle slettes.
+1. Credentials → åpne den gamle nøkkelen → **«Rotate key»**. Det lager en ny nøkkel med de
+   samme begrensningene, og den gamle virker til den slettes. (Heter knappen «Regenerate
+   key», ikke bruk den – kopier heller med kommandoen under.) Legg til nettstedene over
+   under «Application restrictions» hvis de mangler.
+
+   Alternativt fra Cloud Shell (kopierer API-listen fra den gamle nøkkelen og setter
+   nettstedene i samme slengen; `GAMMEL` er UID fra første kommando):
+   ```bash
+   gcloud services api-keys list --format="table(displayName,uid)"
+   GAMMEL=<uid>
+   gcloud services api-keys create --display-name="Nettleser $(date +%F)" \
+     --allowed-referrers="https://beitnes.net/*,http://beitnes.net/*,https://skiensskolemusikk-b5cbc.firebaseapp.com/*,http://localhost:8430/*" \
+     $(gcloud services api-keys describe "$GAMMEL" --format=json | jq -r '.restrictions.apiTargets[].service | "--api-target=service=" + .')
+   ```
+   Nøkkelen står som `keyString` i svaret.
+2. Legg den nye nøkkelen i `api-nokkel.js` lokalt og i secreten `FIREBASE_API_KEY`. Kjør
+   deploy til test (Actions → «Run workflow») og logg inn. Deretter prod.
+3. Bytt nøkkel i KorpsApp og Bestillingsportal og deploy dem.
+4. Når alle tre er sjekket: slett den gamle nøkkelen. Først da er den ubrukelig.

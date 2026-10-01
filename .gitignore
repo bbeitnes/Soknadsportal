@@ -5,3 +5,6 @@ node_modules/
 
 # Ekte tilbud og andre eksempelfiler til utvikling – repoet er offentlig
 eksempler/
+
+# Firebase API-nøkkelen: lokalt fra api-nokkel.eksempel.js, ved deploy fra GitHub-secret
+app/config/api-nokkel.js

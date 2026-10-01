@@ -10,6 +10,13 @@ jobs:
     steps:
       - name: Hent koden
         uses: actions/checkout@v4
+      # API-nøkkelen ligger ikke i repoet (OPPSETT.md §8). Uten den starter ikke portalen.
+      - name: Skriv app/config/api-nokkel.js fra secret
+        env:
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+        run: |
+          test -n "$FIREBASE_API_KEY" || { echo "Mangler secret FIREBASE_API_KEY"; exit 1; }
+          printf "export const API_NOKKEL = '%s';\n" "$FIREBASE_API_KEY" > app/config/api-nokkel.js
       # Bare app/ publiseres — prototyper, tester og regler blir igjen i repoet.
       - name: Last opp app/ med SFTP
         uses: wlixcc/SFTP-Deploy-Action@v1.2.4

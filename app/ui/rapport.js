@@ -152,14 +152,16 @@ export async function lagRevisjonsrapport(s) {
     const linjer = brytTekst(gjelder, 9, gjelderBredde);
     // Merknaden (f.eks. forklaring på et avvik) står under «Gjelder», i grått.
     const merknad = (f.merknad || '').trim() ? brytTekst(`Merknad: ${f.merknad.trim()}`, 8.5, gjelderBredde) : [];
-    const hoyde = Math.max(1, linjer.length) * 12 + merknad.length * 11 + 8;
+    const levLinjer = brytTekst(f.leverandor || '–', 9, kol.belop - 70 - kol.lev);
+    const hoyde = Math.max(levLinjer.length * 12, Math.max(1, linjer.length) * 12 + merknad.length * 11) + 8;
     if (y - hoyde < MARG + 40) { nySide(); tabellhode(); }
     tekst(String(f.lopenummer), kol.nr, 10, fet);
     tekst(f.fakturanr || '–', kol.fnr, 9);
     tekst(f.dato ? datoFelt(f.dato) : '–', kol.dato, 9);
-    for (const l of brytTekst(f.leverandor || '–', 9, kol.belop - 90 - kol.lev).slice(0, 2)) { tekst(l, kol.lev, 9); }
-    hoyre(f.belop == null ? '–' : belop(f.belop), kol.belop, 10, fet);
     let yy = y;
+    for (const l of levLinjer) { side.drawText(trygg(l), { x: kol.lev, y: yy, size: 9, font, color: svart }); yy -= 12; }
+    hoyre(f.belop == null ? '–' : belop(f.belop), kol.belop, 10, fet);
+    yy = y;
     for (const l of linjer) { side.drawText(trygg(l), { x: kol.gjelder, y: yy, size: 9, font, color: svart }); yy -= 12; }
     for (const l of merknad) { side.drawText(trygg(l), { x: kol.gjelder, y: yy, size: 8.5, font, color: graa }); yy -= 11; }
     y -= hoyde - 8; strek(); y -= 16;

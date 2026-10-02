@@ -171,7 +171,7 @@ function behovstabell(s) {
           <td></td>
         </tr></tfoot>
       </table>
-      <datalist id="typer">${typeliste(tilstand.behov, tilstand.soknader).map(t => `<option value="${escapeHtml(t)}">`).join('')}</datalist>
+      <datalist id="typer">${typeliste(tilstand.behov, tilstand.soknader, tilstand.innkjop).map(t => `<option value="${escapeHtml(t)}">`).join('')}</datalist>
     </div>`;
 }
 
@@ -226,7 +226,7 @@ function utgiftsfane(s) {
           <td colspan="3" class="dempet">${liste.length} ${liste.length === 1 ? 'utgift' : 'utgifter'}</td>
         </tr></tfoot>
       </table>
-      <datalist id="utgiftstyper">${typeliste(tilstand.behov, tilstand.soknader).map(t => `<option value="${escapeHtml(t)}">`).join('')}</datalist>
+      <datalist id="utgiftstyper">${typeliste(tilstand.behov, tilstand.soknader, tilstand.innkjop).map(t => `<option value="${escapeHtml(t)}">`).join('')}</datalist>
     </div>`;
 }
 

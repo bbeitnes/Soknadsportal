@@ -336,7 +336,7 @@ test('manuell rekkefølge: grupper, elementer og flytting', async () => {
 });
 
 test('innkjøpet speiler søknadens typer og rekkefølge', async () => {
-  const { grupperInnkjopslinjer } = await import('../app/data/beregning.js');
+  const { grupperInnkjopslinjer, typeliste } = await import('../app/data/beregning.js');
   const behov = [{ id: 'sax', type: 'Instrument' }, { id: 'kornett', type: 'Instrument' }, { id: 'jakke', type: 'Uniform' }];
   const s = { typeRekkefolge: ['Uniform', 'Instrument'], linjer: {
     a: { behovId: 'kornett', rekkefolge: 2 }, b: { behovId: 'sax', rekkefolge: 1 },
@@ -350,6 +350,12 @@ test('innkjøpet speiler søknadens typer og rekkefølge', async () => {
   const g = grupperInnkjopslinjer(i, s, behov, s.typeRekkefolge);
   assert.deepEqual(g.map(x => [x.type, x.linjer.map(l => l.id)]), [['Uniform', ['k2']], ['Instrument', ['k4', 'k1']], ['Slagverk', ['k5']], ['', ['k3', 'k6']]]);
   assert.deepEqual(grupperInnkjopslinjer({}, s, behov), []);
+  // En fri linje kan merkes med type i innkjøpet: den står sist i den typen.
+  i.linjer.k3.type = ' Uniform ';
+  i.linjer.k7 = { soknadLinjeId: null, type: 'Konsert', rekkefolge: 7 };
+  assert.deepEqual(grupperInnkjopslinjer(i, s, behov, s.typeRekkefolge).map(x => [x.type, x.linjer.map(l => l.id)]),
+    [['Uniform', ['k2', 'k3']], ['Instrument', ['k4', 'k1']], ['Konsert', ['k7']], ['Slagverk', ['k5']], ['', ['k6']]]);
+  assert.deepEqual(typeliste(behov, [s], [i]), ['Instrument', 'Konsert', 'Slagverk', 'Uniform']);
 });
 
 test('linjer lagt til etter søknaden teller ikke i det vi søkte om', async () => {
@@ -696,6 +702,11 @@ test('egne midler fordeles per post og summeres per kategori', async () => {
   const ft = fordelingPerKategori(typet, revisjonsoppsummering(fakturaer, typet).perPost, 8, ['Inventar']);
   assert.deepEqual(ft.grupper.map(g => [g.navn, g.kostnad, g.egne]), [['Inventar', 1000, 0], ['Instrument', 4800, 1800.5]]);
   assert.deepEqual(typeliste(behovliste, [medType]), ['Instrument', 'Inventar']);
+
+  // En fri linje i innkjøpet (ikke i søknaden) får kategorien den er merket med.
+  const fri = { ...i, linjer: { ...i.linjer, l2: { antall: 2, rekkefolge: 2, type: ' Konsert ' } } };
+  const friPoster = revisjonsposter(s, [fri], { tittelFor: (_, l) => l.id, levNavn: () => '', behovliste });
+  assert.deepEqual(friPoster.map(p => p.kategori), ['Instrument', 'Konsert', '']);
 });
 
 test('egeninnsats: løs utgift uten faktura, hele beløpet er egne midler', async () => {

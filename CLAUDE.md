@@ -105,6 +105,9 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
 - Behov har `type` (fritekst: Instrument, Uniform …). En søknadslinje kan overstyre med
   `linjer.<id>.type`; null = arv fra behovet (`linjetype()`). Behovslisten og søknadens
   behovstabell grupperes på type med delsum (`grupperPerType()`).
+- En fri linje i innkjøpet (uten `soknadLinjeId`) kan ha egen `type` (`innkjop.<id>.linjer.<lid>.type`,
+  feltet ved siden av beskrivelsen i matrisen). `innkjopslinjetype()` gir typen for alle innkjøpslinjer;
+  den brukes i matrisens grupper og som `kategori` i revisjonspostene.
 - Manuell rekkefølge med dra og slipp (`data-dra` / `data-slippmal`, håndteres i `app.js` →
   sidens `slipp()`): behov har `rekkefolge` innen typen; felles typerekkefølge ligger i
   `innstillinger/<orgId>.typeRekkefolge`; søknader har egen `typeRekkefolge` og linjenes

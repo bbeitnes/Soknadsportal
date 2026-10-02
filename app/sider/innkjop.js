@@ -16,7 +16,7 @@ import {
 import {
   INNKJOPSSTATUSER, innkjopsstatusNavn, innkjopsberegning, billigstPerLinje, tolkRutenett,
   ikkeFordelte, vedleggsliste, momsProsent, giverandel, leverandorNavn, leverandorKontakt,
-  grupperInnkjopslinjer, grupperPerType, linjetype, typerekkefolgeFor, tolkPris, velgbareBehov,
+  grupperInnkjopslinjer, grupperPerType, linjetype, typeliste, typerekkefolgeFor, tolkPris, velgbareBehov,
   tolkTilbudslinjer, tilbudsprisTekst, foreslaKobling, bestilling,
 } from '../data/beregning.js';
 import { escapeHtml, kr, tidspunkt, fornavn } from '../ui/format.js';
@@ -124,7 +124,7 @@ function matrise(s, i) {
         <div class="m-navn">
           ${l.soknadLinjeId
             ? `<div class="fet">${escapeHtml(linjetittel(s, l) || 'Uten tittel')}</div>${under(linjebeskrivelse(s, l))}`
-            : `<input class="celleinn tekst" style="width:100%" placeholder="Beskriv linjen" ${feltAttr(n(`linjer.${l.id}.tittel`), l.tittel)}>`}
+            : `<div style="display:flex; flex-wrap:wrap; gap:2px 6px"><input class="celleinn tekst" style="flex:1 1 200px; width:auto; min-width:0" placeholder="Beskriv linjen" ${feltAttr(n(`linjer.${l.id}.tittel`), l.tittel)}><input class="celleinn tekst" style="flex:0 0 104px; width:104px; min-width:0; font-weight:400" list="innkjopstyper" placeholder="Type" title="Type for denne linjen. Linjen grupperes med typen her og i revisjonen." ${feltAttr(n(`linjer.${l.id}.type`), l.type)}></div>`}
           ${sl?.etterSoknad ? `<input class="celleinn tekst notat" style="width:100%" placeholder="Notat – f.eks. «i stedet for klarinett»" ${feltAttr(`soknader/${s.id}/linjer.${l.soknadLinjeId}.notat`, sl.notat)}>` : ''}
         </div>
         <div class="m-antall">
@@ -187,6 +187,7 @@ function matrise(s, i) {
           </tr>
         </tfoot>
       </table>
+      <datalist id="innkjopstyper">${typeliste(tilstand.behov, tilstand.soknader, tilstand.innkjop).map(t => `<option value="${escapeHtml(t)}">`).join('')}</datalist>
     </div>`;
 }
 

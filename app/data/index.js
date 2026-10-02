@@ -302,7 +302,7 @@ export async function leggBehovISoknadOgInnkjop(soknad, innkjop, behov, antall) 
 export function leggFriLinjeIInnkjop(innkjop) {
   const id = nyId('l');
   return oppdaterInnkjop(innkjop.id, {
-    [`linjer.${id}`]: { soknadLinjeId: null, tittel: '', antall: 1, rekkefolge: nesteRekkefolgeI(innkjop.linjer) },
+    [`linjer.${id}`]: { soknadLinjeId: null, type: null, tittel: '', antall: 1, rekkefolge: nesteRekkefolgeI(innkjop.linjer) },
   }).then(() => id);
 }
 
@@ -317,7 +317,7 @@ export function delInnkjopslinje(innkjop, linjeId) {
   const id = nyId('l');
   const felt = {
     [`linjer.${linjeId}.antall`]: antall - 1,
-    [`linjer.${id}`]: { soknadLinjeId: l.soknadLinjeId ?? null, tittel: l.tittel || '', antall: 1, rekkefolge: (l.rekkefolge ?? 0) + 0.5 },
+    [`linjer.${id}`]: { soknadLinjeId: l.soknadLinjeId ?? null, type: l.type ?? null, tittel: l.tittel || '', antall: 1, rekkefolge: (l.rekkefolge ?? 0) + 0.5 },
   };
   if (innkjop.priser?.[linjeId]) felt[`priser.${id}`] = innkjop.priser[linjeId];
   return oppdaterInnkjop(innkjop.id, felt).then(() => id);

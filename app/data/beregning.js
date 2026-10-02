@@ -32,6 +32,13 @@ export function linjetype(linje, behovliste) {
   return (b?.type || '').trim();
 }
 
+// Typen til en innkjøpslinje: den linjen har i søknaden, eller – for en fri
+// linje som bare ligger i innkjøpet – typen som er satt på linjen selv.
+export function innkjopslinjetype(linje, soknad, behovliste) {
+  const sl = linje?.soknadLinjeId ? soknad?.linjer?.[linje.soknadLinjeId] : null;
+  return sl ? linjetype(sl, behovliste) : (linje?.type || '').trim();
+}
+
 // Grupperer på type. Typene kommer i den manuelle rekkefølgen som er satt
 // (dra og slipp); typer som ikke står der kommer etterpå, alfabetisk, med
 // «uten type» helt til slutt.
@@ -72,10 +79,11 @@ export function typerekkefolgeFor(soknad, felles = []) {
 }
 
 // Alle typer som er i bruk — forslag når man skriver i et typefelt.
-export function typeliste(behovliste, soknader = []) {
+export function typeliste(behovliste, soknader = [], innkjopListe = []) {
   const typer = new Set();
   for (const b of behovliste) if ((b.type || '').trim()) typer.add(b.type.trim());
   for (const s of soknader) for (const l of [...Object.values(s.linjer || {}), ...Object.values(s.utgifter || {})]) if ((l.type || '').trim()) typer.add(l.type.trim());
+  for (const i of innkjopListe) for (const l of Object.values(i.linjer || {})) if ((l.type || '').trim()) typer.add(l.type.trim());
   return [...typer].sort((a, b) => a.localeCompare(b, 'nb'));
 }
 
@@ -457,12 +465,13 @@ export function innkjopsberegning(innkjop) {
 
 // Innkjøpets linjer gruppert og ordnet slik de står i søknaden: samme
 // typer, samme typerekkefølge og samme rekkefølge innenfor typen. Frie
-// linjer (og linjer som er fjernet fra søknaden) kommer til slutt, uten type.
+// linjer kommer sist i typen de er merket med; uten type (og linjer som er
+// fjernet fra søknaden) kommer de til slutt.
 export function grupperInnkjopslinjer(innkjop, soknad, behovliste, typeRekkefolge = []) {
   const soknadslinjer = soknad?.linjer || {};
   const linjer = innkjopslinjer(innkjop).map(l => {
     const sl = l.soknadLinjeId ? soknadslinjer[l.soknadLinjeId] : null;
-    return { linje: l, type: sl ? linjetype(sl, behovliste) : '', fri: sl ? 0 : 1, plass: sl ? (sl.rekkefolge ?? 0) : (l.rekkefolge ?? 0) };
+    return { linje: l, type: innkjopslinjetype(l, soknad, behovliste), fri: sl ? 0 : 1, plass: sl ? (sl.rekkefolge ?? 0) : (l.rekkefolge ?? 0) };
   }).sort((a, b) => a.fri - b.fri || a.plass - b.plass);
   return grupperPerType(linjer, x => x.type, typeRekkefolge).map(g => ({ type: g.type, linjer: g.elementer.map(x => x.linje) }));
 }
@@ -712,7 +721,8 @@ const ore = n => Math.round(n * 100) / 100;
 // enn det vi ba om. `etterSoknad` og `notat` følger linjer som ble lagt til
 // etter at søknaden var sendt. `egeninnsats` = løs utgift uten faktura
 // (dugnad), der hele beløpet er egne midler. `kategori` er typen linjen har i søknaden
-// (trenger `behovliste`) eller typen en løs utgift er merket med (valgfritt),
+// (trenger `behovliste`), typen en fri linje i innkjøpet er merket med, eller
+// typen en løs utgift er merket med (valgfritt),
 // og `egne` er egne midler på posten (`egneMidler` på innkjøpslinjen, satt i
 // Innkjøp, eller på utgiften).
 export function revisjonsposter(soknad, innkjopListe, { tittelFor, levNavn, behovliste = [] }) {
@@ -729,7 +739,7 @@ export function revisjonsposter(soknad, innkjopListe, { tittelFor, levNavn, beho
         under: `${levNavn(i, v.valgtSid)} · ${i.navn || 'Innkjøp'}`,
         alternativ: (i.priser?.[l.id]?.[v.valgtSid]?.alternativ || '').trim(),
         etterSoknad: !!sl?.etterSoknad, notat: (sl?.notat || '').trim(),
-        kategori: sl ? linjetype(sl, behovliste) : '',
+        kategori: innkjopslinjetype(l, soknad, behovliste),
         tilbudt: ore(v.sum), egne: v.egne,
       });
     }

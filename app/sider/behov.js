@@ -219,7 +219,7 @@ export const behovSide = {
           </table>
         </div>
       </main>
-      <datalist id="typer">${typeliste(tilstand.behov, tilstand.soknader).map(t => `<option value="${escapeHtml(t)}">`).join('')}</datalist>
+      <datalist id="typer">${typeliste(tilstand.behov, tilstand.soknader, tilstand.innkjop).map(t => `<option value="${escapeHtml(t)}">`).join('')}</datalist>
       ${valgt ? panel(valgt) : ui.panel === 'import' ? importPanel() : ''}`;
     ui.nyttPanel = false;
     return html;

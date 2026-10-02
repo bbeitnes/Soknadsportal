@@ -743,3 +743,30 @@ test('utenExif fjerner bare EXIF-segmentet fra en JPEG', async () => {
   assert.equal(utenExif(uten), uten); // ingenting å fjerne: samme bytes tilbake
   assert.deepEqual([...utenExif(new Uint8Array([1, 2, 3]).buffer)], [1, 2, 3]); // ikke JPEG
 });
+
+test('utenPrediktor gir de rå punktene tilbake', async () => {
+  const { utenPrediktor } = await import('../app/ui/bildekrymp.js');
+  // 3 punkter RGB per rad, to rader.
+  const punkter = [10, 20, 30, 12, 25, 31, 200, 3, 90, 11, 22, 33, 250, 0, 7, 9, 9, 9];
+  const rad = 9, kanaler = 3;
+  // PNG-filtrene 0–4, brukt rad for rad slik en PDF-skriver gjør det.
+  for (const filtre of [[0, 0], [1, 2], [3, 4], [4, 1], [2, 3]]) {
+    const pakket = [];
+    filtre.forEach((filter, r) => {
+      pakket.push(filter);
+      for (let i = 0; i < rad; i++) {
+        const o = r * rad + i;
+        const a = i >= kanaler ? punkter[o - kanaler] : 0, b = r ? punkter[o - rad] : 0, c = r && i >= kanaler ? punkter[o - rad - kanaler] : 0;
+        const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
+        const gjett = [0, a, b, (a + b) >> 1, pa <= pb && pa <= pc ? a : pb <= pc ? b : c][filter];
+        pakket.push((punkter[o] - gjett) & 255);
+      }
+    });
+    assert.deepEqual([...utenPrediktor(Uint8Array.from(pakket), 15, 3, kanaler)], punkter, `filtre ${filtre}`);
+  }
+  // TIFF-prediktoren: forskjell mot punktet til venstre.
+  const tiff = punkter.map((v, o) => (o % rad >= kanaler ? v - punkter[o - kanaler] : v) & 255);
+  assert.deepEqual([...utenPrediktor(Uint8Array.from(tiff), 2, 3, kanaler)], punkter);
+  const raa = Uint8Array.from(punkter);
+  assert.equal(utenPrediktor(raa, 1, 3, kanaler), raa);
+});

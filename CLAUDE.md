@@ -125,9 +125,11 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   motor og norsk språkpakke fra jsdelivr), og `bildeTilPdf()` legger dem usynlig oppå bildet. Feiler
   det eller tar over 30 s, lagres PDF-en uten tekst.
 - Revisjonsrapporten (`ui/rapport.js`) bruker pdf-lib fra cdnjs og `getBytes` fra Storage — krever CORS på bøtta (OPPSETT.md §6).
-- Rapporten krymper store bilder (`ui/bildekrymp.js`: maks 1600 px, JPEG-kvalitet 0,6), både løse
-  bildebilag og JPEG-bilder inne i PDF-bilag. Tekst/vektorgrafikk i PDF-er røres ikke, og originalen
-  i Storage endres ikke. Et bilde byttes bare når det blir minst 20 % mindre.
+- Rapporten krymper store bilder (`ui/bildekrymp.js`: maks 1600 px på lengste side, men minst
+  1000 px på korteste; JPEG-kvalitet 0,6), både løse bildebilag og bilder inne i PDF-bilag – JPEG
+  (DCTDecode) og tapsfritt lagrede (FlateDecode, typisk «skriv ut til PDF» av et foto). Tekst og
+  vektorgrafikk i PDF-er røres ikke, og originalen i Storage endres ikke. Et bilde byttes bare når
+  det blir minst 20 % mindre.
 - Endres `firebase/firestore.rules`, må HELE filen limes inn i Console for
   begge databasene — si fra om det i svaret.
 

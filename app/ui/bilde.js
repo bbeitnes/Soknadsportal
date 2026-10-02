@@ -24,7 +24,11 @@ export async function klargjorBilde(fil, { rett = false } = {}) {
   const lerret = document.createElement('canvas');
   lerret.width = Math.round(bilde.width * skala);
   lerret.height = Math.round(bilde.height * skala);
-  lerret.getContext('2d').drawImage(bilde, 0, 0, lerret.width, lerret.height);
+  const ctx = lerret.getContext('2d');
+  // JPEG har ikke gjennomsiktighet: gjennomsiktig PNG får hvit bunn.
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, lerret.width, lerret.height);
+  ctx.drawImage(bilde, 0, 0, lerret.width, lerret.height);
   bilde.close?.();
   const blob = await new Promise(r => lerret.toBlob(r, 'image/jpeg', 0.85));
   const navn = fil.name.replace(/\.[^.]+$/, '') + '.jpg';

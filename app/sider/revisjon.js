@@ -13,6 +13,7 @@ import { feltAttr, tekstomrade } from '../ui/felt.js';
 import { lagre, visMelding } from '../ui/lagring.js';
 import { tegn, fokuser, sidepanel, lukkeknapp, IKON } from '../ui/visning.js';
 import { lagRevisjonsrapport } from '../ui/rapport.js';
+import { klargjorBilde } from '../ui/bilde.js';
 
 const ui = { panel: null, nyttPanel: false, lagerRapport: false };
 
@@ -205,7 +206,10 @@ export const revisjonFane = {
     const fil = filer[0];
     if (f && fil) {
       if (!/^(application\/pdf|image\/)/.test(fil.type)) { visMelding('Vedlegget må være PDF eller bilde'); return true; }
-      await lagre(() => lastOppFakturafil(f, fil));
+      // Store bilder krympes som på mobilsiden (og retningen fra kameraet
+      // blir en del av bildet). Kan ikke bildet leses, lagres filen som den er.
+      const klar = await klargjorBilde(fil, { rett: true }).catch(() => fil);
+      await lagre(() => lastOppFakturafil(f, klar));
     }
     if (el.type === 'file') el.value = '';
     return true;

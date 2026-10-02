@@ -729,3 +729,17 @@ test('egeninnsats: løs utgift uten faktura, hele beløpet er egne midler', asyn
   const p = pott(s);
   assert.deepEqual([p.ramme, p.disponertFull, p.egenBrukt, p.disponert, p.gjenstar], [120000, 20000, 20000, 0, 100000]);
 });
+
+test('utenExif fjerner bare EXIF-segmentet fra en JPEG', async () => {
+  const { utenExif } = await import('../app/ui/bildekrymp.js');
+  const segment = (merke, data) => [0xff, merke, (data.length + 2) >> 8, (data.length + 2) & 0xff, ...data];
+  const jfif = segment(0xe0, [0x4a, 0x46, 0x49, 0x46, 0]), exif = segment(0xe1, [0x45, 0x78, 0x69, 0x66, 0, 0, 1, 2, 3]);
+  const xmp = segment(0xe1, [0x68, 0x74, 0x74, 0x70]), tabell = segment(0xdb, [1, 2, 3]);
+  // Etter SOS (ff da) kommer bildedata, som kan inneholde «ff e1» uten at det er et segment.
+  const data = [0xff, 0xda, 0, 2, 9, 0xff, 0xe1, 0x45, 0x78, 0x69, 0x66, 0xff, 0xd9];
+  const med = Uint8Array.from([0xff, 0xd8, ...jfif, ...exif, ...xmp, ...tabell, ...data]);
+  assert.deepEqual([...utenExif(med)], [0xff, 0xd8, ...jfif, ...xmp, ...tabell, ...data]);
+  const uten = Uint8Array.from([0xff, 0xd8, ...jfif, ...tabell, ...data]);
+  assert.equal(utenExif(uten), uten); // ingenting å fjerne: samme bytes tilbake
+  assert.deepEqual([...utenExif(new Uint8Array([1, 2, 3]).buffer)], [1, 2, 3]); // ikke JPEG
+});

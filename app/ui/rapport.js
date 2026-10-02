@@ -5,11 +5,13 @@
 //   2. Oversiktstabell over fakturaene. Summen stemmer med forsiden.
 //      Egeninnsats uten faktura (dugnad) listes for seg under tabellen.
 //   3. Alle fakturaene i rekkefølge, med løpenummer stamplet i hjørnet.
-//      Bilder blir egne sider; PDF-er kopieres inn side for side.
+//      Bilder blir egne sider; PDF-er kopieres inn side for side. Store
+//      bilder (også inne i PDF-bilag) krympes først, se bildekrymp.js.
 import { tilstand, innkjopFor, fakturaerFor, filBytes } from '../data/index.js';
 import { pott, fakturaDekker, giverandelOre, posttittel, revisjonsoppsummering, sumEgneMidler } from '../data/beregning.js';
 import { posterFor, fordelingFor } from '../sider/revisjon.js';
 import { belop, datoFelt } from './format.js';
+import { krympBilde, krympBilderIPdf } from './bildekrymp.js';
 
 const PDF_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
 let lasting = null;
@@ -34,7 +36,8 @@ const A4 = [595.28, 841.89];
 const MARG = 56;
 
 export async function lagRevisjonsrapport(s) {
-  const { PDFDocument, StandardFonts, rgb } = await hentPdfLib();
+  const PDFLib = await hentPdfLib();
+  const { PDFDocument, StandardFonts, rgb } = PDFLib;
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const fet = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -209,11 +212,14 @@ export async function lagRevisjonsrapport(s) {
         const type = (f.fil.type || '').toLowerCase();
         if (type === 'application/pdf' || f.fil.navn?.toLowerCase().endsWith('.pdf')) {
           const kilde = await PDFDocument.load(bytes, { ignoreEncryption: true });
+          await krympBilderIPdf(kilde, PDFLib);
           const sider = await doc.copyPages(kilde, kilde.getPageIndices());
           sider.forEach((pg, idx) => { doc.addPage(pg); side = pg; stempel(nr, sider.length > 1 ? idx + 1 : 0); });
           lagt = true;
         } else if (type === 'image/jpeg' || type === 'image/png' || /\.(jpe?g|png)$/i.test(f.fil.navn || '')) {
-          const bilde = type === 'image/png' || /\.png$/i.test(f.fil.navn || '') ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
+          const erPng = type === 'image/png' || /\.png$/i.test(f.fil.navn || '');
+          const krympet = await krympBilde(bytes, erPng ? 'image/png' : 'image/jpeg');
+          const bilde = krympet ? await doc.embedJpg(krympet) : erPng ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
           nySide();
           const maksB = A4[0] - 2 * 36, maksH = A4[1] - 36 - 90;
           const skala = Math.min(maksB / bilde.width, maksH / bilde.height, 1);

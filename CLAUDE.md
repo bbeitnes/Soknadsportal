@@ -57,8 +57,10 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   har feltet `alternativ` (leverandøren tilbyr et annet produkt). E-posttekst limes inn og lagres
   som et `.txt`-vedlegg. Alternativet vises i matrisen, i Revisjon og i PDF-ens «Gjelder» (`posttittel()`).
 - «Les priser fra tilbudet» (leverandørpanelet, per PDF-vedlegg): `ui/pdftekst.js` leser linjene med
-  pdf.js fra cdnjs (tabulator mellom tabellceller), `tolkTilbudslinjer()` finner varelinjene
-  (antall, enhetspris, rabatt), `foreslaKobling()` foreslår varelinje ut fra navn. Brukeren retter i
+  pdf.js fra cdnjs (tabulator mellom tabellceller; tekst som ligger oppå annen tekst blir egen
+  celle), `tolkTilbudslinjer()` finner varelinjene (antall, enhetspris, rabatt – også «4,00 Stk» og
+  rabatt uten %-tegn; er prosenten avrundet, brukes linjesummen / antall som pris uten rabatt),
+  `foreslaKobling()` foreslår varelinje ut fra navn. Brukeren retter i
   panelet, og `settTilbudspriser()` skriver `raa`, `vedleggId`, `side` og `tekst` (leverandørens
   varetekst) i én skriving. Ekte tilbud til utvikling ligger i `eksempler/` (i `.gitignore` –
   repoet er offentlig). Testene bruker oppdiktede tilbud.

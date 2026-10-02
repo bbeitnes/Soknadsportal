@@ -548,12 +548,13 @@ export function bestilling(innkjop, sid, { tittelFor, rekkefolge = [] }) {
 // fulgt av rabatt i prosent og beløp:
 //   «100 Acme ABC-123 kornett ⇥ 4 stk ⇥ 12 000,00 ⇥ 12,0% ⇥ 42 240,00»
 //   «70001 ⇥ Acme ABC-123 kornett ⇥ 4 ⇥ stk ⇥ 12 000,00 ⇥ -12% ⇥ 42 240,00»
+//   «AB-100 ⇥ Acme ABC-123 kornett ⇥ 4,00 Stk ⇥ 12000,00 ⇥ 12,00 ⇥ 42240,00»
 // Linjer rett under som bare er tekst, er resten av varebeskrivelsen.
 
 const ENHET = 'stk|par|sett|pk|pakke|pakker|eske|esker|boks|rull|sats|m|kg|l';
 const BELOP = '\\d{1,3}(?:[ \\u00a0.]?\\d{3})*,\\d{2}';
 const ER_BELOP = new RegExp(`^${BELOP}$`);
-const ER_ANTALL = new RegExp(`^(\\d+)(?:\\s*(${ENHET})\\.?)?$`, 'i');
+const ER_ANTALL = new RegExp(`^(\\d+)(,0+)?(?:\\s*(${ENHET})\\.?)?$`, 'i');
 const ER_ENHET = new RegExp(`^(${ENHET})\\.?$`, 'i');
 const ER_PROSENT = /^[-−]?\s*(\d+(?:,\d+)?)\s*%$/;
 // Linjer som ikke er en del av varebeskrivelsen: serienummer, løse tall og
@@ -564,27 +565,42 @@ const belop = t => parseFloat(t.replace(/[  .]/g, '').replace(',', '.'));
 const omtrent = (a, b) => Math.abs(a - b) <= Math.max(1, Math.abs(b) * 0.002);
 
 // Stemmer antall × pris − rabatt med et av beløpene på linjen (med eller uten mva)?
-function stemmer(antall, pris, rabatt, summer) {
+function stemmer(antall, pris, rabatt, summer, mva = true) {
   const netto = antall * pris * (1 - (rabatt || 0) / 100);
-  return summer.some(sum => omtrent(sum, netto) || omtrent(sum * 1.25, netto) || omtrent(sum, netto * 1.25));
+  return summer.some(sum => omtrent(sum, netto) || (mva && (omtrent(sum * 1.25, netto) || omtrent(sum, netto * 1.25))));
 }
 
 function tolkCeller(celler) {
   for (let i = 1; i < celler.length - 1; i++) {
     const a = celler[i].match(ER_ANTALL);
     if (!a) continue;
-    let j = i + 1, enhet = a[2] || '';
+    let j = i + 1, enhet = a[3] || '';
     if (!enhet && ER_ENHET.test(celler[j])) enhet = celler[j++];
-    if (!ER_BELOP.test(celler[j] || '')) continue;
-    const pris = belop(celler[j++]);
+    // «4,00» er bare et antall når enheten står ved – ellers er det et beløp.
+    if ((a[2] && !enhet) || !ER_BELOP.test(celler[j] || '')) continue;
+    const antall = Number(a[1]), pris = belop(celler[j++]);
     const r = (celler[j] || '').match(ER_PROSENT);
     if (r) j++;
-    return {
-      forst: celler.slice(0, i), antall: Number(a[1]), enhet: enhet.toLowerCase().replace('.', ''),
-      pris, rabatt: r ? belop(r[1]) : null, summer: celler.slice(j).filter(c => ER_BELOP.test(c)).map(belop),
-    };
+    let rabatt = r ? belop(r[1]) : null;
+    const summer = celler.slice(j).filter(c => ER_BELOP.test(c)).map(belop);
+    // Rabatt uten prosenttegn («15,00» i en %-kolonne): tallet rett etter
+    // prisen er rabatten når linjen bare går opp med den. Mva. holdes utenfor
+    // her – 20 % rabatt og «uten mva.» gir samme sum.
+    if (!rabatt && summer.length > 1 && summer[0] <= 100 && !stemmer(antall, pris, 0, summer, false) && stemmer(antall, pris, summer[0], summer.slice(1), false)) rabatt = summer.shift();
+    return noyaktig({ forst: celler.slice(0, i), antall, enhet: enhet.toLowerCase().replace('.', ''), pris, rabatt, summer });
   }
   return null;
+}
+
+// Er prosenten avrundet («4,98» for 10 045 → 9 545), er linjesummen fasiten:
+// da brukes netto stykkpris uten rabatt, når den er et helt ørebeløp.
+function noyaktig(t) {
+  if (!t.rabatt) return t;
+  const netto = t.antall * t.pris * (1 - t.rabatt / 100);
+  const sum = t.summer.find(s => omtrent(s, netto));
+  if (sum == null || Math.abs(sum - netto) < 0.005) return t;
+  const ore = sum / t.antall * 100;
+  return Math.abs(ore - Math.round(ore)) > 1e-6 ? t : { ...t, pris: Math.round(ore) / 100, rabatt: null };
 }
 
 // En linje uten tabulatorer (alt i én tekst) deles opp fra høyre. «no 2 8
@@ -610,7 +626,7 @@ export function tolkTilbudslinjer(linjer) {
     const celler = tekst.split('\t').map(c => c.trim()).filter(Boolean);
     const t = celler.length > 1 ? tolkCeller(celler) : delOppTekst(tekst);
     if (t && t.forst.join('').trim()) {
-      const harVarenr = t.forst.length > 1 && /^\d+$/.test(t.forst[0]);
+      const harVarenr = t.forst.length > 1 && /^\S*\d\S*$/.test(t.forst[0]);
       apen = {
         side: l.side ?? 1, varenr: harVarenr ? t.forst[0] : '',
         beskrivelse: t.forst.slice(harVarenr ? 1 : 0).join(' ').replace(/\s+/g, ' ').trim(),

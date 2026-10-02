@@ -455,6 +455,31 @@ test('tilbud: linje uten tabulatorer deles opp, og beløpene avgjør tvetydighet
   ]);
 });
 
+test('tilbud: antall med desimaler, rabatt uten prosenttegn og avrundet prosent', async () => {
+  const { tolkTilbudslinjer } = await import('../app/data/beregning.js');
+  // Oppdiktet tilbud: «Varenr | Varetekst | Antall | Pris | % | Sum», med et
+  // usynlig «0,00%»-felt fra malen etter prisen og på tomme rader.
+  const l = (y, tekst, hoyde = 8.5) => ({ side: 1, y, hoyde, tekst });
+  const rader = tolkTilbudslinjer([
+    l(470, 'Varenr\tVaretekst\tAntall\tPris\t%\tSum', 11.5),
+    l(452, 'AB-100\tKornett Bb Acme ABC-123, Lakkert\t4,00 Stk\t12000,00\t0,00%\t15,00\t40800,00'),
+    l(443, 'med etui'),
+    l(431, '0,00%', 10),
+    l(420, '700615\tVentilolje Acme, 50 ml\t25,00 Stk\t100,00\t0,00%\t20,00\t2000,00'), // 20 % rabatt, ikke «uten mva.»
+    l(408, 'TX-1\tTrommesett Acme TX1\t1,00 Sett\t10000,00\t0,00%\t4,98\t9500,00'), // prosenten er avrundet
+    l(396, 'KL-5\tKøller Acme\t1,00 Par\t300,00\t0,00%\t280,00\t-540,00'), // tull i tilbudet
+    l(384, 'RR-2\tRør Acme 2,5\t3,00 Pk\t400,00\t0,00%\t0,00\t1200,00'),
+    l(360, 'Frakt\t4,00\t250,00'), // «4,00» uten enhet er et beløp
+  ]);
+  assert.deepEqual(rader.map(r => [r.varenr, r.beskrivelse, r.antall, r.enhet, r.pris, r.rabatt, r.avvik]), [
+    ['AB-100', 'Kornett Bb Acme ABC-123, Lakkert med etui', 4, 'stk', 12000, 15, false],
+    ['700615', 'Ventilolje Acme, 50 ml', 25, 'stk', 100, 20, false],
+    ['TX-1', 'Trommesett Acme TX1', 1, 'sett', 9500, null, false],
+    ['KL-5', 'Køller Acme', 1, 'par', 300, 0, true],
+    ['RR-2', 'Rør Acme 2,5', 3, 'pk', 400, 0, false],
+  ]);
+});
+
 test('tilbud: forslag til kobling mot varelinjer', async () => {
   const { likhet, foreslaKobling } = await import('../app/data/beregning.js');
   assert.ok(likhet('614 Yamaha YCR-2330III Bb-kornett', 'Kornett Yamaha YCR2330III') > 0.8);

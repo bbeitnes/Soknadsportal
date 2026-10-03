@@ -1,7 +1,7 @@
 ---
 id: 0003
 tittel: Revisor kan kommentere enkeltfakturaer
-status: testes
+status: ferdig
 opprettet: 2026-10-03
 ---
 
@@ -103,4 +103,4 @@ Løpende. Lenke til commits, skjermbilder, avklaringer.
   og tømme kommentaren; godkjenningen står. Som bruker (`?demo`): merket i listen, kommentaren i
   panelet uten felt, ikke i rapporten, og borte når revisoren fjernes fra søknaden.
 - Merket i listen har kommentarteksten som verktøytips.
-- Gjenstår: brukeren prøver i testdatabasen med samme testrevisor som i 0002. Ikke committet.
+- 2026-10-03: Prøvd av brukeren på test-siden og godkjent.

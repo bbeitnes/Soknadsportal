@@ -1,7 +1,7 @@
 ---
 id: 0002
 tittel: Revisorrolle og godkjenning av revisjon i portalen
-status: testes
+status: ferdig
 opprettet: 2026-10-03
 ---
 
@@ -267,4 +267,4 @@ Løpende. Lenke til commits, skjermbilder, avklaringer.
   Usikkert punkt: at reglene godtar revisorens spørringer på innkjøp/fakturaer
   (`where soknadId ==` + oppslag på søknaden i reglene). Feiler det, står revisoren med «Kunne ikke
   hente data», og reglene/spørringen må legges om (f.eks. `tilgang` kopiert til innkjøp og fakturaer).
-- Gjenstår: brukeren limer reglene inn i testdatabasen og går gjennom sjekklisten. Ikke committet.
+- 2026-10-03: Brukeren har limt reglene inn i testdatabasen, gått gjennom sjekklisten i OPPSETT.md §2 som testrevisor og godkjent. Revisorens spørringer på innkjøp og fakturaer ble godtatt av reglene.

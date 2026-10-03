@@ -7,7 +7,7 @@
 // hverandre på samme felt: siste lagring per felt vinner.
 import { lager, innlogging, SLETT } from './lager.js';
 import { ORGANISASJON_ID } from '../config/app-config.js';
-import { linjeliste, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer, linjetype, anskaffetPerBehov, finansierteLinjer, revisornokkel, revisjonsavtrykk, revisorstatus } from './beregning.js';
+import { linjeliste, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer, linjetype, anskaffetPerBehov, finansierteLinjer, revisornokkel, revisjonsavtrykk, revisorstatus, fakturakommentarer } from './beregning.js';
 
 export { innlogging };
 
@@ -221,6 +221,19 @@ export function revisorerFor(soknad) {
 // Feltstien til innlogget revisors egen oppføring på søknaden.
 export function minRevisorsti(soknadId, felt) {
   return `soknader/${soknadId}/revisorer.${revisornokkel(tilstand.meg.epost)}.${felt}`;
+}
+
+// Kommentarene tildelte revisorer har skrevet til en faktura.
+export function kommentarerFor(soknad, fakturaId) {
+  return fakturakommentarer(soknad, fakturaId, erRevisor() ? null : tilstand.brukere);
+}
+
+// Det som lagres når revisoren forlater et felt i sin egen oppføring. En
+// kommentar til en faktura lagres med tidspunkt, og fjernes når feltet tømmes.
+// Andre felt (merknaden) lagres som de er (null).
+export function revisorfelt(sti, verdi) {
+  const m = sti.match(/^(revisorer\.[^.]+\.kommentarer\.[^.]+)\.tekst$/);
+  return m ? { [m[1]]: verdi ? { tekst: verdi, tid: Date.now() } : SLETT } : null;
 }
 
 // Revisoren godkjenner tallene slik de står nå.

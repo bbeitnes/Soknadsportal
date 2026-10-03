@@ -140,6 +140,10 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   gyldigheten lagres ikke. Godkjenning krever status Avsluttet (også i reglene); ingenting låses.
   Endres det som inngår i avtrykket, må versjonen økes, og gamle godkjenninger blir «endret».
   Rapporten viser status per revisor nederst på forsiden.
+- Revisor kan kommentere enkeltfakturaer: `revisorer.<nøkkel>.kommentarer.<fakturaId>` = `{ tekst, tid }`,
+  skrevet fra fakturapanelet (`revisorfelt()` legger på tidspunkt og sletter når feltet tømmes).
+  `fakturakommentarer()` gir kommentarene fra tildelte revisorer; fakturalisten får merket «Kommentar»,
+  og panelet viser dem. Bare på skjerm: ikke i rapporten, ikke i avtrykket, ingen svar.
 - Innlogging: Google eller Firebase e-postlenke. Administrator kan sende lenken til en bruker fra
   brukerlisten (`sendInnloggingslenkeTil()`); Firebase sender e-posten, portalen ser aldri lenken.
 - Mobil: `#/kvittering` (default-rute på smal skjerm). `ui/bilde.js` gjør om store bilder til JPEG.

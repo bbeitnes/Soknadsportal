@@ -215,6 +215,11 @@ godkjenningen» og må godkjenne på nytt. Ingenting låses. Revisjonen er godkj
 når alle tildelte revisorer har en gyldig godkjenning. Godkjenningen er en
 innlogget persons handling, ikke en BankID-signatur.
 
+Revisoren kan også skrive en kommentar til en enkelt faktura (i fakturapanelet).
+Fakturaen får merket «Kommentar» i listen, og de som fører søknaden ser teksten
+i panelet. Kommentarene står ikke i rapporten, kan ikke besvares i portalen og
+hindrer ikke godkjenning; revisoren fjerner dem selv ved å tømme feltet.
+
 **Revisjonsrapport:** én samlet PDF, generert med én knapp, når som helst.
 Har søknaden revisorer, står det nederst på forsiden én linje per revisor:
 «Godkjent i Søknadsportal av <navn>, <tidspunkt>» med revisorens merknad, eller

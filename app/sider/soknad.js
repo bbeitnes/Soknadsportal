@@ -5,7 +5,7 @@ import {
   tilstand, oppdaterSoknad, leggBehovISoknad, leggFlereBehovISoknad, leggFriLinjeISoknad, fjernLinje,
   lastOppDokument, slettDokument, dokumentUrl, slettSoknad, innkjopFor,
   leggTilUtgift, oppdaterUtgift, fjernUtgift,
-  fellesTyperekkefolge, settLinjerekkefolge, settSoknadTyperekkefolge, anskaffet, erRevisor, settRevisor,
+  fellesTyperekkefolge, settLinjerekkefolge, settSoknadTyperekkefolge, anskaffet, erRevisor, settRevisor, revisorfelt,
 } from '../data/index.js';
 import {
   SOKNADSSTATUSER, statusNavn, linjeliste, linjekostnad, sumEstimert, soktBelop, soktForslag, velgbareBehov,
@@ -476,7 +476,8 @@ export const soknadSide = {
   // Giveren styrer momsprosenten: bytter man giver, arves prosenten på nytt.
   // Søkt beløp lik forslaget (eller tomt) betyr «ikke overstyrt».
   forLagring(samling, id, sti, verdi) {
-    if (samling !== 'soknader' || erRevisor()) return null;
+    if (samling !== 'soknader') return null;
+    if (erRevisor()) return revisorfelt(sti, verdi);
     const s = tilstand.soknader.find(x => x.id === id);
     if (sti === 'giverId') {
       const g = giver(verdi);

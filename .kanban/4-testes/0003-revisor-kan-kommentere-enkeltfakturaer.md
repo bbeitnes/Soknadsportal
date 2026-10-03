@@ -1,7 +1,7 @@
 ---
 id: 0003
 tittel: Revisor kan kommentere enkeltfakturaer
-status: neste
+status: testes
 opprettet: 2026-10-03
 ---
 
@@ -94,3 +94,13 @@ Grillet med brukeren 2026-10-03, som del av grillingen av kort 0002 (spørsmåle
 ## Notater
 
 Løpende. Lenke til commits, skjermbilder, avklaringer.
+
+- 2026-10-03: Bygget. `fakturakommentarer()` i `beregning.js` (med test), `kommentarerFor()` og
+  `revisorfelt()` i `data/index.js`, feltet «Din kommentar» og kommentarlisten i fakturapanelene og
+  merket «Kommentar» i fakturalisten (`sider/revisjon.js`). Ingen regelendring. `node --test test/`
+  gir 49 av 49.
+- Sett på dev: som revisor (`?demo=revisor`, «Noteskap og notemapper 2025», faktura 2) skrive, endre
+  og tømme kommentaren; godkjenningen står. Som bruker (`?demo`): merket i listen, kommentaren i
+  panelet uten felt, ikke i rapporten, og borte når revisoren fjernes fra søknaden.
+- Merket i listen har kommentarteksten som verktøytips.
+- Gjenstår: brukeren prøver i testdatabasen med samme testrevisor som i 0002. Ikke committet.

@@ -985,3 +985,27 @@ test('datoKl gir dato og klokkeslett', async () => {
   assert.equal(datoKl(new Date(2026, 9, 3, 14, 5).getTime()), '03.10.2026 kl. 14.05');
   assert.equal(datoKl(null), '');
 });
+
+test('fakturakommentarer: bare tildelte revisorer, tomme kommentarer teller ikke', async () => {
+  const { fakturakommentarer, revisjonsavtrykk } = await import('../app/data/beregning.js');
+  const g = revisjonsgrunnlag();
+  const brukere = [
+    { epost: 'rita.r@revisor.no', navn: 'Rita Revisor', rolle: 'revisor' },
+    { epost: 'olav@revisor.no', navn: 'Olav Berg', rolle: 'revisor' },
+  ];
+  const for_ = revisjonsavtrykk(g.soknad, g.innkjop, g.fakturaer);
+  g.soknad.revisorer = {
+    rita_r_revisor_no: { epost: 'rita.r@revisor.no', navn: 'Rita Revisor', kommentarer: { f1: { tekst: ' Mangler spesifikasjon ', tid: 5 }, f9: { tekst: 'Slettet faktura', tid: 6 } } },
+    olav_revisor_no: { epost: 'olav@revisor.no', navn: 'Olav Berg', kommentarer: { f1: { tekst: '  ', tid: 7 } } },
+  };
+  assert.deepEqual(fakturakommentarer(g.soknad, 'f1', brukere), [{ epost: 'rita.r@revisor.no', navn: 'Rita Revisor', tekst: 'Mangler spesifikasjon', tid: 5 }]);
+  assert.deepEqual(fakturakommentarer(g.soknad, 'f2', brukere), []);
+  // To revisorer på samme faktura: begge står, hver med sitt navn.
+  g.soknad.revisorer.olav_revisor_no.kommentarer.f1.tekst = 'Enig';
+  assert.deepEqual(fakturakommentarer(g.soknad, 'f1', brukere).map(k => k.navn), ['Olav Berg', 'Rita Revisor']);
+  // Kommentarer gjør ikke en godkjenning ugyldig.
+  assert.equal(revisjonsavtrykk(g.soknad, g.innkjop, g.fakturaer), for_);
+  // En revisor som fjernes fra søknaden: kommentarene vises ikke lenger.
+  g.soknad.tilgang = ['olav@revisor.no'];
+  assert.deepEqual(fakturakommentarer(g.soknad, 'f1', brukere).map(k => k.navn), ['Olav Berg']);
+});

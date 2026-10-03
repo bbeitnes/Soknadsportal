@@ -1016,6 +1016,17 @@ export function revisorstatus(soknad, avtrykk, brukere = null) {
   }).filter(Boolean).sort((a, b) => a.navn.localeCompare(b.navn, 'nb'));
 }
 
+// Revisorenes kommentarer til én faktura
+// (`revisorer.<nøkkel>.kommentarer.<fakturaId>` = { tekst, tid }). Bare
+// tildelte revisorer teller, som i revisorstatus(). Vises bare på skjerm.
+export function fakturakommentarer(soknad, fakturaId, brukere = null) {
+  return revisorstatus(soknad, null, brukere).map(r => {
+    const k = soknad.revisorer?.[revisornokkel(r.epost)]?.kommentarer?.[fakturaId];
+    const tekst = (k?.tekst || '').trim();
+    return tekst ? { epost: r.epost, navn: r.navn, tekst, tid: k.tid ?? null } : null;
+  }).filter(Boolean);
+}
+
 // Revisjonen er godkjent når alle tildelte revisorer har en gyldig godkjenning.
 export function revisjonGodkjent(statuser) {
   return statuser.length > 0 && statuser.every(r => r.status === 'godkjent');

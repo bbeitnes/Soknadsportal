@@ -155,7 +155,9 @@ export function lagDemodata() {
   // Olavs godkjenning gjelder tallene slik de står i demodataene.
   soknader.s5.revisorer = {
     [revisornokkel('olav@revisor.no')]: {
-      epost: 'olav@revisor.no', navn: 'Olav Berg', merknad: 'Bilag 2 er en kassalapp uten spesifikasjon; beløpet er kontrollert mot kontoutskrift.',
+      epost: 'olav@revisor.no', navn: 'Olav Berg',
+      kommentarer: { f5: { tekst: 'Kassalappen viser ikke hva som er kjøpt. Har dere en spesifikasjon?', tid: dagerSiden(290) } },
+      merknad: 'Bilag 2 er en kassalapp uten spesifikasjon; beløpet er kontrollert mot kontoutskrift.',
       godkjent: { tid: dagerSiden(280), avtrykk: revisjonsavtrykk({ id: 's5', ...soknader.s5 }, [], Object.entries(fakturaer).map(([id, f]) => ({ id, ...f }))) },
     },
   };

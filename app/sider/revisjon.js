@@ -3,7 +3,7 @@
 import {
   tilstand, innkjopFor, fakturaerFor, oppdaterSoknad, opprettFaktura, slettFaktura,
   settDekker, lastOppFakturafil, dokumentUrl, fellesTyperekkefolge,
-  erRevisor, revisorerFor, minRevisorsti, godkjennRevisjon, trekkGodkjenning,
+  erRevisor, revisorerFor, minRevisorsti, godkjennRevisjon, trekkGodkjenning, kommentarerFor,
 } from '../data/index.js';
 import {
   revisjonsposter, fakturaavvik, fakturaDekker, revisjonsoppsummering, pott, sumFakturert,
@@ -101,14 +101,28 @@ function fakturaPanel(s, f, poster) {
       ${utenValgTekst(s)}
     </div>
     <label class="felt"><span class="etikett">Merknad</span>${tekstomrade(n('merknad'), f.merknad, 'class="inndata" rows="2" placeholder="F.eks. hvorfor beløpet avviker fra tilbudet, eller «delfaktura – resten kommer i oktober»"')}<span class="undertekst">Vises i fakturalisten og i revisjonsrapporten.</span></label>
+    ${kommentarliste(s, f) ? `<div class="felt"><span class="etikett">Kommentar fra revisor</span>${kommentarliste(s, f)}<span class="undertekst">Revisoren fjerner kommentaren selv når saken er løst. Står ikke i rapporten.</span></div>` : ''}
     <div class="panelbunn"><span>Lagt inn av ${escapeHtml(fornavn(f.lagtInnAv?.navn, f.lagtInnAv?.epost))}, ${tidspunkt(f.tid)}</span><button type="button" class="knapp knapp-fare" data-handling="slett-faktura">Slett faktura</button></div>`, { nytt: ui.nyttPanel });
 }
 
+// Revisorenes kommentarer til fakturaen, lesbart. Vises bare på skjerm –
+// ikke i rapporten. `uten` utelater innlogget revisors egen (den har eget felt).
+function kommentarliste(s, f, uten = null) {
+  return kommentarerFor(s, f.id).filter(k => k.epost !== uten).map(k => `
+    <div style="padding:10px 12px; background:var(--color-accent-100)">
+      <div class="undertekst" style="font-weight:600">${escapeHtml(k.navn)}${k.tid ? ` · ${tidspunkt(k.tid)}` : ''}</div>
+      <div style="font-size:14px; white-space:pre-wrap; margin-top:2px">${escapeHtml(k.tekst)}</div>
+    </div>`).join('');
+}
+
 // Fakturapanelet for revisor: de samme opplysningene, uten felt og knapper.
+// Det eneste revisoren kan skrive, er sin egen kommentar til fakturaen.
 function fakturaPanelLes(s, f, poster) {
   const a = fakturaavvik(f, poster, fakturaerFor(s.id));
   const dekket = fakturaDekker(f).map(id => poster.find(p => p.id === id)).filter(Boolean);
   const kreditnota = Number(f.belop) < 0;
+  const min = kommentarerFor(s, f.id).find(k => k.epost === tilstand.meg.epost);
+  const andres = kommentarliste(s, f, tilstand.meg.epost);
   const felt = (etikett, verdi, stil = '') => `<div class="felt" style="${stil}"><span class="etikett">${etikett}</span><div style="font-weight:600">${verdi}</div></div>`;
   return sidepanel(`
     <div class="panelhode">
@@ -133,6 +147,8 @@ function fakturaPanelLes(s, f, poster) {
       </div>
     </div>
     ${(f.merknad || '').trim() ? felt('Merknad', escapeHtml(f.merknad).replace(/\n/g, '<br>')) : ''}
+    <label class="felt"><span class="etikett">Din kommentar</span>${tekstomrade(minRevisorsti(s.id, `kommentarer.${f.id}.tekst`), min?.tekst, 'class="inndata" rows="3" placeholder="F.eks. «bilaget mangler spesifikasjon» eller «beløpet stemmer ikke med tilbudet»"')}<span class="undertekst">${min?.tid ? `Sist endret ${tidspunkt(min.tid)}. ` : ''}Vises for dem som fører søknaden. Står ikke i rapporten. Tøm feltet for å fjerne kommentaren.</span></label>
+    ${andres ? `<div class="felt"><span class="etikett">Kommentarer fra andre revisorer</span>${andres}</div>` : ''}
     <div class="panelbunn"><span>Lagt inn av ${escapeHtml(fornavn(f.lagtInnAv?.navn, f.lagtInnAv?.epost))}, ${tidspunkt(f.tid)}</span></div>`, { nytt: ui.nyttPanel });
 }
 
@@ -204,9 +220,10 @@ export const revisjonFane = {
               <tbody>${fakturaer.map(f => {
                 const a = fakturaavvik(f, poster, fakturaer);
                 const navn = fakturaDekker(f).map(id => poster.find(x => x.id === id)).filter(Boolean).map(posttittel);
+                const kommentarer = kommentarerFor(s, f.id);
                 return `<tr class="klikkbar ${f.id === ui.panel ? 'valgt' : ''}" data-handling="apne-faktura" data-id="${f.id}">
                   <td style="font-weight:700">${f.lopenummer}${Number(f.belop) < 0 ? '<div class="undertekst" style="font-weight:600">kreditnota</div>' : ''}</td>
-                  <td>${escapeHtml(f.leverandor || '–')}<div class="celleunder" style="max-width:200px" title="${escapeHtml(navn.join(', '))}">${navn.length ? escapeHtml(navn.join(', ')) : '<span class="aksent">Ikke koblet til noe</span>'}</div></td>
+                  <td>${escapeHtml(f.leverandor || '–')}${kommentarer.length ? `<span class="merkelapp m-varsel" style="height:18px; font-size:11px; margin-left:8px; vertical-align:1px" title="${escapeHtml(kommentarer.map(k => `${k.navn}: ${k.tekst}`).join('\n'))}">Kommentar</span>` : ''}<div class="celleunder" style="max-width:200px" title="${escapeHtml(navn.join(', '))}">${navn.length ? escapeHtml(navn.join(', ')) : '<span class="aksent">Ikke koblet til noe</span>'}</div></td>
                   <td class="smal" style="font-size:13px">${escapeHtml(f.fakturanr || '–')}</td>
                   <td class="smal" style="font-size:13px">${f.dato ? datoFelt(f.dato) : '–'}</td>
                   <td class="tall fet">${f.belop == null ? '–' : belop(f.belop)}</td>

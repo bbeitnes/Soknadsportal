@@ -201,6 +201,13 @@ export function erInnvilget(soknad) {
   return soknad?.status === 'innvilget' || soknad?.status === 'avsluttet';
 }
 
+// Hengelåsen: en søknad som ikke lenger er utkast, er låst. Det vi søkte om
+// (linjene, egenandelen, søkt beløp, giver og momsprosent) kan da ikke endres.
+// Den låses opp ved å sette statusen tilbake til Utkast.
+export function erLast(soknad) {
+  return !!soknad?.status && soknad.status !== 'utkast';
+}
+
 // Egeninnsats (dugnad o.l.) er en løs utgift uten faktura: verdien er
 // estimert, ingen betaler den, og hele beløpet er egne midler.
 export function utgiftEgne(utgift) {

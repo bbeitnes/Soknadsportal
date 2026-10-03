@@ -795,3 +795,10 @@ test('utenPrediktor gir de rå punktene tilbake', async () => {
   const raa = Uint8Array.from(punkter);
   assert.equal(utenPrediktor(raa, 1, 3, kanaler), raa);
 });
+
+test('erLast: søknaden er låst når den ikke lenger er et utkast', async () => {
+  const { erLast } = await import('../app/data/beregning.js');
+  assert.equal(erLast({ status: 'utkast' }), false);
+  assert.equal(erLast({}), false); // gamle søknader uten status regnes som utkast
+  for (const status of ['sendt', 'innvilget', 'avslatt', 'avsluttet']) assert.equal(erLast({ status }), true);
+});

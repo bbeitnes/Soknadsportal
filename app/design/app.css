@@ -101,6 +101,8 @@ table.liste { border-collapse: separate; border-spacing: 0; width: 100%; font-va
 .celleinn.tekst { width: 100%; min-width: 160px; text-align: left; font-weight: 600; }
 .celleinn:hover { border-color: var(--color-neutral-400); }
 .celleinn:focus { border-color: var(--color-accent); background: var(--color-neutral-100); outline: none; }
+/* Låst søknad: feltene vises som ren tekst. */
+.celleinn[readonly], .celleinn[readonly]:hover, .celleinn[readonly]:focus { border-color: transparent; background: transparent; cursor: default; }
 
 /* Status-merkelapper */
 .merkelapp { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; font-size: 12px; font-weight: 600; border: 2px solid transparent; white-space: nowrap; }
@@ -124,6 +126,7 @@ table.liste { border-collapse: separate; border-spacing: 0; width: 100%; font-va
 .felt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .inndata { width: 100%; min-width: 0; height: 36px; padding: 0 10px; border: 2px solid var(--color-divider); background: var(--color-neutral-100); font-size: 15px; color: var(--color-text); }
 .inndata:focus { border-color: var(--color-accent); outline: none; }
+.inndata[readonly], .inndata:disabled { background: var(--color-surface); border-color: var(--color-surface); color: var(--color-text); opacity: 1; cursor: default; }
 textarea.inndata { height: auto; padding: 8px 10px; font-size: 14px; line-height: 1.45; resize: vertical; }
 .inndata.tall { text-align: right; font-weight: 600; font-size: 16px; }
 .inndata.prosent { width: 64px; text-align: right; font-weight: 600; }

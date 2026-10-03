@@ -63,6 +63,11 @@ Antall finnes på tre nivåer med hver sin betydning:
 - Søknadsteksten. Selve innsendingen skjer utenfor portalen, men teksten skal
   lagres her.
 - Status: utkast → sendt → innvilget / avslått → avsluttet.
+- Hengelås: når søknaden ikke lenger er et utkast, er det vi søkte om låst
+  (behovslinjene, egenandel, søkt beløp, momsprosent og giver). Den låses opp
+  ved å sette statusen tilbake til Utkast. Er søknaden innvilget eller
+  avsluttet, må det bekreftes aktivt – et endret behov etter innvilgelsen
+  skal legges til på innkjøpslisten, ikke i søknaden.
 - Søkt beløp: foreslås som sum av estimerte kostnader (justert for
   momskompensasjon, se under), men kan overstyres.
 - Innvilget beløp: ofte LAVERE enn søkt.

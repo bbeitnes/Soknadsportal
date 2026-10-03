@@ -79,6 +79,11 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   med samme `soknadLinjeId`, hver med sitt antall og sin valgte leverandør. `valgt[lid]` er fortsatt
   én leverandør per linje. Priser fra «Les priser» gjelder alle delene av en delt linje.
 - Tabellene er bevisst tette (lav radhøyde). I matrisen står antallet til høyre for varenavnet.
+- Hengelås på søknaden: `erLast()` (status ≠ utkast, ingen eget felt). I Søknad-fanen er da det vi
+  søkte om skrivebeskyttet (søkte linjer, egenandel, søkt beløp, momsprosent, giver; `skrivevern()`),
+  og «+ Behov fra listen» / «+ Fri linje» er slått av der – endret behov legges til i Innkjøp.
+  Linjer med `etterSoknad`, innvilget beløp, tittel, frist, sendt, status og dokumenter er åpne.
+  Låses opp ved å sette status til Utkast; fra innvilget/avsluttet kreves `confirm()`.
 - Linjer lagt til i en søknad som ikke lenger er utkast får `etterSoknad: true` og `notat` (fritekst).
   De teller ikke i `sumEstimert()`/søkt beløp (`soktLinjer()` / `tilleggslinjer()`), men går i innkjøp,
   pott og revisjon. PDF-rapporten viser dem ikke spesielt (bare på skjerm).

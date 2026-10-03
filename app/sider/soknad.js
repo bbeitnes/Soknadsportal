@@ -10,7 +10,7 @@ import {
 import {
   SOKNADSSTATUSER, statusNavn, linjeliste, linjekostnad, sumEstimert, soktBelop, soktForslag, velgbareBehov,
   pott, giverandel, momsProsent, utgiftsliste, sumUtgifter, sumFakturert,
-  egenandelPlanlagt, egenandelSomAndel, giverbehov,
+  egenandelPlanlagt, egenandelSomAndel, giverbehov, erLast, erInnvilget,
   linjetype, grupperPerType, typeliste, flyttIListe, typerekkefolgeFor, soktLinjer, tilleggslinjer, etterRekkefolgeOgTittel,
 } from '../data/beregning.js';
 import { escapeHtml, kr, belop, heltall, datoFelt, tidspunkt, fornavn, tolkBelop, tolkDato } from '../ui/format.js';
@@ -26,6 +26,11 @@ const FANER = [['soknad', 'Søknad'], ['innkjop', 'Innkjøp'], ['utgifter', 'Utg
 const ui = { soknadId: null, panel: null, nyttPanel: false, velger: false, laster: 0, leggerTil: false };
 
 const giver = id => tilstand.givere.find(g => g.id === id);
+
+// Hengelåsen (erLast): det vi søkte om er skrivebeskyttet når søknaden ikke
+// lenger er et utkast. Linjer lagt til etter søknaden er ikke låst.
+const LAST_TITTEL = 'Låst: søknaden er sendt. Sett status tilbake til Utkast for å endre.';
+const skrivevern = last => last ? ` readonly title="${LAST_TITTEL}"` : '';
 const behovMedId = id => tilstand.behov.find(b => b.id === id);
 
 function linjetittel(l) {
@@ -74,7 +79,7 @@ function topp(s, fane) {
       ${pottlinje(s)}
     </header>
     <nav style="flex:0 0 auto; padding:14px 40px 0; display:flex; gap:4px; align-items:center">
-      ${FANER.map(([id, navn]) => `<a href="#/soknad/${s.id}/${id}" style="height:36px; display:inline-flex; align-items:center; padding:0 18px; font-weight:600; font-size:15px; text-decoration:none; background:${fane === id ? 'var(--color-surface)' : 'transparent'}; color:${fane === id ? 'var(--color-text)' : 'var(--color-neutral-700)'}">${navn}</a>`).join('')}
+      ${FANER.map(([id, navn]) => `<a href="#/soknad/${s.id}/${id}" style="height:36px; display:inline-flex; align-items:center; padding:0 18px; font-weight:600; font-size:15px; text-decoration:none; background:${fane === id ? 'var(--color-surface)' : 'transparent'}; color:${fane === id ? 'var(--color-text)' : 'var(--color-neutral-700)'}"${id === 'soknad' && erLast(s) ? ` title="${LAST_TITTEL}"` : ''}>${navn}${id === 'soknad' && erLast(s) ? `<span style="display:inline-flex; margin-left:8px">${IKON.las}</span>` : ''}</a>`).join('')}
     </nav>`;
 }
 
@@ -123,31 +128,34 @@ function behovstabell(s) {
   // Med egenandel står det vi søker om (estimatet minus egenandelen) under summen.
   const egen = egenandelPlanlagt(s), etterEgen = Math.max(0, sum - egen), etterEgenGiver = giverandel(etterEgen, prosent);
   const under = tekst => egen ? `<div class="undertekst" style="font-weight:400">${tekst}</div>` : '';
+  const last = erLast(s);
   const rad = l => {
     const b = l.behovId ? behovMedId(l.behovId) : null;
     const kostnad = linjekostnad(l), fraGiver = giverandel(kostnad, prosent);
     const arvet = (b?.type || '').trim();
+    // Låst søknad: linjene vi søkte om er skrivebeskyttet.
+    const vern = skrivevern(last && !l.etterSoknad);
     // Linjer lagt til etter søknaden har et notat i stedet for drahåndtak;
     // de står i den rekkefølgen de ble lagt til.
     return `
-      <tr ${l.etterSoknad ? '' : `data-slippmal="linje:${l.id}"`}>
-        <td><div style="display:flex; align-items:center">${l.etterSoknad ? '<span class="dra" style="visibility:hidden">⠿</span>' : `<span class="dra" draggable="true" data-dra="linje:${l.id}" title="Dra for å endre rekkefølge, eller flytt til en annen type">⠿</span>`}<div style="min-width:0; flex:1">${l.behovId
+      <tr ${l.etterSoknad || last ? '' : `data-slippmal="linje:${l.id}"`}>
+        <td><div style="display:flex; align-items:center">${l.etterSoknad || last ? '<span class="dra" style="visibility:hidden">⠿</span>' : `<span class="dra" draggable="true" data-dra="linje:${l.id}" title="Dra for å endre rekkefølge, eller flytt til en annen type">⠿</span>`}<div style="min-width:0; flex:1">${l.behovId
           ? `<span class="fet">${escapeHtml(linjetittel(l))}</span>${b?.beskrivelse ? `<div class="celleunder">${escapeHtml(b.beskrivelse)}</div>` : ''}`
-          : `<input class="celleinn tekst" ${feltAttr(n(l, 'tittel'), l.tittel)} placeholder="Beskriv linjen">`}${l.etterSoknad
+          : `<input class="celleinn tekst" ${feltAttr(n(l, 'tittel'), l.tittel)} placeholder="Beskriv linjen"${vern}>`}${l.etterSoknad
           ? `<input class="celleinn tekst notat" title="${escapeHtml(l.notat || 'Hvorfor ble dette lagt til?')}" ${feltAttr(n(l, 'notat'), l.notat)} placeholder="Notat – f.eks. «i stedet for klarinett»">` : ''}</div></div></td>
-        <td><input class="celleinn tekst" style="min-width:0; width:104px; font-weight:400" list="typer" placeholder="${escapeHtml(arvet || 'Type')}" title="${arvet ? `Behovet har typen «${escapeHtml(arvet)}». Skriv en annen for denne søknaden, eller tøm feltet for å bruke behovets.` : 'Type for denne søknaden'}" ${feltAttr(n(l, 'type'), linjetype(l, tilstand.behov))}></td>
-        <td class="tall"><input class="celleinn antall" inputmode="numeric" ${feltAttr(n(l, 'antall'), l.antall, 'tall')}></td>
-        <td class="tall"><input class="celleinn" inputmode="numeric" ${feltAttr(n(l, 'estPris'), l.estPris, 'tall')}></td>
+        <td><input class="celleinn tekst" style="min-width:0; width:104px; font-weight:400" ${vern ? `placeholder="–"${vern}` : `list="typer" placeholder="${escapeHtml(arvet || 'Type')}" title="${arvet ? `Behovet har typen «${escapeHtml(arvet)}». Skriv en annen for denne søknaden, eller tøm feltet for å bruke behovets.` : 'Type for denne søknaden'}"`} ${feltAttr(n(l, 'type'), linjetype(l, tilstand.behov))}></td>
+        <td class="tall"><input class="celleinn antall" inputmode="numeric" ${feltAttr(n(l, 'antall'), l.antall, 'tall')}${vern}></td>
+        <td class="tall"><input class="celleinn" inputmode="numeric" ${feltAttr(n(l, 'estPris'), l.estPris, 'tall')}${vern}></td>
         <td class="tall fet">${kr(kostnad)}</td>
         ${moms ? `<td class="tall">${kr(fraGiver)}</td><td class="tall dempet">${kr(kostnad - fraGiver)}</td>` : ''}
-        <td style="width:40px; padding-left:0"><button type="button" class="ikonknapp" data-handling="fjern-linje" data-linje="${l.id}" title="Fjern fra søknaden">${IKON.fjern}</button></td>
+        <td style="width:40px; padding-left:0">${vern ? '' : `<button type="button" class="ikonknapp" data-handling="fjern-linje" data-linje="${l.id}" title="Fjern fra søknaden">${IKON.fjern}</button>`}</td>
       </tr>`;
   };
   // Gruppert på type med delsum per gruppe (giverens kategorier).
   const rader = grupperPerType(linjer, l => linjetype(l, tilstand.behov), typerekkefolgeFor(s, fellesTyperekkefolge())).map(g => {
     const delsum = g.elementer.reduce((a, l) => a + linjekostnad(l), 0), delGiver = giverandel(delsum, prosent);
     return `
-      <tr class="gruppe" data-slippmal="type:${escapeHtml(g.type)}"><td colspan="4"><span class="dra" draggable="true" data-dra="type:${escapeHtml(g.type)}" title="Dra for å flytte hele typen i denne søknaden">⠿</span>${escapeHtml(g.type || 'Uten type')}<span style="font-weight:400; letter-spacing:0; text-transform:none; font-size:12px; color:var(--color-neutral-600)"> · ${g.elementer.length} ${g.elementer.length === 1 ? 'linje' : 'linjer'}</span></td><td class="tall">${kr(delsum)}</td>${moms ? `<td class="tall">${kr(delGiver)}</td><td class="tall">${kr(delsum - delGiver)}</td>` : ''}<td></td></tr>
+      <tr class="gruppe" ${last ? '' : `data-slippmal="type:${escapeHtml(g.type)}"`}><td colspan="4">${last ? '<span class="dra" style="visibility:hidden">⠿</span>' : `<span class="dra" draggable="true" data-dra="type:${escapeHtml(g.type)}" title="Dra for å flytte hele typen i denne søknaden">⠿</span>`}${escapeHtml(g.type || 'Uten type')}<span style="font-weight:400; letter-spacing:0; text-transform:none; font-size:12px; color:var(--color-neutral-600)"> · ${g.elementer.length} ${g.elementer.length === 1 ? 'linje' : 'linjer'}</span></td><td class="tall">${kr(delsum)}</td>${moms ? `<td class="tall">${kr(delGiver)}</td><td class="tall">${kr(delsum - delGiver)}</td>` : ''}<td></td></tr>
       ${g.elementer.map(rad).join('')}`;
   }).join('');
   const tilleggSum = tillegg.reduce((a, l) => a + linjekostnad(l), 0), tilleggGiver = giverandel(tilleggSum, prosent);
@@ -272,7 +280,7 @@ function dokumenter(s) {
 // Egenandel: det vi har sagt i søknaden at vi dekker selv. Blir innvilget et
 // annet beløp enn søkt, velger vi om vi holder på beløpet eller på andelen.
 // Rammen er innvilget + egenandel. Hvilke varer den går til, settes i Innkjøp.
-function egenandelfelt(s, p) {
+function egenandelfelt(s, p, last) {
   const planlagt = egenandelPlanlagt(s);
   const andel = (egen, giver) => egen + giver > 0 ? `${(egen / (egen + giver) * 100).toFixed(1).replace('.', ',')} %` : '–';
   const kanVelge = planlagt > 0 && p.innvilget != null && p.innvilget !== p.sokt;
@@ -282,7 +290,7 @@ function egenandelfelt(s, p) {
   else if (planlagt > 0) hint = `${andel(p.egenandel, p.innvilget)} av rammen ${kr(p.ramme)}${kanVelge ? ` · i søknaden ${andel(planlagt, p.sokt)}` : ''} · <span class="${p.fordelt > p.egenandel ? 'aksent' : ''}">plassert på varer ${kr(p.fordelt)}</span>`;
   return `
           <div class="felt"><span class="etikett">Egenandel</span>
-            <input class="inndata tall" style="text-align:left" inputmode="numeric" placeholder="0" ${feltAttr(`soknader/${s.id}/egenandel`, s.egenandel, 'tall')}>
+            <input class="inndata tall" style="text-align:left" inputmode="numeric" placeholder="0" ${feltAttr(`soknader/${s.id}/egenandel`, s.egenandel, 'tall')}${skrivevern(last)}>
             ${kanVelge ? `<div class="segment fyll">
               <button type="button" data-handling="egenandel-valg" data-id="belop" aria-pressed="${valg === 'belop'}" title="Innvilget er et annet beløp enn søkt. Behold egenandelen som samme beløp som i søknaden.">Beløp ${heltall(planlagt)}</button>
               <button type="button" data-handling="egenandel-valg" data-id="andel" aria-pressed="${valg === 'andel'}" title="Innvilget er et annet beløp enn søkt. Behold egenandelen som samme andel av rammen som i søknaden.">Andel ${heltall(egenandelSomAndel(s))}</button>
@@ -296,24 +304,27 @@ function soknadsfane(s) {
   const forslag = soktForslag(s);
   const overstyrt = s.soktOverstyrt != null;
   const p = pott(s, innkjopFor(s.id));
+  const last = erLast(s);
+  const tilInnkjop = 'Søknaden er låst. Endret behov legges til under Innkjøp.';
   const givere = [...tilstand.givere].sort((a, b) => (a.navn || '').localeCompare(b.navn || '', 'nb'));
   return `
     <div style="flex:1 1 auto; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:0 28px">
       <div style="min-height:0; display:flex; flex-direction:column; gap:12px">
         <div class="verktoyrad">
           <div class="etikett">Behov i søknaden</div>
+          ${last ? `<div class="hint" style="flex:1 1 auto; display:flex; align-items:center; gap:8px" title="${LAST_TITTEL}">${IKON.las}<span><b>Låst</b> – søknaden er sendt. Endret behov legges til under <a href="#/soknad/${s.id}/innkjop">Innkjøp</a>.</span></div>` : ''}
           <div class="grupper">
             <button type="button" class="knapp knapp-ramme knapp-liten" data-handling="skriv-ut">Skriv ut</button>
-            <button type="button" class="knapp knapp-ramme knapp-liten" data-handling="fra-listen">+ Behov fra listen</button>
-            <button type="button" class="knapp knapp-ramme knapp-liten" data-handling="fri-linje">+ Fri linje</button>
+            <button type="button" class="knapp knapp-ramme knapp-liten" data-handling="fra-listen" ${last ? `disabled title="${tilInnkjop}"` : ''}>+ Behov fra listen</button>
+            <button type="button" class="knapp knapp-ramme knapp-liten" data-handling="fri-linje" ${last ? `disabled title="${tilInnkjop}"` : ''}>+ Fri linje</button>
           </div>
         </div>
         ${behovstabell(s)}
         <div class="tre-kol" style="flex:0 0 auto; align-items:start${p.harMoms ? '; grid-template-columns:repeat(4, minmax(0, 1fr))' : ''}">
-          ${egenandelfelt(s, p)}
+          ${egenandelfelt(s, p, last)}
           <label class="felt"><span class="etikett">Søkt beløp</span>
-            <input class="inndata tall" style="text-align:left" inputmode="numeric" ${feltAttr(n('soktOverstyrt'), soktBelop(s), 'tall')}>
-            <span class="undertekst">${overstyrt ? `Overstyrt. Foreslått ${kr(forslag)} – tøm feltet for å bruke forslaget.` : (p.harMoms ? `Foreslått: giverens andel (${p.giverProsent} %) av estimatet` : 'Foreslått: sum av estimatene') + (p.egenandelPlanlagt > 0 ? ' etter egenandel' : '')}</span>
+            <input class="inndata tall" style="text-align:left" inputmode="numeric" ${feltAttr(n('soktOverstyrt'), soktBelop(s), 'tall')}${skrivevern(last)}>
+            <span class="undertekst">${overstyrt ? `Overstyrt. Foreslått ${kr(forslag)}${last ? '.' : ' – tøm feltet for å bruke forslaget.'}` : (p.harMoms ? `Foreslått: giverens andel (${p.giverProsent} %) av estimatet` : 'Foreslått: sum av estimatene') + (p.egenandelPlanlagt > 0 ? ' etter egenandel' : '')}</span>
           </label>
           <label class="felt"><span class="etikett">Innvilget beløp</span>
             <input class="inndata tall" style="text-align:left" inputmode="numeric" ${feltAttr(n('innvilget'), s.innvilget, 'tall')}>
@@ -321,14 +332,14 @@ function soknadsfane(s) {
           </label>
           ${p.harMoms ? `
           <label class="felt"><span class="etikett">Momskompensasjon</span>
-            <div style="display:flex; align-items:center; gap:8px"><input class="inndata prosent" style="height:36px; font-size:16px" inputmode="numeric" ${feltAttr(n('momsProsent'), p.prosent, 'prosent')}><span>%</span></div>
-            <span class="undertekst">Arvet fra giveren, kan justeres her</span>
+            <div style="display:flex; align-items:center; gap:8px"><input class="inndata prosent" style="height:36px; font-size:16px" inputmode="numeric" ${feltAttr(n('momsProsent'), p.prosent, 'prosent')}${skrivevern(last)}><span>%</span></div>
+            <span class="undertekst">${last ? 'Arvet fra giveren' : 'Arvet fra giveren, kan justeres her'}</span>
           </label>` : ''}
         </div>
       </div>
       <div style="min-height:0; display:flex; flex-direction:column; gap:14px; border-left:2px solid var(--color-divider); padding-left:24px; overflow:auto">
         <label class="felt"><span class="etikett">Giver</span>
-          <select class="inndata" data-felt="${n('giverId')}" data-verdi="${s.giverId}">
+          <select class="inndata" data-felt="${n('giverId')}" data-verdi="${s.giverId}"${last ? ` disabled title="${LAST_TITTEL}"` : ''}>
             ${givere.map(g => `<option value="${g.id}" ${g.id === s.giverId ? 'selected' : ''}>${escapeHtml(g.navn || 'Uten navn')}</option>`).join('')}
           </select>
         </label>
@@ -338,7 +349,8 @@ function soknadsfane(s) {
           <label class="felt"><span class="etikett">Sendt</span><input class="inndata" placeholder="dd.mm.åååå" ${feltAttr(n('sendt'), s.sendt, 'dato')}></label>
         </div>
         <div class="felt"><span class="etikett">Status</span>
-          <div class="segment fyll">${SOKNADSSTATUSER.map(st => `<button type="button" data-handling="status" data-id="${st.id}" aria-pressed="${s.status === st.id}">${st.navn}</button>`).join('')}</div>
+          <div class="segment fyll">${SOKNADSSTATUSER.map(st => `<button type="button" data-handling="status" data-id="${st.id}" aria-pressed="${s.status === st.id}"${st.id === 'utkast' && last ? ' title="Låser opp søknaden"' : ''}>${st.navn}</button>`).join('')}</div>
+          ${last ? '' : '<span class="undertekst">Søknaden låses når den settes til Sendt.</span>'}
         </div>
         ${avkryss(!!s.revisjon, 'Revisjon på denne søknaden', 'revisjon')}
         ${dokumenter(s)}
@@ -444,7 +456,7 @@ export const soknadSide = {
   // Dra og slipp i behovstabellen. Rekkefølgen gjelder bare denne søknaden.
   slipp(kilde, mal, posisjon) {
     const s = gjeldende();
-    if (!s) return;
+    if (!s || erLast(s)) return;
     const del = nokkel => { const i = nokkel.indexOf(':'); return [nokkel.slice(0, i), nokkel.slice(i + 1)]; };
     const [kHva, kId] = del(kilde), [mHva, mId] = del(mal);
     const typeAv = l => linjetype(l, tilstand.behov);
@@ -491,7 +503,7 @@ export const soknadSide = {
       case 'bytt': ui.velger = false; gaaTil(`#/soknad/${el.dataset.id}`); tegn(); break;
       case 'lukk-panel': ui.panel = null; tegn(); break;
       case 'skriv-ut': skrivUt(s); break;
-      case 'fra-listen': ui.panel = 'fra-listen'; ui.nyttPanel = true; tegn(); break;
+      case 'fra-listen': if (erLast(s)) break; ui.panel = 'fra-listen'; ui.nyttPanel = true; tegn(); break;
       case 'legg-til': {
         const b = behovMedId(el.dataset.id);
         const info = velgbareBehov(tilstand.behov, tilstand.soknader, s, anskaffet()).find(x => x.behov.id === b?.id)?.info;
@@ -511,11 +523,12 @@ export const soknadSide = {
         break;
       }
       case 'fri-linje': {
+        if (erLast(s)) break;
         const linjeId = await lagre(() => leggFriLinjeISoknad(s));
         if (linjeId) { fokuser(`soknader/${s.id}/linjer.${linjeId}.tittel`); tegn(); }
         break;
       }
-      case 'fjern-linje': lagre(() => fjernLinje(s.id, linje)); break;
+      case 'fjern-linje': if (!erLast(s) || s.linjer?.[linje]?.etterSoknad) lagre(() => fjernLinje(s.id, linje)); break;
       case 'fjern-utgift': lagre(() => fjernUtgift(s.id, el.dataset.id)); break;
       case 'egeninnsats': lagre(() => oppdaterUtgift(s.id, el.dataset.id, { egeninnsats: !s.utgifter?.[el.dataset.id]?.egeninnsats })); break;
       case 'slett-soknad': {
@@ -527,7 +540,15 @@ export const soknadSide = {
         if (ok) gaaTil('#/soknader');
         break;
       }
-      case 'status': lagre(() => oppdaterSoknad(s.id, { status: el.dataset.id })); break;
+      case 'status': {
+        const ny = el.dataset.id;
+        if (ny === s.status) break;
+        // Utkast låser opp. En innvilget søknad låses bare opp med aktiv bekreftelse.
+        if (ny === 'utkast' && erInnvilget(s) && !confirm(`Søknaden er ${s.status === 'avsluttet' ? 'avsluttet' : 'innvilget'} og låst.\n\nRiktig måte å håndtere et endret behov etter at en søknad er innvilget, er å legge det til på innkjøpslisten (Innkjøp-fanen: «+ Behov fra listen» eller «+ Fri linje»). Da står det vi søkte om urørt.\n\nVil du likevel låse opp søknaden og sette den tilbake til Utkast?`)) break;
+        if (ny !== 'utkast') ui.panel = null;
+        lagre(() => oppdaterSoknad(s.id, { status: ny }));
+        break;
+      }
       case 'egenandel-valg': lagre(() => oppdaterSoknad(s.id, { egenandelValg: el.dataset.id })); break;
       case 'revisjon': lagre(() => oppdaterSoknad(s.id, { revisjon: !s.revisjon })); break;
       case 'apne-dok': {

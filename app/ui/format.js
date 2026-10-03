@@ -93,6 +93,13 @@ export function tidspunkt(ms, naa = Date.now()) {
   return t.getFullYear() === n.getFullYear() ? tekst : `${tekst} ${t.getFullYear()}`;
 }
 
+// Nøyaktig tidspunkt, for godkjenninger: «03.10.2026 kl. 14.32».
+export function datoKl(ms) {
+  if (!ms) return '';
+  const t = new Date(ms), to = n => String(n).padStart(2, '0');
+  return `${to(t.getDate())}.${to(t.getMonth() + 1)}.${t.getFullYear()} kl. ${to(t.getHours())}.${to(t.getMinutes())}`;
+}
+
 // «Kari Nordmann» → «Kari». E-post uten navn → delen før @.
 export function fornavn(navn, epost) {
   if (navn && navn.trim()) return navn.trim().split(/\s+/)[0];

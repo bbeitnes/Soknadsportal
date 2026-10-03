@@ -121,6 +121,25 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   `rekkefolge`. `innstillinger` er valgfri ved oppstart (tom liste hvis reglene mangler).
 - Import av behov fra regneark: `tolkBehovimport()`; `IMPORTFELT` er det panelet viser og
   testes mot det som faktisk gjenkjennes.
+- Roller: `bruker`, `administrator`, `revisor` (`brukere.<epost>.rolle`; `erAdmin()`, `erRevisor()`).
+  Revisor (B-23) ser bare søknader der e-posten står i `soknader.<id>.tilgang` (liste), og der bare
+  pottlinjen, Revisjon (skrivebeskyttet) og dokumentene. Ruten er `#/revisor` (liste,
+  `sider/revisor.js`) og `#/soknad/<id>`; alt annet sender revisoren til listen (`lesRute()` i
+  `app.js`). `startLytting()` henter for revisor søknadene med `array-contains` på `tilgang` og
+  innkjøp/fakturaer per tildelt søknad (`lager.lytt(…, filter)`); brukerlisten leses ikke.
+  Reglene i `firebase/firestore.rules` er den reelle sperren – skjermen bare skjuler.
+- Revisorer tildeles i Søknad-fanen (`settRevisor()`, bare brukere med rollen Revisor). Hver revisor
+  har sin egen oppføring `soknader.<id>.revisorer.<nøkkel>` = `{ epost, navn, godkjent: { tid,
+  avtrykk }, merknad }` (`revisornokkel()`: e-posten med alt annet enn a–z/0–9 som «_», samme i
+  reglene). Bare revisoren selv kan skrive den (`oppdaterSoknad()` gjør det for revisor og setter
+  ikke «sist endret»); brukere og administratorer kan ikke røre `revisorer`. NB: `soknader.<id>.revisjon`
+  er det gamle av/på-krysset (boolsk) – ikke bland de to.
+- Godkjenning: `revisjonsavtrykk()` er et avtrykk (versjon «v1») av rammen, valgte priser/antall/frakt/
+  egne midler, løse utgifter og fakturaene (ikke typer, titler, merknader, status). `revisorstatus()`
+  gir 'godkjent' / 'endret' / 'ikke' per tildelt revisor ved å sammenligne med avtrykket nå –
+  gyldigheten lagres ikke. Godkjenning krever status Avsluttet (også i reglene); ingenting låses.
+  Endres det som inngår i avtrykket, må versjonen økes, og gamle godkjenninger blir «endret».
+  Rapporten viser status per revisor nederst på forsiden.
 - Innlogging: Google eller Firebase e-postlenke. Administrator kan sende lenken til en bruker fra
   brukerlisten (`sendInnloggingslenkeTil()`); Firebase sender e-posten, portalen ser aldri lenken.
 - Mobil: `#/kvittering` (default-rute på smal skjerm). `ui/bilde.js` gjør om store bilder til JPEG.
@@ -152,6 +171,8 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   den og starter ingen egen server.
 - **Arbeidsflyt: dev → test → prod.** Alle endringer vises først på dev. Push til `test` først når
   brukeren har sett på dem der og sier fra.
+- `http://localhost:8430/?demo=revisor` = samme demodata, innlogget som revisoren Rita (tildelt to
+  søknader; «Noteskap og notemapper 2025» er Avsluttet og kan godkjennes). Reglene gjelder ikke i demo.
 - `http://localhost:8430/?demo` = data i minnet, ingen innlogging. `demoFeil = true`
   i konsollen simulerer lagringsfeil.
 - Uten `?demo` på localhost brukes testdatabasen (krever innlogging).

@@ -1,7 +1,7 @@
 ---
 id: 0001
 tittel: Revisjonsrapport: det fakturaen gjelder listes linje for linje under posten
-status: testes
+status: ferdig
 opprettet: 2026-10-03
 ---
 

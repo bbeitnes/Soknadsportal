@@ -9,7 +9,7 @@
 // og markøren, utvalget og det som er skrevet flyttes over til det nye feltet.
 // Da oppdateres f.eks. kostnaden med én gang man tabber fra antall til pris.
 import { APPNAVN, MILJO } from './config/app-config.js';
-import { tilstand, innlogging, hentTilgang, startLytting, alleLastet, oppdaterGiver, oppdaterBehov, oppdaterSoknad, oppdaterInnkjop, oppdaterLeverandor, oppdaterFaktura, oppdaterInnstillinger } from './data/index.js';
+import { tilstand, innlogging, hentTilgang, startLytting, alleLastet, erRevisor, oppdaterGiver, oppdaterBehov, oppdaterSoknad, oppdaterInnkjop, oppdaterLeverandor, oppdaterFaktura, oppdaterInnstillinger } from './data/index.js';
 import { escapeHtml } from './ui/format.js';
 import { kobleLagringsstatus, lagre, visMelding } from './ui/lagring.js';
 import { tolkFelt, tolkNokkel } from './ui/felt.js';
@@ -22,9 +22,10 @@ import { givereSide } from './sider/givere.js';
 import { leverandorerSide } from './sider/leverandorer.js';
 import { kvitteringSide } from './sider/kvittering.js';
 import { innstillingerSide } from './sider/innstillinger.js';
+import { revisorSide } from './sider/revisor.js';
 
 const rot = document.getElementById('side');
-const SIDER = { soknader: soknaderSide, soknad: soknadSide, behov: behovSide, givere: givereSide, leverandorer: leverandorerSide, kvittering: kvitteringSide, innstillinger: innstillingerSide };
+const SIDER = { soknader: soknaderSide, soknad: soknadSide, behov: behovSide, givere: givereSide, leverandorer: leverandorerSide, kvittering: kvitteringSide, innstillinger: innstillingerSide, revisor: revisorSide };
 
 document.title = APPNAVN;
 document.getElementById('merke').innerHTML = MILJO === 'prod' ? 'Søknadsportal' : `Søknadsportal<small>${MILJO.toUpperCase()}</small>`;
@@ -40,6 +41,9 @@ let fokusEtterTegning = null;
 // det er det portalen brukes til fra mobil.
 function lesRute() {
   const [navn, ...parametre] = location.hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent);
+  // Revisor har bare listen over tildelte søknader og revisjonen av dem.
+  if (erRevisor()) return navn === 'soknad' && parametre[0] ? { navn, parametre: [parametre[0]] } : { navn: 'revisor', parametre: [] };
+  if (navn === 'revisor') return { navn: 'soknader', parametre: [] };
   if (!navn && window.matchMedia('(max-width: 700px)').matches) return { navn: 'kvittering', parametre: [] };
   return { navn: SIDER[navn] ? navn : 'soknader', parametre };
 }
@@ -56,7 +60,7 @@ function byttSide() {
   gjeldende = { side, parametre };
   document.body.classList.toggle('mobilside', !!side.mobil);
   document.querySelectorAll('[data-meny]').forEach(a => {
-    const aktiv = a.dataset.meny === (side.meny || navn);
+    const aktiv = a.dataset.meny === (erRevisor() ? 'revisor' : side.meny || navn);
     if (aktiv) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
   tegnNaa();
@@ -339,6 +343,7 @@ async function start() {
       visInnlogging({ feil: 'Kunne ikke sjekke tilgang. Prøv igjen senere.', loggUt: true });
       return;
     }
+    document.body.classList.toggle('revisor', erRevisor());
     document.getElementById('meny').hidden = false;
     document.getElementById('lagrestatus').hidden = false;
     visMeg();

@@ -60,18 +60,17 @@ function panel(g) {
 
 // ——— Brukere (bare administrator) ———
 
+const ROLLER = [['bruker', 'Bruker'], ['administrator', 'Administrator'], ['revisor', 'Revisor']];
+
 function brukerRad(b) {
   const meg = b.id === tilstand.meg.epost;
   const invitert = b.status !== 'aktiv';
-  const admin = b.rolle === 'administrator';
+  const rolleknapp = ([id, navn]) => `<button type="button" data-handling="rolle" data-id="${b.id}" data-rolle="${id}" aria-pressed="${(b.rolle || 'bruker') === id}" style="height:26px; font-size:12px; padding:0 10px" ${meg && id !== 'administrator' ? 'disabled title="Du kan ikke fjerne din egen administratorrolle"' : ''}>${navn}</button>`;
   return `
     <tr>
       <td class="fet">${escapeHtml(b.navn || '–')}</td>
       <td class="dempet" style="font-size:14px">${escapeHtml(b.epost)}</td>
-      <td style="padding-top:8px; padding-bottom:8px"><div class="segment" style="display:inline-flex">
-        <button type="button" data-handling="rolle" data-id="${b.id}" data-rolle="bruker" aria-pressed="${!admin}" style="height:26px; font-size:12px; padding:0 10px" ${meg ? 'disabled title="Du kan ikke fjerne din egen administratorrolle"' : ''}>Bruker</button>
-        <button type="button" data-handling="rolle" data-id="${b.id}" data-rolle="administrator" aria-pressed="${admin}" style="height:26px; font-size:12px; padding:0 10px">Administrator</button>
-      </div></td>
+      <td style="padding-top:8px; padding-bottom:8px"><div class="segment" style="display:inline-flex">${ROLLER.map(rolleknapp).join('')}</div></td>
       <td class="smal" style="font-size:13px; ${invitert ? 'color:var(--color-accent-700)' : 'color:var(--color-neutral-700)'}">${invitert ? `Invitert${b.invitertTid ? ' ' + datoFelt(new Date(b.invitertTid).toISOString().slice(0, 10)) : ''}` : 'Aktiv'}</td>
       <td class="tall smal" style="padding-top:8px; padding-bottom:8px">
         ${ui.kopiert === b.id ? '<span class="undertekst">Invitasjon kopiert</span>' : invitert ? `<button type="button" class="knapp knapp-liten" style="height:28px; font-size:12px" data-handling="kopier" data-id="${b.id}" title="Kopierer invitasjonsteksten, så du kan sende den selv">Kopier invitasjon</button>` : ''}
@@ -85,12 +84,12 @@ function brukere() {
   const liste = [...tilstand.brukere].sort((a, b) => (a.navn || a.epost).localeCompare(b.navn || b.epost, 'nb'));
   return `
     <div class="verktoyrad">
-      <div class="hint">Alle brukere kan gjøre alt i søknadene. Administratorer kan i tillegg invitere og fjerne brukere og vedlikeholde givere.</div>
+      <div class="hint">Alle brukere kan gjøre alt i søknadene. Administratorer kan i tillegg invitere og fjerne brukere og vedlikeholde givere. Revisorer ser bare søknadene de er satt som revisor for (velges på søknaden), og kan ikke endre noe.</div>
       <button type="button" class="knapp knapp-primar" data-handling="inviter">+ Inviter bruker</button>
     </div>
     <div class="tabellramme" data-rull="brukere">
       <table class="liste">
-        <thead><tr><th>Navn</th><th>E-post</th><th>Rolle</th><th>Status</th><th style="width:380px"></th></tr></thead>
+        <thead><tr><th>Navn</th><th>E-post</th><th>Rolle</th><th>Status</th><th style="width:360px"></th></tr></thead>
         <tbody>${liste.map(brukerRad).join('')}</tbody>
       </table>
     </div>`;
@@ -107,14 +106,14 @@ function inviterPanel() {
     <label class="felt"><span class="etikett">E-post</span><input class="inndata" id="inv-epost" type="email" inputmode="email" autocomplete="off" value="${escapeHtml(i.epost)}" placeholder="navn@korpset.no"></label>
     <div class="felt"><span class="etikett">Rolle</span>
       <div class="segment fyll">
-        <button type="button" data-handling="inv-rolle" data-rolle="bruker" aria-pressed="${i.rolle === 'bruker'}">Bruker</button>
-        <button type="button" data-handling="inv-rolle" data-rolle="administrator" aria-pressed="${i.rolle === 'administrator'}">Administrator</button>
+        ${ROLLER.map(([id, navn]) => `<button type="button" data-handling="inv-rolle" data-rolle="${id}" aria-pressed="${i.rolle === id}">${navn}</button>`).join('')}
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:12px">
       <button type="button" class="knapp knapp-primar" data-handling="inv-send" ${gyldig ? '' : 'disabled'}>Inviter og kopier tekst</button>
       <span class="undertekst" id="inv-hint">${gyldig ? `Inviteres som ${i.rolle}.` : 'Skriv inn en gyldig e-postadresse.'}</span>
     </div>
+    ${i.rolle === 'revisor' ? '<div class="undertekst">En revisor ser ingenting før hen er krysset av som revisor på en søknad (Søknad-fanen, under «Revisjon på denne søknaden»).</div>' : ''}
     <div class="undertekst">Personen logger inn med Google eller innloggingslenke på e-post, med den adressen du inviterer. Status blir «Aktiv» ved første innlogging. Har personen ikke Google-konto, kan du sende en innloggingslenke fra brukerlisten etterpå.</div>`, { nytt: ui.nyttPanel });
 }
 

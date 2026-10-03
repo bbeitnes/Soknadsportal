@@ -841,3 +841,147 @@ test('revisjonsposter: innkjøpslinjer har varenavn, antall og netto stykkpris',
   assert.deepEqual([linje.navn, linje.antall, linje.stykkpris, linje.tilbudt], ['Bøylefett', 3, 90, 270]);
   assert.equal(utgift.stykkpris, undefined);
 });
+
+// ——— Revisor og godkjenning ———
+
+function revisjonsgrunnlag() {
+  const soknad = {
+    id: 's1', status: 'avsluttet', tittel: 'Instrumenter', innvilget: 50000, egenandel: 2000, momsProsent: 8,
+    linjer: { l1: { behovId: null, tittel: 'Kornett', antall: 2, estPris: 8000, rekkefolge: 1 } },
+    utgifter: { u1: { beskrivelse: 'Frakt', belop: 500, rekkefolge: 1 } },
+    tilgang: ['rita.r@revisor.no', 'olav@revisor.no'],
+  };
+  const innkjop = [{
+    id: 'i1', soknadId: 's1', navn: 'Innkjøp 1',
+    linjer: { k1: { soknadLinjeId: 'l1', tittel: 'Kornett', antall: 2, rekkefolge: 1 } },
+    leverandorer: { a: { leverandorId: 'mh', frakt: 300, rekkefolge: 1 }, b: { leverandorId: 'nb', frakt: 0, rekkefolge: 2 } },
+    priser: { k1: { a: { raa: '8000 -10%' }, b: { raa: '7500' } } },
+    valgt: { k1: 'a' },
+  }];
+  const fakturaer = [
+    { id: 'f1', soknadId: 's1', lopenummer: 1, leverandor: 'Musikkhuset', fakturanr: '100', dato: '2026-05-01', belop: 14700, fil: { sti: 'a/b.pdf' }, dekker: { 'i1|k1': true }, merknad: '' },
+    { id: 'fx', soknadId: 's2', lopenummer: 1, belop: 999, dekker: {} },
+  ];
+  return { soknad, innkjop, fakturaer };
+}
+
+test('revisjonsavtrykk endres av tall, bilag og koblinger', async () => {
+  const { revisjonsavtrykk } = await import('../app/data/beregning.js');
+  const g = revisjonsgrunnlag();
+  const for_ = revisjonsavtrykk(g.soknad, g.innkjop, g.fakturaer);
+  assert.match(for_, /^v1:/);
+  assert.equal(revisjonsavtrykk(structuredClone(g.soknad), structuredClone(g.innkjop), structuredClone(g.fakturaer)), for_);
+  const endringer = {
+    innvilget: x => { x.soknad.innvilget = 60000; },
+    egenandel: x => { x.soknad.egenandel = 3000; },
+    egenandelsvalg: x => { x.soknad.egenandelValg = 'andel'; },
+    momsprosent: x => { x.soknad.momsProsent = 10; },
+    'søkt': x => { x.soknad.soktOverstyrt = 12345; },
+    utgiftsbeløp: x => { x.soknad.utgifter.u1.belop = 500.5; },
+    egeninnsats: x => { x.soknad.utgifter.u1.egeninnsats = true; },
+    'ny utgift': x => { x.soknad.utgifter.u2 = { beskrivelse: 'Mer', belop: 1, rekkefolge: 2 }; },
+    antall: x => { x.innkjop[0].linjer.k1.antall = 3; },
+    'valgt leverandør': x => { x.innkjop[0].valgt.k1 = 'b'; },
+    'valgt pris': x => { x.innkjop[0].priser.k1.a.raa = '8000 -11%'; },
+    frakt: x => { x.innkjop[0].leverandorer.a.frakt = 400; },
+    'egne midler': x => { x.innkjop[0].linjer.k1.egneMidler = 1000; },
+    fakturabeløp: x => { x.fakturaer[0].belop = 14700.01; },
+    fakturanummer: x => { x.fakturaer[0].fakturanr = '101'; },
+    fakturadato: x => { x.fakturaer[0].dato = '2026-05-02'; },
+    fakturaleverandør: x => { x.fakturaer[0].leverandor = 'Nordic Brass'; },
+    'løpenummer': x => { x.fakturaer[0].lopenummer = 2; },
+    vedlegg: x => { x.fakturaer[0].fil = { sti: 'a/c.pdf' }; },
+    kobling: x => { x.fakturaer[0].dekker = {}; },
+    'ny faktura': x => { x.fakturaer.push({ id: 'f2', soknadId: 's1', lopenummer: 2, belop: 100, dekker: {} }); },
+    'slettet faktura': x => { x.fakturaer.shift(); },
+  };
+  for (const [hva, endre] of Object.entries(endringer)) {
+    const x = structuredClone(g);
+    endre(x);
+    assert.notEqual(revisjonsavtrykk(x.soknad, x.innkjop, x.fakturaer), for_, `${hva} skal endre avtrykket`);
+  }
+});
+
+test('revisjonsavtrykk endres ikke av merknader, titler, typer, status og priser som ikke er valgt', async () => {
+  const { revisjonsavtrykk } = await import('../app/data/beregning.js');
+  const g = revisjonsgrunnlag();
+  const for_ = revisjonsavtrykk(g.soknad, g.innkjop, g.fakturaer);
+  const endringer = {
+    fakturamerknad: x => { x.fakturaer[0].merknad = 'Delfaktura'; },
+    tittel: x => { x.soknad.tittel = 'Ny tittel'; },
+    status: x => { x.soknad.status = 'innvilget'; },
+    dokumenter: x => { x.soknad.dokumenter = { d1: { navn: 'Brev.pdf', sti: 'x' } }; },
+    'frist og sendt': x => { x.soknad.frist = '2027-01-01'; x.soknad.sendt = '2026-01-01'; },
+    utgiftsbeskrivelse: x => { x.soknad.utgifter.u1.beskrivelse = 'Frakt og porto'; },
+    'type på utgift': x => { x.soknad.utgifter.u1.type = 'Utstyr'; },
+    linjetittel: x => { x.innkjop[0].linjer.k1.tittel = 'Kornett Bb'; },
+    'type på linje': x => { x.innkjop[0].linjer.k1.type = 'Instrument'; },
+    rekkefølge: x => { x.innkjop[0].linjer.k1.rekkefolge = 9; x.soknad.utgifter.u1.rekkefolge = 9; },
+    'pris som ikke er valgt': x => { x.innkjop[0].priser.k1.b.raa = '7000'; },
+    'frakt hos leverandør uten valg': x => { x.innkjop[0].leverandorer.b.frakt = 900; },
+    alternativ: x => { x.innkjop[0].priser.k1.a.alternativ = 'Annen modell'; },
+    'revisorens merknad': x => { x.soknad.revisorer = { olav_revisor_no: { epost: 'olav@revisor.no', merknad: 'Ok', kommentarer: { f1: { tekst: 'Hei' } } } }; },
+    tildeling: x => { x.soknad.tilgang = []; },
+    'faktura på en annen søknad': x => { x.fakturaer[1].belop = 5; },
+  };
+  for (const [hva, endre] of Object.entries(endringer)) {
+    const x = structuredClone(g);
+    endre(x);
+    assert.equal(revisjonsavtrykk(x.soknad, x.innkjop, x.fakturaer), for_, `${hva} skal ikke endre avtrykket`);
+  }
+});
+
+test('revisorstatus: godkjent, endret og ikke godkjent per tildelt revisor', async () => {
+  const { revisjonsavtrykk, revisorstatus, revisjonGodkjent, revisornokkel } = await import('../app/data/beregning.js');
+  const g = revisjonsgrunnlag();
+  const avtrykk = revisjonsavtrykk(g.soknad, g.innkjop, g.fakturaer);
+  assert.equal(revisornokkel('Rita.R@revisor.no'), 'rita_r_revisor_no');
+  const brukere = [
+    { id: 'rita.r@revisor.no', epost: 'rita.r@revisor.no', navn: 'Rita Revisor', rolle: 'revisor' },
+    { id: 'olav@revisor.no', epost: 'olav@revisor.no', navn: '', rolle: 'revisor' },
+    { id: 'kari@korpset.no', epost: 'kari@korpset.no', navn: 'Kari', rolle: 'administrator' },
+  ];
+  // Ingen har godkjent. Navnet hentes fra brukerlisten, ellers e-posten.
+  let st = revisorstatus(g.soknad, avtrykk, brukere);
+  assert.deepEqual(st.map(r => [r.navn, r.status]), [['olav@revisor.no', 'ikke'], ['Rita Revisor', 'ikke']]);
+  assert.equal(revisjonGodkjent(st), false);
+
+  // Én av to har godkjent.
+  g.soknad.revisorer = { rita_r_revisor_no: { epost: 'rita.r@revisor.no', navn: 'Rita Revisor', godkjent: { tid: 1000, avtrykk }, merknad: ' Bilag 2 mangler ' } };
+  st = revisorstatus(g.soknad, avtrykk, brukere);
+  const rita = st.find(r => r.epost === 'rita.r@revisor.no');
+  assert.deepEqual([rita.status, rita.tid, rita.merknad], ['godkjent', 1000, 'Bilag 2 mangler']);
+  assert.equal(revisjonGodkjent(st), false);
+
+  // Begge har godkjent.
+  g.soknad.revisorer.olav_revisor_no = { epost: 'olav@revisor.no', navn: 'Olav', godkjent: { tid: 2000, avtrykk } };
+  st = revisorstatus(g.soknad, avtrykk, brukere);
+  assert.equal(revisjonGodkjent(st), true);
+
+  // Tallene endres etterpå: godkjenningene gjelder ikke lenger.
+  g.fakturaer[0].belop = 15000;
+  st = revisorstatus(g.soknad, revisjonsavtrykk(g.soknad, g.innkjop, g.fakturaer), brukere);
+  assert.deepEqual(st.map(r => r.status), ['endret', 'endret']);
+  assert.equal(revisjonGodkjent(st), false);
+  g.fakturaer[0].belop = 14700;
+
+  // En revisor som fjernes fra søknaden teller ikke, selv om oppføringen ligger igjen.
+  g.soknad.tilgang = ['olav@revisor.no'];
+  st = revisorstatus(g.soknad, avtrykk, brukere);
+  assert.deepEqual(st.map(r => r.epost), ['olav@revisor.no']);
+  assert.equal(revisjonGodkjent(st), true);
+
+  // En som ikke lenger har rollen Revisor regnes ikke som tildelt.
+  g.soknad.tilgang = ['olav@revisor.no', 'kari@korpset.no', 'ukjent@x.no'];
+  assert.deepEqual(revisorstatus(g.soknad, avtrykk, brukere).map(r => r.epost), ['olav@revisor.no']);
+  // Uten brukerliste (revisorens egen visning) vises alle i tilgangslisten.
+  assert.equal(revisorstatus(g.soknad, avtrykk, null).length, 3);
+  // Ingen tildelte: ikke godkjent.
+  assert.equal(revisjonGodkjent(revisorstatus({ id: 'x' }, avtrykk, brukere)), false);
+});
+
+test('datoKl gir dato og klokkeslett', async () => {
+  const { datoKl } = await import('../app/ui/format.js');
+  assert.equal(datoKl(new Date(2026, 9, 3, 14, 5).getTime()), '03.10.2026 kl. 14.05');
+  assert.equal(datoKl(null), '');
+});

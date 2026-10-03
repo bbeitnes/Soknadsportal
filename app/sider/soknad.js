@@ -5,7 +5,7 @@ import {
   tilstand, oppdaterSoknad, leggBehovISoknad, leggFlereBehovISoknad, leggFriLinjeISoknad, fjernLinje,
   lastOppDokument, slettDokument, dokumentUrl, slettSoknad, innkjopFor,
   leggTilUtgift, oppdaterUtgift, fjernUtgift,
-  fellesTyperekkefolge, settLinjerekkefolge, settSoknadTyperekkefolge, anskaffet,
+  fellesTyperekkefolge, settLinjerekkefolge, settSoknadTyperekkefolge, anskaffet, erRevisor, settRevisor,
 } from '../data/index.js';
 import {
   SOKNADSSTATUSER, statusNavn, linjeliste, linjekostnad, sumEstimert, soktBelop, soktForslag, velgbareBehov,
@@ -115,6 +115,47 @@ function pottlinje(s) {
       </div>
       ${deler ? `<div class="hint" style="margin-top:8px">Vi betaler ${kr(p.disponertFull)}: ${deler}.${plassert}</div>` : ''}
     </div>`;
+}
+
+// Revisor ser ikke fanene og kan ikke bytte til andre søknader: bare
+// tittelen, pottlinjen og dokumentene på søknaden (som kan åpnes).
+function revisortopp(s) {
+  const g = giver(s.giverId);
+  const dok = Object.entries(s.dokumenter || {}).map(([id, d]) => ({ id, ...d })).sort((a, b) => (a.tid || 0) - (b.tid || 0));
+  return `
+    <header class="sidehode" style="padding-top:20px; align-items:flex-start">
+      <div style="min-width:0; flex:1 1 380px">
+        <a href="#/revisor" class="hint" style="text-decoration:none; font-weight:600">‹ Søknadene du reviderer</a>
+        <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:4px">
+          <h1>${escapeHtml(s.tittel || 'Uten tittel')}</h1>
+          <span class="merkelapp m-stor m-${s.status}">${statusNavn(s.status)}</span>
+        </div>
+        <div class="ingress" style="margin-top:8px">${escapeHtml(g?.navn || 'Ukjent giver')} · Sendt ${s.sendt ? datoFelt(s.sendt) : '–'}</div>
+        <div class="hint" style="margin-top:8px; display:flex; align-items:center; gap:6px 14px; flex-wrap:wrap"><span class="etikett">Dokumenter</span>${dok.map(d => `<button type="button" data-handling="apne-dok" data-id="${d.id}" title="Åpne" style="display:inline-flex; align-items:center; gap:6px; border:0; background:transparent; padding:0; cursor:pointer; font-size:13px; font-weight:600; color:var(--color-text)">${IKON.fil}${escapeHtml(d.navn)}</button>`).join('') || 'Ingen dokumenter på søknaden.'}</div>
+      </div>
+      ${pottlinje(s)}
+    </header>`;
+}
+
+// Revisorene på søknaden: de med rollen Revisor kan krysses av. Bare de som
+// er krysset av her, ser søknaden.
+function revisorvalg(s) {
+  const revisorer = tilstand.brukere.filter(b => b.rolle === 'revisor').sort((a, b) => (a.navn || a.epost).localeCompare(b.navn || b.epost, 'nb'));
+  const tildelt = new Set(s.tilgang || []);
+  return `
+    <div class="felt"><span class="etikett">Revisorer</span>
+      ${revisorer.length ? `<div class="valgliste">${revisorer.map(b => `<button type="button" data-handling="revisor" data-id="${escapeHtml(b.epost)}" aria-pressed="${tildelt.has(b.epost)}"><span class="boks ${tildelt.has(b.epost) ? 'pa' : ''}" style="width:16px; height:16px">${IKON.hak}</span><span class="fyll">${escapeHtml(b.navn || b.epost)}</span></button>`).join('')}</div>
+      <span class="undertekst">Revisorene ser bare søknadene de er krysset av på, og godkjenner under Revisjon når søknaden er Avsluttet.</span>`
+      : '<span class="undertekst">Ingen har rollen Revisor. En administrator inviterer revisorer under Innstillinger → Brukere.</span>'}
+    </div>`;
+}
+
+async function apneDokument(s, id) {
+  const d = s.dokumenter?.[id];
+  if (!d) return;
+  const vindu = window.open('', '_blank'); // åpnes før await, ellers stopper popup-blokkeringen det
+  try { const url = await dokumentUrl(d.sti); if (vindu) vindu.location = url; }
+  catch (err) { console.error(err); vindu?.close(); alert('Kunne ikke åpne dokumentet.'); }
 }
 
 // ——— Søknad-fanen ———
@@ -353,6 +394,7 @@ function soknadsfane(s) {
           ${last ? '' : '<span class="undertekst">Søknaden låses når den settes til Sendt.</span>'}
         </div>
         ${avkryss(!!s.revisjon, 'Revisjon på denne søknaden', 'revisjon')}
+        ${s.revisjon ? revisorvalg(s) : ''}
         ${dokumenter(s)}
         <div style="display:flex; justify-content:flex-end; flex:0 0 auto"><button type="button" class="knapp knapp-fare" data-handling="slett-soknad">Slett søknad</button></div>
       </div>
@@ -415,9 +457,11 @@ export const soknadSide = {
   tegn([id, fane = 'soknad'] = []) {
     if (id !== ui.soknadId) { ui.soknadId = id; ui.panel = null; ui.velger = false; innkjopFane.forlat(); revisjonFane.forlat(); }
     if (fane !== 'innkjop') innkjopFane.forlat();
-    if (fane !== 'revisjon') revisjonFane.forlat();
+    if (fane !== 'revisjon' && !erRevisor()) revisjonFane.forlat(); // revisor har ingen faner i ruten
     const s = gjeldende();
+    if (!s && erRevisor()) { gaaTil('#/revisor'); return ''; }
     if (!s) return `<div class="laster">Fant ikke søknaden. <a href="#/soknader" style="margin-left:6px">Til alle søknader</a></div>`;
+    if (erRevisor()) return `${revisortopp(s)}<main class="innhold" style="padding-top:12px">${revisjonFane.tegn(s)}</main>`;
     const aktivFane = FANER.some(([f]) => f === fane) ? fane : 'soknad';
     const html = `
       ${topp(s, aktivFane)}
@@ -432,7 +476,7 @@ export const soknadSide = {
   // Giveren styrer momsprosenten: bytter man giver, arves prosenten på nytt.
   // Søkt beløp lik forslaget (eller tomt) betyr «ikke overstyrt».
   forLagring(samling, id, sti, verdi) {
-    if (samling !== 'soknader') return null;
+    if (samling !== 'soknader' || erRevisor()) return null;
     const s = tilstand.soknader.find(x => x.id === id);
     if (sti === 'giverId') {
       const g = giver(verdi);
@@ -456,7 +500,7 @@ export const soknadSide = {
   // Dra og slipp i behovstabellen. Rekkefølgen gjelder bare denne søknaden.
   slipp(kilde, mal, posisjon) {
     const s = gjeldende();
-    if (!s || erLast(s)) return;
+    if (!s || erLast(s) || erRevisor()) return;
     const del = nokkel => { const i = nokkel.indexOf(':'); return [nokkel.slice(0, i), nokkel.slice(i + 1)]; };
     const [kHva, kId] = del(kilde), [mHva, mId] = del(mal);
     const typeAv = l => linjetype(l, tilstand.behov);
@@ -475,12 +519,12 @@ export const soknadSide = {
     lagre(() => settLinjerekkefolge(s, ny, { flyttetId: kId, nyType: malType }));
   },
 
-  dobbeltklikk(el, e) { const s = gjeldende(); if (s) innkjopFane.dobbeltklikk(el, e, s); },
-  limInn(el, tekst, e) { const s = gjeldende(); if (s) innkjopFane.limInn(el, tekst, e, s); },
+  dobbeltklikk(el, e) { const s = gjeldende(); if (s && !erRevisor()) innkjopFane.dobbeltklikk(el, e, s); },
+  limInn(el, tekst, e) { const s = gjeldende(); if (s && !erRevisor()) innkjopFane.limInn(el, tekst, e, s); },
 
   fokusUt(el, e) {
     const s = gjeldende();
-    if (!s) return;
+    if (!s || erRevisor()) return;
     if (innkjopFane.fokusUt(el, e, s)) return;
     if (!el.id?.startsWith('ny-utgift-')) return;
     // relatedTarget er feltet som får fokus; innenfor raden gjør vi ingenting.
@@ -495,6 +539,11 @@ export const soknadSide = {
   async klikk(handling, el, e) {
     const s = gjeldende();
     if (!s) return;
+    // Revisor: bare revisjonen og å åpne dokumenter.
+    if (erRevisor()) {
+      if (!(await revisjonFane.klikk(handling, el, e, s)) && handling === 'apne-dok') apneDokument(s, el.dataset.id);
+      return;
+    }
     if (location.hash.includes('/innkjop') && await innkjopFane.klikk(handling, el, e, s)) return;
     if (location.hash.includes('/revisjon') && await revisjonFane.klikk(handling, el, e, s)) return;
     const linje = el.dataset.linje;
@@ -551,14 +600,8 @@ export const soknadSide = {
       }
       case 'egenandel-valg': lagre(() => oppdaterSoknad(s.id, { egenandelValg: el.dataset.id })); break;
       case 'revisjon': lagre(() => oppdaterSoknad(s.id, { revisjon: !s.revisjon })); break;
-      case 'apne-dok': {
-        const d = s.dokumenter?.[el.dataset.id];
-        if (!d) break;
-        const vindu = window.open('', '_blank'); // åpnes før await, ellers stopper popup-blokkeringen det
-        try { const url = await dokumentUrl(d.sti); if (vindu) vindu.location = url; }
-        catch (err) { console.error(err); vindu?.close(); alert('Kunne ikke åpne dokumentet.'); }
-        break;
-      }
+      case 'revisor': lagre(() => settRevisor(s, el.dataset.id, el.getAttribute('aria-pressed') !== 'true')); break;
+      case 'apne-dok': apneDokument(s, el.dataset.id); break;
       case 'slett-dok': {
         const d = s.dokumenter?.[el.dataset.id];
         if (d && confirm(`Slette «${d.navn}»?`)) lagre(() => slettDokument(s.id, el.dataset.id, d.sti));
@@ -569,7 +612,7 @@ export const soknadSide = {
 
   async filer(el, filer) {
     const s = gjeldende();
-    if (!s || !filer.length) return;
+    if (!s || !filer.length || erRevisor()) return;
     if (await innkjopFane.filer(el, filer, s)) return;
     if (await revisjonFane.filer(el, filer, s)) return;
     ui.laster++;
@@ -581,6 +624,7 @@ export const soknadSide = {
   },
 
   escape() {
+    if (erRevisor()) return revisjonFane.escape();
     if (innkjopFane.escape()) return true;
     if (revisjonFane.escape()) return true;
     if (ui.velger) { ui.velger = false; return true; }

@@ -1,6 +1,7 @@
 // Demo-lagring i minnet: samme grensesnitt som lager-firebase.js, men uten
 // nett og innlogging. Brukes bare på localhost med ?demo, for å prøve
-// skjermbildene. Alt forsvinner ved omlasting.
+// skjermbildene. Alt forsvinner ved omlasting. ?demo=revisor logger inn som
+// revisoren i demodataene (tilgangsreglene i Firestore finnes ikke her).
 //
 // Feil kan simuleres fra konsollen: `demoFeil = true` får neste lagringer
 // til å feile, så feilmeldingen og «Prøv igjen» kan testes.
@@ -17,9 +18,11 @@ let teller = 1000;
 const vent = ms => new Promise(r => setTimeout(r, ms));
 const kopi = x => structuredClone(x);
 
+const passer = (d, [felt, op, verdi]) => op === 'array-contains' ? (d[felt] || []).includes(verdi) : d[felt] === verdi;
+
 function varsle(samling) {
   const liste = Object.entries(data[samling] || {}).map(([id, d]) => ({ id, ...kopi(d) }));
-  (lyttere[samling] || []).forEach(cb => cb(liste));
+  (lyttere[samling] || []).forEach(l => l.tilbakekall(l.filter ? liste.filter(d => passer(d, l.filter)) : liste));
 }
 
 async function skriv(samling, endring) {
@@ -40,10 +43,11 @@ function settSti(obj, sti, verdi) {
 }
 
 export const lager = {
-  lytt(samling, tilbakekall) {
-    (lyttere[samling] ||= []).push(tilbakekall);
+  lytt(samling, tilbakekall, vedFeil, filter = null) {
+    const lytter = { tilbakekall, filter };
+    (lyttere[samling] ||= []).push(lytter);
     setTimeout(() => varsle(samling), 0);
-    return () => { lyttere[samling] = lyttere[samling].filter(x => x !== tilbakekall); };
+    return () => { lyttere[samling] = lyttere[samling].filter(x => x !== lytter); };
   },
   async hent(samling, id) {
     const d = data[samling]?.[id];
@@ -88,7 +92,9 @@ export const lager = {
   },
 };
 
-const demobruker = { epost: 'kari@korpset.no', navn: 'Kari Nordmann', bekreftet: true };
+const demobruker = new URLSearchParams(location.search).get('demo') === 'revisor'
+  ? { epost: 'rita@revisor.no', navn: 'Rita Revisor', bekreftet: true }
+  : { epost: 'kari@korpset.no', navn: 'Kari Nordmann', bekreftet: true };
 
 export const innlogging = {
   vedEndring(tilbakekall) {

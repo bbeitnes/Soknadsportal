@@ -2,15 +2,17 @@
 //   1. Forside: søknad, giver, søkt, innvilget, brukt, gjenstående
 //      (+ fordeling egne midler / giver / momskompensasjon når det gjelder,
 //      og samme fordeling per kategori når søknaden har egenandel).
+//      Har søknaden revisorer, står status per revisor nederst: godkjent
+//      (med tidspunkt og merknad) eller ikke godkjent.
 //   2. Oversiktstabell over fakturaene. Summen stemmer med forsiden.
 //      Egeninnsats uten faktura (dugnad) listes for seg under tabellen.
 //   3. Alle fakturaene i rekkefølge, med løpenummer stamplet i hjørnet.
 //      Bilder blir egne sider; PDF-er kopieres inn side for side. Store
 //      bilder (også inne i PDF-bilag) krympes først, se bildekrymp.js.
-import { tilstand, innkjopFor, fakturaerFor, filBytes } from '../data/index.js';
+import { tilstand, innkjopFor, fakturaerFor, filBytes, revisorerFor } from '../data/index.js';
 import { pott, fakturaDekker, giverandelOre, posttittel, revisjonsoppsummering, sumEgneMidler } from '../data/beregning.js';
 import { posterFor, fordelingFor, fakturaposterFor } from '../sider/revisjon.js';
-import { belop, datoFelt } from './format.js';
+import { belop, datoFelt, datoKl } from './format.js';
 import { krympBilde, krympBilderIPdf } from './bildekrymp.js';
 
 const PDF_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
@@ -139,6 +141,27 @@ export async function lagRevisjonsrapport(s) {
   }
   y -= 20;
   for (const l of brytTekst(`Rapporten inneholder ${fakturaer.length} ${fakturaer.length === 1 ? 'faktura' : 'fakturaer'} med løpenummer 1–${fakturaer.length}. Løpenummeret er stamplet øverst til høyre på hvert bilag.`, 10, A4[0] - 2 * MARG)) { tekst(l, MARG, 10, font, graa); y -= 14; }
+
+  // Revisjon: én linje per tildelt revisor. En godkjenning gjelder bare når
+  // tallene er de samme som da den ble gitt – ellers står revisoren som
+  // «ikke godkjent». Uten tildelte revisorer er forsiden som før.
+  const revisorer = revisorerFor(s);
+  if (revisorer.length) {
+    const hvem = r => r.navn === r.epost ? r.epost : `${r.navn} (${r.epost})`;
+    const blokker = revisorer.map(r => ({
+      linjer: brytTekst(r.status === 'godkjent' ? `Godkjent i Søknadsportal av ${hvem(r)}, ${datoKl(r.tid)}` : `Ikke godkjent: ${hvem(r)}`, 11, A4[0] - 2 * MARG, r.status === 'godkjent' ? fet : font),
+      merknad: r.status === 'godkjent' && r.merknad ? brytTekst(`Revisors merknad: ${r.merknad}`, 9, A4[0] - 2 * MARG) : [],
+      godkjent: r.status === 'godkjent',
+    }));
+    const hoyde = 40 + blokker.reduce((sum, b) => sum + b.linjer.length * 14 + b.merknad.length * 12 + 8, 0);
+    if (y - hoyde < MARG) nySide(); else y -= 16;
+    tekst('Revisjon', MARG, 10, fet, graa); y -= 6; strek(1.5, svart); y -= 18;
+    for (const b of blokker) {
+      for (const l of b.linjer) { tekst(l, MARG, 11, b.godkjent ? fet : font, b.godkjent ? svart : graa); y -= 14; }
+      for (const l of b.merknad) { tekst(l, MARG, 9, font, graa); y -= 12; }
+      y -= 8;
+    }
+  }
 
   // ——— 2. Oversiktstabell ———
   nySide();

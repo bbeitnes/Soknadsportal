@@ -141,3 +141,9 @@ Teksten skrives utenfor portalen og lastes opp i Dokumenter-listen. Skriving i p
 **Snur når:** Brukerne trenger å gjøre mer enn å levere kvitteringer fra telefonen.
 **Konsekvens for nye kort:** Nye skjermer trenger ikke virke på smal skjerm, og mobilflyten skal ikke få flere steg.
 
+
+## B-23 · Revisor er en tredje rolle med tilgang per søknad
+**Bestemt** 2026-10-03.
+Bryter bevisst med B-09 (kort 0002). Revisjonen skal kunne gjøres på nett: revisor logger inn, ser bare søknadene hen er tildelt (`soknader.<id>.tilgang`), er skrivebeskyttet og kan bare skrive sin egen oppføring i `soknader.<id>.revisorer` (godkjenning, merknad, kommentarer). Bare rollen Revisor kan tildeles, så den som fører regnskapet ikke godkjenner det selv. Godkjenningen er en innlogget persons handling med avtrykk av tallene – ikke en BankID-signatur. Bruker og Administrator ser og kan fortsatt alt; resten av B-09 står.
+**Snur når:** En giver krever kvalifisert signatur (da signeringstjeneste, som krever serverdel – se B-20), eller organisasjonen vil skjerme søknader også for vanlige brukere (`tilgang`-listen er laget for det).
+**Konsekvens for nye kort:** Alt nytt som kan skrives må si om revisor kan lese det, og revisor skal aldri kunne skrive utenfor sin egen oppføring. Nye samlinger knyttet til en søknad må skjermes i reglene på samme måte som innkjøp og fakturaer. Endres det som inngår i avtrykket, blir gamle godkjenninger ugyldige.

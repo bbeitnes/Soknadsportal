@@ -19,12 +19,56 @@ service cloud.firestore {
     }
 
     // Tilgang = e-posten ligger i brukere (invitert eller aktiv).
+    // Gjelder alle rollene, også revisor.
     function erMedlem() {
       return innlogget() && exists(minRad());
     }
 
     function erAdmin() {
       return erMedlem() && get(minRad()).data.rolle == 'administrator';
+    }
+
+    // Revisor: ser bare søknadene hen er tildelt, og skriver bare sin egen
+    // oppføring på dem (se soknader under).
+    function erRevisor() {
+      return erMedlem() && get(minRad()).data.get('rolle', 'bruker') == 'revisor';
+    }
+
+    // Bruker eller administrator: kan alt i søknadene.
+    function erBruker() {
+      return erMedlem() && get(minRad()).data.get('rolle', 'bruker') != 'revisor';
+    }
+
+    // Revisoren er tildelt søknaden når e-posten står i `tilgang`.
+    // Brukes for innkjøp og fakturaer, som peker på søknaden med `soknadId`.
+    function revisorFor(soknadId) {
+      return erRevisor()
+        && epost() in get(/databases/$(database)/documents/soknader/$(soknadId)).data.tilgang;
+    }
+
+    // Det eneste en revisor kan skrive: sin egen oppføring i `revisorer` på
+    // en tildelt søknad (godkjenning, merknad, kommentarer). Nøkkelen er
+    // e-posten med alt annet enn a–z og 0–9 byttet til «_» (samme som
+    // revisornokkel() i app/data/beregning.js). Godkjenning kan bare gis når
+    // søknaden er Avsluttet; den kan trekkes når som helst.
+    function revisorSkriving() {
+      let nokkel = epost().replace('[^a-z0-9]', '_');
+      let gamle = resource.data.get('revisorer', {});
+      let gammel = gamle.get(nokkel, {});
+      let ny = request.resource.data.revisorer[nokkel];
+      return epost() in resource.data.tilgang
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revisorer'])
+        && request.resource.data.revisorer.diff(gamle).affectedKeys().hasOnly([nokkel])
+        && ny.epost == epost()
+        && (ny.get('godkjent', null) == gammel.get('godkjent', null)
+            || ny.get('godkjent', null) == null
+            || resource.data.status == 'avsluttet');
+    }
+
+    // Brukere og administratorer kan ikke skrive i `revisorer` – en
+    // godkjenning skal bare kunne komme fra revisoren selv.
+    function rorerIkkeRevisorer() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['revisorer']);
     }
 
     function riktigOrg() {
@@ -40,7 +84,8 @@ service cloud.firestore {
     match /brukere/{id} {
       // Egen rad kan alltid leses — også når den ikke finnes, så appen
       // kan svare «ingen tilgang» i stedet for en tilgangsfeil.
-      allow read: if erMedlem() || (innlogget() && id == epost());
+      // Revisorer får bare lese sin egen rad, ikke brukerlisten.
+      allow read: if erBruker() || (innlogget() && id == epost());
       // Første innlogging: en invitert bruker gjør seg selv aktiv og kan
       // sette navnet sitt. Rolle og alt annet kan bare administrator endre.
       allow update: if erAdmin()
@@ -58,39 +103,46 @@ service cloud.firestore {
       allow delete: if erAdmin();
     }
 
+    // Registrene (givere over, behov, leverandører, innstillinger) kan leses
+    // av alle roller: revisjonen henter navn og typer derfra.
     match /behov/{id} {
       allow read: if erMedlem();
-      allow create: if erMedlem() && riktigOrg();
-      allow update: if erMedlem() && orgUendret();
-      allow delete: if erMedlem();
+      allow create: if erBruker() && riktigOrg();
+      allow update: if erBruker() && orgUendret();
+      allow delete: if erBruker();
     }
 
+    // Revisorer leser bare søknader de står i `tilgang` på. Klienten må
+    // spørre med where('tilgang', 'array-contains', <e-post>).
     match /soknader/{id} {
-      allow read: if erMedlem();
-      allow create: if erMedlem() && riktigOrg();
-      allow update: if erMedlem() && orgUendret();
-      allow delete: if erMedlem();
+      allow read: if erBruker() || (erRevisor() && epost() in resource.data.tilgang);
+      allow create: if erBruker() && riktigOrg() && !('revisorer' in request.resource.data);
+      allow update: if (erBruker() && orgUendret() && rorerIkkeRevisorer())
+        || (erRevisor() && revisorSkriving());
+      allow delete: if erBruker();
     }
 
+    // Revisorer leser innkjøp og fakturaer for tildelte søknader. Klienten må
+    // spørre med where('soknadId', '==', <id>).
     match /innkjop/{id} {
-      allow read: if erMedlem();
-      allow create: if erMedlem() && riktigOrg();
-      allow update: if erMedlem() && orgUendret();
-      allow delete: if erMedlem();
+      allow read: if erBruker() || revisorFor(resource.data.soknadId);
+      allow create: if erBruker() && riktigOrg();
+      allow update: if erBruker() && orgUendret();
+      allow delete: if erBruker();
     }
 
     match /fakturaer/{id} {
-      allow read: if erMedlem();
-      allow create: if erMedlem() && riktigOrg();
-      allow update: if erMedlem() && orgUendret();
-      allow delete: if erMedlem();
+      allow read: if erBruker() || revisorFor(resource.data.soknadId);
+      allow create: if erBruker() && riktigOrg();
+      allow update: if erBruker() && orgUendret();
+      allow delete: if erBruker();
     }
 
     // Felles innstillinger (f.eks. rekkefølgen på typer). Dokument-ID er
     // organisasjonens ID.
     match /innstillinger/{id} {
       allow read: if erMedlem();
-      allow create, update: if erMedlem() && riktigOrg();
+      allow create, update: if erBruker() && riktigOrg();
       allow delete: if false;
     }
 
@@ -98,8 +150,8 @@ service cloud.firestore {
     // administrator kan slette.
     match /leverandorer/{id} {
       allow read: if erMedlem();
-      allow create: if erMedlem() && riktigOrg();
-      allow update: if erMedlem() && orgUendret();
+      allow create: if erBruker() && riktigOrg();
+      allow update: if erBruker() && orgUendret();
       allow delete: if erAdmin();
     }
   }

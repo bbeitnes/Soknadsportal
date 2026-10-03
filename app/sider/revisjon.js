@@ -3,12 +3,13 @@
 import {
   tilstand, innkjopFor, fakturaerFor, oppdaterSoknad, opprettFaktura, slettFaktura,
   settDekker, lastOppFakturafil, dokumentUrl, fellesTyperekkefolge,
+  erRevisor, revisorerFor, minRevisorsti, godkjennRevisjon, trekkGodkjenning,
 } from '../data/index.js';
 import {
   revisjonsposter, fakturaavvik, fakturaDekker, revisjonsoppsummering, pott, sumFakturert,
   leverandorNavn, posttittel, linjerUtenValg, fordelingPerKategori, grupperFakturaposter, sumEgneMidler, typerekkefolgeFor,
 } from '../data/beregning.js';
-import { escapeHtml, kr, belop, datoFelt, tidspunkt, fornavn } from '../ui/format.js';
+import { escapeHtml, kr, belop, datoFelt, datoKl, tidspunkt, fornavn } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
 import { lagre, visMelding } from '../ui/lagring.js';
 import { tegn, fokuser, sidepanel, lukkeknapp, IKON } from '../ui/visning.js';
@@ -32,7 +33,7 @@ function utenValgTekst(s) {
   const uten = linjerUtenValg(innkjopFor(s.id));
   if (!uten.length) return '';
   const navn = uten.map(x => tittelFor(s)(x.innkjop, x.linje));
-  return `<div class="hint" title="${escapeHtml(navn.join('\n'))}">${uten.length} ${uten.length === 1 ? 'linje' : 'linjer'} i innkjøpene har ingen valgt leverandør og er ikke med: ${escapeHtml(navn.slice(0, 3).join(', '))}${uten.length > 3 ? ' …' : ''}. Velg pris i <a href="#/soknad/${s.id}/innkjop">Innkjøp</a>.</div>`;
+  return `<div class="hint" title="${escapeHtml(navn.join('\n'))}">${uten.length} ${uten.length === 1 ? 'linje' : 'linjer'} i innkjøpene har ingen valgt leverandør og er ikke med: ${escapeHtml(navn.slice(0, 3).join(', '))}${uten.length > 3 ? ' …' : ''}.${erRevisor() ? '' : ` Velg pris i <a href="#/soknad/${s.id}/innkjop">Innkjøp</a>.`}</div>`;
 }
 
 export function posterFor(s) {
@@ -103,8 +104,68 @@ function fakturaPanel(s, f, poster) {
     <div class="panelbunn"><span>Lagt inn av ${escapeHtml(fornavn(f.lagtInnAv?.navn, f.lagtInnAv?.epost))}, ${tidspunkt(f.tid)}</span><button type="button" class="knapp knapp-fare" data-handling="slett-faktura">Slett faktura</button></div>`, { nytt: ui.nyttPanel });
 }
 
+// Fakturapanelet for revisor: de samme opplysningene, uten felt og knapper.
+function fakturaPanelLes(s, f, poster) {
+  const a = fakturaavvik(f, poster, fakturaerFor(s.id));
+  const dekket = fakturaDekker(f).map(id => poster.find(p => p.id === id)).filter(Boolean);
+  const kreditnota = Number(f.belop) < 0;
+  const felt = (etikett, verdi, stil = '') => `<div class="felt" style="${stil}"><span class="etikett">${etikett}</span><div style="font-weight:600">${verdi}</div></div>`;
+  return sidepanel(`
+    <div class="panelhode">
+      <div><h2>${kreditnota ? 'Kreditnota' : 'Faktura'} ${f.lopenummer}</h2><div class="ingress" style="margin-top:4px">${escapeHtml(f.leverandor || 'Ukjent leverandør')} · ${escapeHtml(f.fakturanr || 'uten nummer')}</div></div>
+      ${lukkeknapp()}
+    </div>
+    <div class="to-kol">
+      ${felt('Leverandør', escapeHtml(f.leverandor || '–'), 'grid-column:1 / -1')}
+      ${felt('Fakturanr', escapeHtml(f.fakturanr || '–'))}
+      ${felt('Dato', f.dato ? datoFelt(f.dato) : '–')}
+      ${felt('Beløp', f.belop == null ? '–' : belop(f.belop))}
+      <div class="felt"><span class="etikett">Vedlegg</span>
+        ${f.fil
+          ? `<button type="button" data-handling="apne-fil" title="Åpne i ny fane" style="display:flex; align-items:center; gap:6px; height:36px; padding:0 10px; border:2px solid var(--color-divider); background:transparent; min-width:0; cursor:pointer; font-size:13px; font-weight:600">${IKON.fil}<span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${escapeHtml(f.fil.navn)}</span></button>`
+          : '<div class="aksent" style="font-weight:600">Vedlegg mangler</div>'}
+      </div>
+    </div>
+    <div>
+      <div style="display:flex; justify-content:space-between; align-items:baseline"><span class="etikett">Gjelder</span><span class="hint">${a.koblet && !a.alene ? 'Flere fakturaer på samme linje – avviket står per linje under «Hva potten er brukt på»' : `Tilbudt ${belop(a.tilbudt)} · avvik <span class="fet ${a.avvik ? 'aksent' : ''}">${a.koblet ? (a.avvik ? avvikTekst(a.avvik) : '0') : '–'}</span>`}</span></div>
+      <div class="valgliste" style="margin-top:8px">
+        ${dekket.map(p => `<div style="cursor:default"><span class="fyll">${escapeHtml(posttittel(p))}</span><span class="smal" style="font-variant-numeric:tabular-nums">${belop(p.tilbudt)}</span></div>`).join('') || '<div class="tomt">Ikke koblet til noe.</div>'}
+      </div>
+    </div>
+    ${(f.merknad || '').trim() ? felt('Merknad', escapeHtml(f.merknad).replace(/\n/g, '<br>')) : ''}
+    <div class="panelbunn"><span>Lagt inn av ${escapeHtml(fornavn(f.lagtInnAv?.navn, f.lagtInnAv?.epost))}, ${tidspunkt(f.tid)}</span></div>`, { nytt: ui.nyttPanel });
+}
+
+// Status per tildelt revisor. Revisoren selv får knappen for å godkjenne
+// (bare når søknaden er Avsluttet) og feltet for merknaden sin; andre ser
+// status og merknad.
+function revisorlinje(s) {
+  const revisorer = revisorerFor(s);
+  if (!revisorer.length) return '';
+  const meg = erRevisor() ? tilstand.meg.epost : null;
+  const merke = r => r.status === 'godkjent' ? `<span class="merkelapp m-pa">Godkjent</span><span class="hint">${datoKl(r.tid)}</span>`
+    : r.status === 'endret' ? `<span class="merkelapp m-varsel" title="Tallene er endret etter godkjenningen. Revisoren må godkjenne på nytt.">Endret etter godkjenningen</span><span class="hint">${datoKl(r.tid)}</span>`
+      : '<span class="merkelapp m-av">Ikke godkjent</span>';
+  const del = r => {
+    const egen = r.epost === meg;
+    const knapp = !egen ? ''
+      : r.status === 'godkjent' ? '<button type="button" class="knapp knapp-ramme knapp-liten" data-handling="trekk-godkjenning">Trekk godkjenningen</button>'
+        : s.status === 'avsluttet' ? `<button type="button" class="knapp knapp-primar knapp-liten" data-handling="godkjenn">${r.status === 'endret' ? 'Godkjenn på nytt' : 'Godkjenn revisjon'}</button>`
+          : '<span class="hint">Kan godkjennes når søknaden er satt til Avsluttet</span>';
+    const merknad = egen
+      ? `<input class="inndata" style="flex:1 1 280px; height:32px; font-size:13px" placeholder="Revisors merknad – f.eks. et forbehold. Står i rapporten." title="Revisors merknad. Står i revisjonsrapporten sammen med godkjenningen." ${feltAttr(minRevisorsti(s.id, 'merknad'), r.merknad)}>`
+      : r.merknad ? `<span class="hint" style="min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:420px" title="${escapeHtml(r.merknad)}">«${escapeHtml(r.merknad)}»</span>` : '';
+    return `<div style="display:flex; align-items:center; gap:8px; min-width:0; ${egen ? 'flex:1 1 100%' : ''}"><span class="fet" style="white-space:nowrap">${egen ? 'Din godkjenning' : escapeHtml(r.navn)}</span>${merke(r)}${knapp}${merknad}</div>`;
+  };
+  // Revisorens egen linje først, så de andre.
+  const ordnet = [...revisorer.filter(r => r.epost === meg), ...revisorer.filter(r => r.epost !== meg)];
+  return `<div style="flex:0 0 auto; display:flex; align-items:center; gap:8px 24px; flex-wrap:wrap; padding:8px 12px; background:var(--color-surface)"><span class="etikett">${meg ? 'Revisjon' : revisorer.length === 1 ? 'Revisor' : 'Revisorer'}</span>${ordnet.map(del).join('')}</div>`;
+}
+
 export const revisjonFane = {
   tegn(s) {
+    const les = erRevisor();
+    if (!s.revisjon && les) return '<div style="color:var(--color-neutral-700)">Revisjon er slått av for denne søknaden.</div>';
     if (!s.revisjon) {
       return `<div style="display:flex; align-items:center; gap:16px; color:var(--color-neutral-700)">Revisjon er slått av for denne søknaden.<button type="button" class="knapp knapp-ramme knapp-liten" data-handling="revisjon-pa">Slå på</button></div>`;
     }
@@ -123,16 +184,17 @@ export const revisjonFane = {
     const grupper = visEgne ? fordelingFor(s, poster, o.perPost, p.prosent).grupper : [{ poster }];
     const postrad = x => {
       const { nr, fakturert, avvik } = o.perPost[x.id];
-      return `<tr><td>${escapeHtml(x.tittel)}<div class="celleunder">${escapeHtml(x.under)}</div>${x.etterSoknad ? `<div class="celleunder" style="color:var(--color-text)" title="${escapeHtml(x.notat)}">Lagt til etter søknaden${x.notat ? `: ${escapeHtml(x.notat)}` : ''}</div>` : ''}${x.alternativ ? `<div class="celleunder aksent" style="font-weight:600" title="Leverandøren tilbød et annet produkt enn det vi ba om">Alternativt produkt: ${escapeHtml(x.alternativ)}</div>` : ''}</td><td class="tall">${belop(x.tilbudt)}</td><td class="tall fet">${fakturert == null ? '–' : belop(fakturert)}</td><td class="tall fet smal aksent">${avvik ? avvikTekst(avvik) : ''}</td>${visEgne ? `<td class="tall">${x.egeninnsats ? `<span style="padding-right:10px" title="Egeninnsats: hele beløpet er egne midler">${belop(x.egne)}</span>` : `<input class="celleinn" inputmode="decimal" placeholder="–" title="Egne midler brukt på denne posten" ${feltAttr(egneFelt(s, x), x.egne || null, 'belop')}>`}</td>` : ''}<td class="smal">${x.egeninnsats && !nr.length ? '<span class="merkelapp" style="border-color:var(--color-divider)" title="Estimert verdi uten faktura. Endres i Utgifter-fanen.">Egeninnsats</span>' : `<span class="merkelapp ${nr.length ? 'm-pa' : 'm-varsel'}">${nr.length ? `Faktura ${nr.join(', ')}` : 'Mangler faktura'}</span>`}</td></tr>`;
+      return `<tr><td>${escapeHtml(x.tittel)}<div class="celleunder">${escapeHtml(x.under)}</div>${x.etterSoknad ? `<div class="celleunder" style="color:var(--color-text)" title="${escapeHtml(x.notat)}">Lagt til etter søknaden${x.notat ? `: ${escapeHtml(x.notat)}` : ''}</div>` : ''}${x.alternativ ? `<div class="celleunder aksent" style="font-weight:600" title="Leverandøren tilbød et annet produkt enn det vi ba om">Alternativt produkt: ${escapeHtml(x.alternativ)}</div>` : ''}</td><td class="tall">${belop(x.tilbudt)}</td><td class="tall fet">${fakturert == null ? '–' : belop(fakturert)}</td><td class="tall fet smal aksent">${avvik ? avvikTekst(avvik) : ''}</td>${visEgne ? `<td class="tall">${x.egeninnsats || les ? `<span style="padding-right:10px" ${x.egeninnsats ? 'title="Egeninnsats: hele beløpet er egne midler"' : ''}>${x.egne ? belop(x.egne) : '–'}</span>` : `<input class="celleinn" inputmode="decimal" placeholder="–" title="Egne midler brukt på denne posten" ${feltAttr(egneFelt(s, x), x.egne || null, 'belop')}>`}</td>` : ''}<td class="smal">${x.egeninnsats && !nr.length ? '<span class="merkelapp" style="border-color:var(--color-divider)" title="Estimert verdi uten faktura. Endres i Utgifter-fanen.">Egeninnsats</span>' : `<span class="merkelapp ${nr.length ? 'm-pa' : 'm-varsel'}">${nr.length ? `Faktura ${nr.join(', ')}` : 'Mangler faktura'}</span>`}</td></tr>`;
     };
     const html = `
       <div class="verktoyrad">
         <div class="hint" style="flex:1 1 auto; min-width:0">Fakturert <span class="fet" style="color:var(--color-text)">${belop(o.fakturert)}</span> av disponert ${belop(p.disponertFull)} · ${o.egeninnsats ? `egeninnsats uten faktura ${belop(o.egeninnsats)} · ` : ''}${o.manglerFaktura ? `${o.manglerFaktura} ${o.manglerFaktura === 1 ? 'linje' : 'linjer'} mangler faktura` : 'alt er fakturert'} · ${o.avvikAntall ? `${o.avvikAntall} avvik fra tilbud` : 'ingen avvik'}${o.ikkeKoblet ? ` · ${o.ikkeKoblet} ${o.ikkeKoblet === 1 ? 'faktura' : 'fakturaer'} ikke koblet` : ''}</div>
         <div class="grupper">
-          <button type="button" class="knapp knapp-ramme" data-handling="ny-faktura">+ Ny faktura</button>
+          ${les ? '' : '<button type="button" class="knapp knapp-ramme" data-handling="ny-faktura">+ Ny faktura</button>'}
           <button type="button" class="knapp knapp-primar" data-handling="rapport" ${ui.lagerRapport ? 'disabled' : ''}>${ui.lagerRapport ? 'Lager rapport …' : 'Revisjonsrapport (PDF)'}</button>
         </div>
       </div>
+      ${revisorlinje(s)}
       <div style="flex:1 1 auto; min-height:0; display:grid; grid-template-columns:${visEgne ? 'minmax(0,6fr) minmax(0,7fr)' : 'minmax(0,1fr) minmax(0,1fr)'}; gap:0 28px">
         <div style="min-height:0; display:flex; flex-direction:column; gap:8px">
           <div class="etikett">Fakturaer</div>
@@ -167,14 +229,23 @@ export const revisjonFane = {
           ${utenValgTekst(s)}
         </div>
       </div>
-      ${valgt ? fakturaPanel(s, valgt, poster) : ''}`;
+      ${valgt ? (les ? fakturaPanelLes : fakturaPanel)(s, valgt, poster) : ''}`;
     ui.nyttPanel = false;
     return html;
   },
 
   async klikk(handling, el, e, s) {
     const f = fakturaerFor(s.id).find(x => x.id === ui.panel);
+    // Revisor kan se, laste ned rapporten og godkjenne – ikke endre noe.
+    const LES = ['apne-faktura', 'lukk-panel', 'apne-fil', 'rapport', 'godkjenn', 'trekk-godkjenning'];
+    if (erRevisor() ? !LES.includes(handling) : handling === 'godkjenn' || handling === 'trekk-godkjenning') return false;
     switch (handling) {
+      case 'godkjenn':
+        if (s.status === 'avsluttet' && confirm(`Godkjenne revisjonen av «${s.tittel || 'Uten tittel'}»?\n\nGodkjenningen gjelder tallene og bilagene slik de står nå. Endres de etterpå, må du godkjenne på nytt.`)) lagre(() => godkjennRevisjon(s));
+        return true;
+      case 'trekk-godkjenning':
+        if (confirm('Trekke godkjenningen din av denne revisjonen?')) lagre(() => trekkGodkjenning(s));
+        return true;
       case 'revisjon-pa': lagre(() => oppdaterSoknad(s.id, { revisjon: true })); return true;
       case 'ny-faktura': {
         const id = await lagre(() => opprettFaktura(s.id));
@@ -206,7 +277,7 @@ export const revisjonFane = {
   },
 
   async filer(el, filer, s) {
-    if (!el.dataset.faktura) return false;
+    if (!el.dataset.faktura || erRevisor()) return false;
     const f = fakturaerFor(s.id).find(x => x.id === el.dataset.faktura);
     const fil = filer[0];
     if (f && fil) {

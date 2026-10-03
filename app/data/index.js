@@ -7,7 +7,7 @@
 // hverandre på samme felt: siste lagring per felt vinner.
 import { lager, innlogging, SLETT } from './lager.js';
 import { ORGANISASJON_ID } from '../config/app-config.js';
-import { linjeliste, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer, linjetype, anskaffetPerBehov, finansierteLinjer } from './beregning.js';
+import { linjeliste, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer, linjetype, anskaffetPerBehov, finansierteLinjer, revisornokkel, revisjonsavtrykk, revisorstatus } from './beregning.js';
 
 export { innlogging };
 
@@ -30,6 +30,12 @@ export function erAdmin() {
   return tilstand.meg?.rolle === 'administrator';
 }
 
+// Revisor: ser bare søknadene hen er tildelt, og kan bare skrive sin egen
+// oppføring i `revisorer` på dem. Håndheves i firestore.rules.
+export function erRevisor() {
+  return tilstand.meg?.rolle === 'revisor';
+}
+
 // Sjekker at innlogget bruker er invitert. Første innlogging gjør en
 // invitert bruker aktiv og tar med navnet fra innloggingen.
 export async function hentTilgang(bruker) {
@@ -50,8 +56,8 @@ export async function hentTilgang(bruker) {
 // stedet for å stoppe hele portalen.
 const VALGFRIE = new Set(['innstillinger']);
 
-export function startLytting(vedEndring, vedFeil) {
-  const avmeld = SAMLINGER.map(samling => lager.lytt(samling, liste => {
+function lyttSamling(samling, vedEndring, vedFeil) {
+  return lager.lytt(samling, liste => {
     tilstand[samling] = liste;
     tilstand.lastet.add(samling);
     vedEndring(samling);
@@ -61,8 +67,47 @@ export function startLytting(vedEndring, vedFeil) {
     tilstand[samling] = [];
     tilstand.lastet.add(samling);
     vedEndring(samling);
-  }));
+  });
+}
+
+export function startLytting(vedEndring, vedFeil) {
+  // Ingenting fra en tidligere innlogging skal bli liggende.
+  for (const samling of SAMLINGER) tilstand[samling] = [];
+  tilstand.lastet.clear();
+  if (erRevisor()) return startRevisorlytting(vedEndring, vedFeil);
+  const avmeld = SAMLINGER.map(samling => lyttSamling(samling, vedEndring, vedFeil));
   return () => avmeld.forEach(f => f());
+}
+
+// Revisor får ikke lese hele samlingene. Søknadene hentes med et filter på
+// tilgangslisten, og innkjøp og fakturaer hentes per tildelt søknad.
+// Registrene leses som for andre; brukerlisten leses ikke.
+function startRevisorlytting(vedEndring, vedFeil) {
+  const avmeld = ['givere', 'behov', 'leverandorer', 'innstillinger'].map(samling => lyttSamling(samling, vedEndring, vedFeil));
+  tilstand.lastet.add('brukere');
+  const DELT = ['innkjop', 'fakturaer'];
+  const perSoknad = new Map(); // soknadId → { innkjop, fakturaer, avmeld }
+  const samle = () => {
+    for (const samling of DELT) {
+      const deler = [...perSoknad.values()].map(p => p[samling]);
+      if (deler.every(Boolean)) { tilstand[samling] = deler.flat(); tilstand.lastet.add(samling); }
+    }
+    vedEndring();
+  };
+  avmeld.push(lager.lytt('soknader', liste => {
+    tilstand.soknader = liste;
+    tilstand.lastet.add('soknader');
+    const ider = new Set(liste.map(s => s.id));
+    for (const [id, p] of perSoknad) if (!ider.has(id)) { p.avmeld.forEach(f => f()); perSoknad.delete(id); }
+    for (const id of ider) {
+      if (perSoknad.has(id)) continue;
+      const p = { innkjop: null, fakturaer: null, avmeld: [] };
+      perSoknad.set(id, p);
+      for (const samling of DELT) p.avmeld.push(lager.lytt(samling, l => { p[samling] = l; samle(); }, vedFeil, ['soknadId', '==', id]));
+    }
+    samle();
+  }, vedFeil, ['tilgang', 'array-contains', tilstand.meg.epost]));
+  return () => { avmeld.forEach(f => f()); perSoknad.forEach(p => p.avmeld.forEach(f => f())); };
 }
 
 export function alleLastet() {
@@ -144,8 +189,47 @@ export function opprettSoknad({ giverId, tittel, frist }) {
   });
 }
 
+// En revisor kan bare skrive i sin egen oppføring (`revisorer.<nøkkel>`), og
+// setter ikke «sist endret». Navn og e-post følger med, så oppføringen sier
+// hvem den tilhører (reglene krever e-posten).
 export function oppdaterSoknad(id, felt) {
+  if (erRevisor()) {
+    const sti = `revisorer.${revisornokkel(tilstand.meg.epost)}`;
+    return lager.oppdater('soknader', id, { ...felt, [`${sti}.epost`]: tilstand.meg.epost, [`${sti}.navn`]: tilstand.meg.navn });
+  }
   return lager.oppdater('soknader', id, { ...felt, ...signatur() });
+}
+
+// ——— Revisorer og godkjenning ———
+
+// Krysser en revisor av eller på for søknaden. `tilgang` er listen reglene
+// og revisorens spørring bruker.
+export function settRevisor(soknad, epost, pa) {
+  const andre = (soknad.tilgang || []).filter(e => e !== epost);
+  return oppdaterSoknad(soknad.id, { tilgang: pa ? [...andre, epost] : andre });
+}
+
+export function avtrykkFor(soknad) {
+  return revisjonsavtrykk(soknad, innkjopFor(soknad.id), tilstand.fakturaer);
+}
+
+// Tildelte revisorer med status. Revisorer kan ikke lese brukerlisten.
+export function revisorerFor(soknad) {
+  return revisorstatus(soknad, avtrykkFor(soknad), erRevisor() ? null : tilstand.brukere);
+}
+
+// Feltstien til innlogget revisors egen oppføring på søknaden.
+export function minRevisorsti(soknadId, felt) {
+  return `soknader/${soknadId}/revisorer.${revisornokkel(tilstand.meg.epost)}.${felt}`;
+}
+
+// Revisoren godkjenner tallene slik de står nå.
+export function godkjennRevisjon(soknad) {
+  return oppdaterSoknad(soknad.id, { [`revisorer.${revisornokkel(tilstand.meg.epost)}.godkjent`]: { tid: Date.now(), avtrykk: avtrykkFor(soknad) } });
+}
+
+export function trekkGodkjenning(soknad) {
+  return oppdaterSoknad(soknad.id, { [`revisorer.${revisornokkel(tilstand.meg.epost)}.godkjent`]: null });
 }
 
 // Er søknaden ikke lenger et utkast, er en ny linje «lagt til etter

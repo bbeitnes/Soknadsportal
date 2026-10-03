@@ -27,8 +27,11 @@ ikke er beskrevet her. Spør før du legger til noe.
 ## Brukere og roller
 - **Bruker** kan gjøre alt i søknadene.
 - **Administrator** kan i tillegg invitere og fjerne brukere og vedlikeholde givere.
+- **Revisor** ser bare søknadene hen er satt som revisor for, og der bare
+  pottlinjen, Revisjon og dokumentene på søknaden. Revisor kan ikke endre noe,
+  bare godkjenne revisjonen og skrive en merknad til godkjenningen.
 - Brukere inviteres på e-post.
-- Ingen finmaskede rettigheter per søknad eller fase.
+- Ingen finmaskede rettigheter per søknad eller fase for Bruker og Administrator.
 - Vis "sist endret av [navn], [tidspunkt]" på søknader. Fakturaer og
   tilbudsvalg viser hvem som la dem inn.
 - Samtidig redigering: siste lagring per felt vinner.
@@ -201,7 +204,21 @@ Enkel liste: beskrivelse, beløp, dato. Trekkes fra potten.
 **Revisjonsvisning** (når revisjon er slått på): hva som er fakturert og
 dokumentert, hva som mangler faktura, og hva som avviker fra tilbud.
 
+**Revisorer og godkjenning:** i Søknad-fanen (når revisjon er slått på) krysses
+det av hvem av brukerne med rollen Revisor som er revisor for søknaden – én
+eller flere. Hver revisor godkjenner for seg i Revisjon, og bare når søknaden
+har status Avsluttet. Godkjenningen lagres med navn, tidspunkt og et avtrykk av
+tallene: endres fakturaer (beløp, nummer, dato, leverandør, vedlegg, kobling),
+valgte priser, antall, frakt, egne midler, løse utgifter, søkt, innvilget,
+egenandel eller momsprosent etterpå, står revisoren som «Endret etter
+godkjenningen» og må godkjenne på nytt. Ingenting låses. Revisjonen er godkjent
+når alle tildelte revisorer har en gyldig godkjenning. Godkjenningen er en
+innlogget persons handling, ikke en BankID-signatur.
+
 **Revisjonsrapport:** én samlet PDF, generert med én knapp, når som helst.
+Har søknaden revisorer, står det nederst på forsiden én linje per revisor:
+«Godkjent i Søknadsportal av <navn>, <tidspunkt>» med revisorens merknad, eller
+«Ikke godkjent: <navn>».
 1. **Forside:** søknad, giver, søkt, innvilget, brukt, gjenstående
    (+ fordeling ved momskompensasjon).
 2. **Oversiktstabell:** løpenummer, fakturanummer, dato, leverandør, beløp,
@@ -242,7 +259,7 @@ Faner:
 
 ### Givere og brukere (administrator)
 - **Givere:** navn, kontakt/notat, momskompensasjon (av/på + standardprosent med eksempel), antall søknader. Slett bare når giveren ikke har søknader.
-- **Brukere:** navn, e-post, rolle (Bruker / Administrator byttes i raden), status Aktiv / Invitert. «+ Inviter bruker» med e-post og rolle; «Send igjen» og «Fjern».
+- **Brukere:** navn, e-post, rolle (Bruker / Administrator / Revisor byttes i raden), status Aktiv / Invitert. «+ Inviter bruker» med e-post og rolle; «Send igjen» og «Fjern».
 
 ### Kvittering fra mobil
 Velg søknad (bare innvilgede) → ta bilde / velg fra bilder / PDF → beløp og valgfritt fakturanummer → ferdig. Kvitteringen får løpenummer og ligger under Revisjon som «ikke koblet» til den kobles på PC.

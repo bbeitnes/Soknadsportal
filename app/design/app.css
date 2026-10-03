@@ -291,6 +291,11 @@ table.matrise { border-collapse: separate; border-spacing: 0; min-width: 100%; f
 body.mobilside .toppmeny nav a:not(.meny-kvittering) { display: none; }
 body.mobilside .meny-kvittering { display: inline-flex; }
 
+/* Revisor ser bare «Revisjon» i toppmenyen */
+.toppmeny nav a.meny-revisor { display: none; }
+body.revisor .toppmeny nav a { display: none; }
+body.revisor .toppmeny nav a.meny-revisor { display: inline-flex; }
+
 /* Gruppeoverskrift i tabeller (type med delsum) */
 .liste tr.gruppe td { background: var(--color-surface); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding-top: 5px; padding-bottom: 4px; color: var(--color-neutral-800); border-bottom: 1px solid var(--color-neutral-400); }
 .liste tr.gruppe td.tall { font-size: 13px; letter-spacing: 0; }

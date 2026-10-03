@@ -14,6 +14,56 @@ Velg samme lokasjon som de andre (europe-west). Produksjonsmodus.
   hver av de to databasene (velg databasen øverst først).
 - **Storage:** lim inn HELE `firebase/storage.rules.samlet` under Storage → Rules.
   Filen inneholder også Bestillingsportal sine regler — de må være med.
+- **Revisorer:** reglene som skjermer revisorer må være limt inn i en database
+  FØR første revisor inviteres der. Med eldre regler er enhver rad i `brukere`
+  et fullt medlem. Prøv reglene som beskrevet under.
+
+### Prøve reglene som revisor
+Gjøres i testdatabasen hver gang `firebase/firestore.rules` er endret.
+
+1. Lim inn reglene (begge databasene).
+2. Som administrator: inviter en ekstra e-postadresse du selv har, med rollen
+   Revisor. Kryss den av som revisor på ÉN søknad (Søknad-fanen). Noter ID-en
+   til den søknaden og til en annen søknad (ID-en står i adressen:
+   `#/soknad/<ID>`).
+3. Logg inn som revisoren (eget nettleservindu). Du skal bare se «Revisjon» i
+   menyen og bare den ene søknaden. Godkjenn-knappen virker bare når søknaden
+   er Avsluttet.
+4. Åpne konsollen (F12) som revisoren, sett inn de to ID-ene og lim inn:
+
+   ```js
+   const TILDELT = '<ID til søknaden revisoren er tildelt>';
+   const ANNEN = '<ID til en annen søknad>';
+   const { lager } = await import('./data/lager.js');
+   const les = (samling, filter) => new Promise((ok, feil) => { const stopp = lager.lytt(samling, l => { setTimeout(stopp); ok(l); }, feil, filter); });
+   const prov = async (hva, f) => { try { await f(); console.error('FEIL – ble tillatt:', hva); } catch { console.log('OK – avvist:', hva); } };
+   await prov('lese alle søknader', () => les('soknader'));
+   await prov('lese alle innkjøp', () => les('innkjop'));
+   await prov('lese alle fakturaer', () => les('fakturaer'));
+   await prov('lese brukerlisten', () => les('brukere'));
+   await prov('lese en søknad revisoren ikke er tildelt', () => lager.hent('soknader', ANNEN));
+   await prov('lese fakturaene til en annen søknad', () => les('fakturaer', ['soknadId', '==', ANNEN]));
+   await prov('lese innkjøpene til en annen søknad', () => les('innkjop', ['soknadId', '==', ANNEN]));
+   await prov('endre tittel på tildelt søknad', () => lager.oppdater('soknader', TILDELT, { tittel: 'endret av revisor' }));
+   await prov('endre tilgangslisten', () => lager.oppdater('soknader', TILDELT, { tilgang: [] }));
+   await prov('skrive en annen revisors oppføring', () => lager.oppdater('soknader', TILDELT, { 'revisorer.en_annen.merknad': 'x' }));
+   await prov('opprette faktura', () => lager.opprett('fakturaer', { soknadId: TILDELT, belop: 1 }));
+   await prov('opprette behov', () => lager.opprett('behov', { tittel: 'fra revisor' }));
+   await prov('endre innstillinger', () => lager.flett('innstillinger', 'skiens-skolemusikk', { orgNavn: 'x' }));
+   console.log('Skal gå bra – tildelt søknad:', (await les('soknader', ['tilgang', 'array-contains', (await import('./data/index.js')).tilstand.meg.epost])).length, 'stk, fakturaer:', (await les('fakturaer', ['soknadId', '==', TILDELT])).length);
+   ```
+
+   Alle linjene skal si «OK – avvist», og den siste skal skrive ut antall uten
+   feil. Står det «FEIL – ble tillatt», stemmer ikke reglene: fjern revisoren
+   og si fra. (Ble noe opprettet ved en feil, slett det i Firebase Console.)
+5. Sett søknaden til en annen status enn Avsluttet (som vanlig bruker), og
+   prøv som revisor i konsollen – skal avvises:
+
+   ```js
+   await prov('godkjenne når søknaden ikke er Avsluttet', async () => { const m = await import('./data/index.js'); return m.godkjennRevisjon(m.tilstand.soknader.find(s => s.id === TILDELT)); });
+   ```
+6. Logg inn som vanlig bruker og se at alt virker som før: åpne en søknad,
+   endre et felt, legg inn og slett en faktura.
 
 ## 3. Innlogging
 Authentication → Sign-in method:
@@ -49,6 +99,7 @@ Firestore → velg databasen → «Start collection» `brukere`:
   - `status` (string) = `aktiv`
 
 Gjør det i begge databasene. Flere brukere inviteres fra portalen (trinn e).
+Rollene er `bruker`, `administrator` og `revisor`.
 
 ## 5. Hosting
 - Opprett mappene `Soknadsportal` og `Soknadsportal-test` på ProISP (SFTP),

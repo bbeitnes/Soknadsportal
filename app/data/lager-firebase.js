@@ -38,8 +38,11 @@ function tilFirestore(felt) {
 }
 
 export const lager = {
-  lytt(samling, tilbakekall, vedFeil) {
-    const q = query(collection(db, samling), where('organisasjonId', '==', ORGANISASJON_ID));
+  // `filter` = [felt, operator, verdi] erstatter filteret på organisasjon.
+  // Revisorer bruker det: reglene slipper dem bare til søknadene de er
+  // tildelt, og en spørring må kunne godkjennes av reglene i sin helhet.
+  lytt(samling, tilbakekall, vedFeil, filter = null) {
+    const q = query(collection(db, samling), filter ? where(...filter) : where('organisasjonId', '==', ORGANISASJON_ID));
     return onSnapshot(q,
       snap => tilbakekall(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
       feil => vedFeil?.(feil));

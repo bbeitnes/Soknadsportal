@@ -938,6 +938,89 @@ export function revisjonsoppsummering(fakturaer, poster) {
   return { fakturert: ore(fakturaer.reduce((s, f) => s + (Number(f.belop) || 0), 0)), manglerFaktura, avvikSum: ore(avvikSum), avvikAntall, ikkeKoblet, egeninnsats: ore(egeninnsats), perPost };
 }
 
+// ——— Revisor og godkjenning ———
+// En revisor er en bruker med rollen «revisor» som står i `soknad.tilgang`
+// (liste med e-postadresser). Hver revisor har sin egen oppføring
+// `soknad.revisorer.<nøkkel>` = { epost, navn, godkjent: { tid, avtrykk },
+// merknad }, som bare revisoren selv kan skrive (se firestore.rules).
+
+// E-postadressen som nøkkel i `revisorer`: punktum og @ kan ikke stå i en
+// feltsti. Samme omskriving gjøres i firestore.rules.
+export function revisornokkel(epost) {
+  return String(epost || '').toLowerCase().replace(/[^a-z0-9]/g, '_');
+}
+
+// cyrb53: kort, fast hash av en tekst. Skal bare oppdage endringer – at ingen
+// andre enn revisoren kan skrive godkjenningen, sørger reglene for.
+function hash(tekst) {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < tekst.length; i++) {
+    const c = tekst.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761);
+    h2 = Math.imul(h2 ^ c, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
+
+// Fingeravtrykk av det revisoren går god for. Endres noe av dette etter en
+// godkjenning, gjelder den ikke lenger:
+//   rammen      søkt, innvilget, egenandel (og valget beløp/andel), momsprosent
+//   postene     valgt leverandør og pris, antall, egne midler, frakt hos
+//               leverandører det er valgt noe hos, løse utgifter (beløp,
+//               egeninnsats, egne midler)
+//   fakturaene  løpenummer, leverandør, fakturanr, dato, beløp, vedlegg og
+//               hva de er koblet til
+// Typer, titler, merknader, rekkefølge, dokumenter, status og priser som ikke
+// er valgt inngår ikke. Endres det som inngår her, må versjonen («v1») økes –
+// da blir alle tidligere godkjenninger «endret etter godkjenningen».
+export function revisjonsavtrykk(soknad, innkjopListe = [], fakturaer = []) {
+  const o = n => Math.round((Number(n) || 0) * 100);
+  const etterId = (a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
+  const ramme = [
+    o(soktBelop(soknad)), soknad?.innvilget == null ? null : o(soknad.innvilget),
+    o(egenandelPlanlagt(soknad)), soknad?.egenandelValg === 'andel' ? 'andel' : 'belop', momsProsent(soknad),
+  ];
+  const innkjop = innkjopListe.map(i => {
+    const b = innkjopsberegning(i);
+    const linjer = b.linjer.filter(l => b.perLinje[l.id].valgtSid != null).map(l => {
+      const sid = b.perLinje[l.id].valgtSid;
+      return [l.id, sid, Number(l.antall) || 0, o(b.celle[l.id][sid].netto), o(b.perLinje[l.id].egne)];
+    }).sort(etterId);
+    const frakt = b.leverandorer.filter(s => b.brukt.has(s.id)).map(s => [s.id, s.leverandorId ?? null, o(s.frakt)]).sort(etterId);
+    return [i.id, linjer, frakt];
+  }).sort(etterId);
+  const utgifter = utgiftsliste(soknad).map(u => [u.id, o(u.belop), !!u.egeninnsats, o(utgiftEgne(u))]).sort(etterId);
+  const fakt = fakturaliste(fakturaer, soknad?.id).map(f => [
+    f.id, f.lopenummer ?? null, f.leverandor || '', f.fakturanr || '', f.dato || null,
+    f.belop == null ? null : o(f.belop), f.fil?.sti || null, Object.keys(f.dekker || {}).sort(),
+  ]).sort(etterId);
+  return 'v1:' + hash(JSON.stringify([ramme, innkjop, utgifter, fakt]));
+}
+
+// Tildelte revisorer med status: 'godkjent', 'endret' (tallene er endret etter
+// godkjenningen) eller 'ikke'. `brukere` er brukerlisten når den kan leses:
+// da teller bare de som (fortsatt) har rollen Revisor. Revisorer kan ikke lese
+// brukerlisten og gir null; da vises alle i `tilgang`.
+export function revisorstatus(soknad, avtrykk, brukere = null) {
+  return (soknad?.tilgang || []).map(epost => {
+    const b = brukere?.find(x => (x.epost || x.id) === epost);
+    if (brukere && b?.rolle !== 'revisor') return null;
+    const r = soknad.revisorer?.[revisornokkel(epost)];
+    const g = r?.godkjent || null;
+    return {
+      epost, navn: r?.navn || b?.navn || epost, merknad: (r?.merknad || '').trim(),
+      tid: g?.tid ?? null, status: !g ? 'ikke' : g.avtrykk === avtrykk ? 'godkjent' : 'endret',
+    };
+  }).filter(Boolean).sort((a, b) => a.navn.localeCompare(b.navn, 'nb'));
+}
+
+// Revisjonen er godkjent når alle tildelte revisorer har en gyldig godkjenning.
+export function revisjonGodkjent(statuser) {
+  return statuser.length > 0 && statuser.every(r => r.status === 'godkjent');
+}
+
 // ——— Import av behovsliste fra regneark ———
 // Tekst limt inn fra Excel/Google Sheets er tabulatorseparert; CSV-filer
 // bruker semikolon eller komma. Felt kan stå i hermetegn.

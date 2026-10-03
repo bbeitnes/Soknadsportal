@@ -1,5 +1,6 @@
 // Oppdiktede data for demomodus (?demo på localhost). Hentet fra prototypene.
 import { ORGANISASJON_ID as org } from '../config/app-config.js';
+import { revisornokkel, revisjonsavtrykk } from './beregning.js';
 
 export function lagDemodata() {
   const naa = Date.now();
@@ -11,6 +12,9 @@ export function lagDemodata() {
   const brukere = {
     'kari@korpset.no': { organisasjonId: org, epost: 'kari@korpset.no', navn: 'Kari Nordmann', rolle: 'administrator', status: 'aktiv' },
     'per@korpset.no': { organisasjonId: org, epost: 'per@korpset.no', navn: 'Per Hansen', rolle: 'bruker', status: 'aktiv' },
+    // ?demo=revisor logger inn som Rita.
+    'rita@revisor.no': { organisasjonId: org, epost: 'rita@revisor.no', navn: 'Rita Revisor', rolle: 'revisor', status: 'aktiv' },
+    'olav@revisor.no': { organisasjonId: org, epost: 'olav@revisor.no', navn: 'Olav Berg', rolle: 'revisor', status: 'aktiv' },
   };
 
   const givere = {
@@ -38,6 +42,7 @@ export function lagDemodata() {
     s1: {
       organisasjonId: org, giverId: 'g1', tittel: 'Instrumenter til aspirantkorpset 2026', frist: '2026-03-15', sendt: '2026-03-03',
       status: 'innvilget', soktOverstyrt: null, innvilget: 150000, momsProsent: 8, revisjon: true,
+      tilgang: ['rita@revisor.no', 'olav@revisor.no'],
       linjer: {
         l1: linje('b1', 4, 8500, 1), l2: linje('b2', 2, 12000, 2), l3: linje('b3', 2, 10000, 3),
         l4: linje('b4', 1, 21000, 4), l6: { ...linje('b6', 12, 450, 5), type: 'Inventar' }, l7: linje('b7', 2, 6500, 6),
@@ -71,6 +76,19 @@ export function lagDemodata() {
       status: 'utkast', soktOverstyrt: null, momsProsent: null, revisjon: false,
       linjer: { l1: { behovId: null, tittel: 'Instruktørhonorar', antall: 2, estPris: 6000, rekkefolge: 1 } },
       dokumenter: {}, ...av(...per, 7),
+    },
+    // Avsluttet, med revisorer: Olav har godkjent, Rita (?demo=revisor) ikke.
+    s5: {
+      organisasjonId: org, giverId: 'g4', tittel: 'Noteskap og notemapper 2025', frist: '2025-03-01', sendt: '2025-02-20',
+      status: 'avsluttet', soktOverstyrt: null, innvilget: 20000, momsProsent: null, revisjon: true,
+      tilgang: ['rita@revisor.no', 'olav@revisor.no'],
+      linjer: { l1: { behovId: null, tittel: 'Noteskap', antall: 2, estPris: 7000, rekkefolge: 1 }, l2: { behovId: null, tittel: 'Notemapper', antall: 40, estPris: 150, rekkefolge: 2 } },
+      utgifter: {
+        u1: { beskrivelse: 'Noteskap, 2 stk', belop: 13800, dato: '2025-05-06', type: 'Inventar', lagtInnAv: { epost: per[0], navn: per[1] }, rekkefolge: 1 },
+        u2: { beskrivelse: 'Notemapper, 40 stk', belop: 5960, dato: '2025-05-14', type: 'Utstyr', lagtInnAv: { epost: per[0], navn: per[1] }, rekkefolge: 2 },
+      },
+      dokumenter: { d1: { navn: 'Tilsagn kulturmidler 2025.pdf', sti: 'demo/d5', lastetOppAv: { epost: per[0], navn: per[1] }, tid: dagerSiden(500) } },
+      ...av(...per, 300),
     },
     s6: {
       organisasjonId: org, giverId: 'g2', tittel: 'Nye noter og arrangementer', frist: '2025-06-01', sendt: '2025-05-20',
@@ -128,6 +146,18 @@ export function lagDemodata() {
     f1: { organisasjonId: org, soknadId: 's1', lopenummer: 1, leverandor: 'Nordic Brass', fakturanr: '2026-118', dato: '2026-05-12', belop: 30600, fil: null, dekker: { 'i1|k1': true }, lagtInnAv: { epost: kari[0], navn: kari[1] }, tid: dagerSiden(20), ...av(...kari, 20) },
     f2: { organisasjonId: org, soknadId: 's1', lopenummer: 2, leverandor: 'Clas Ohlson', fakturanr: 'Kvittering', dato: '2026-05-20', belop: 1850, fil: null, dekker: { 'utgift|u2': true }, lagtInnAv: { epost: per[0], navn: per[1] }, tid: dagerSiden(12), ...av(...per, 12) },
     f3: { organisasjonId: org, soknadId: 's1', lopenummer: 3, leverandor: 'Tono Instrumenter', fakturanr: '88123', dato: '2026-05-28', belop: 5900, fil: null, dekker: {}, lagtInnAv: { epost: kari[0], navn: kari[1] }, tid: dagerSiden(4), ...av(...kari, 4) },
+  };
+
+  Object.assign(fakturaer, {
+    f4: { organisasjonId: org, soknadId: 's5', lopenummer: 1, leverandor: 'Kontormøbler AS', fakturanr: '55012', dato: '2025-05-06', belop: 13800, fil: null, dekker: { 'utgift|u1': true }, merknad: '', lagtInnAv: { epost: per[0], navn: per[1] }, tid: dagerSiden(310), ...av(...per, 310) },
+    f5: { organisasjonId: org, soknadId: 's5', lopenummer: 2, leverandor: 'Clas Ohlson', fakturanr: 'Kvittering', dato: '2025-05-14', belop: 5960, fil: null, dekker: { 'utgift|u2': true }, merknad: '', lagtInnAv: { epost: per[0], navn: per[1] }, tid: dagerSiden(305), ...av(...per, 305) },
+  });
+  // Olavs godkjenning gjelder tallene slik de står i demodataene.
+  soknader.s5.revisorer = {
+    [revisornokkel('olav@revisor.no')]: {
+      epost: 'olav@revisor.no', navn: 'Olav Berg', merknad: 'Bilag 2 er en kassalapp uten spesifikasjon; beløpet er kontrollert mot kontoutskrift.',
+      godkjent: { tid: dagerSiden(280), avtrykk: revisjonsavtrykk({ id: 's5', ...soknader.s5 }, [], Object.entries(fakturaer).map(([id, f]) => ({ id, ...f }))) },
+    },
   };
 
   return { brukere, givere, behov, soknader, innkjop, leverandorer, fakturaer };

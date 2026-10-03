@@ -9,7 +9,7 @@
 //      bilder (også inne i PDF-bilag) krympes først, se bildekrymp.js.
 import { tilstand, innkjopFor, fakturaerFor, filBytes } from '../data/index.js';
 import { pott, fakturaDekker, giverandelOre, posttittel, revisjonsoppsummering, sumEgneMidler } from '../data/beregning.js';
-import { posterFor, fordelingFor } from '../sider/revisjon.js';
+import { posterFor, fordelingFor, fakturaposterFor } from '../sider/revisjon.js';
 import { belop, datoFelt } from './format.js';
 import { krympBilde, krympBilderIPdf } from './bildekrymp.js';
 
@@ -143,32 +143,54 @@ export async function lagRevisjonsrapport(s) {
   // ——— 2. Oversiktstabell ———
   nySide();
   tekst('Oversikt over fakturaer', MARG, 18, fet); y -= 30;
-  const kol = { nr: MARG, fnr: MARG + 30, dato: MARG + 110, lev: MARG + 175, belop: A4[0] - MARG - 150, gjelder: A4[0] - MARG - 135 };
-  const gjelderBredde = A4[0] - MARG - kol.gjelder;
+  const hoyrekant = A4[0] - MARG;
+  const kol = { nr: MARG, fnr: MARG + 30, dato: MARG + 110, lev: MARG + 175, stykk: hoyrekant - 75, belop: hoyrekant };
+  const postBredde = kol.stykk - 60 - kol.fnr;
   const tabellhode = () => {
-    tekst('NR', kol.nr, 8, fet, graa); tekst('FAKTURANR', kol.fnr, 8, fet, graa); tekst('DATO', kol.dato, 8, fet, graa); tekst('LEVERANDØR', kol.lev, 8, fet, graa); hoyre('BELØP', kol.belop, 8, fet, graa); tekst('GJELDER', kol.gjelder, 8, fet, graa);
+    tekst('NR', kol.nr, 8, fet, graa); tekst('FAKTURANR', kol.fnr, 8, fet, graa); tekst('DATO', kol.dato, 8, fet, graa); tekst('LEVERANDØR', kol.lev, 8, fet, graa); hoyre('BELØP', kol.belop, 8, fet, graa);
+    y -= 11;
+    tekst('Gjelder', kol.fnr, 8, font, graa); hoyre('Stykkpris', kol.stykk, 8, font, graa); hoyre('Tilbudt', kol.belop, 8, font, graa);
     y -= 6; strek(1.5, svart); y -= 16;
   };
   tabellhode();
   for (const f of fakturaer) {
-    const gjelder = fakturaDekker(f).map(id => poster.find(x => x.id === id)).filter(Boolean).map(posttittel).join(', ') || 'Ikke koblet';
-    const linjer = brytTekst(gjelder, 9, gjelderBredde);
-    // Merknaden (f.eks. forklaring på et avvik) står under «Gjelder», i grått.
-    const merknad = (f.merknad || '').trim() ? brytTekst(`Merknad: ${f.merknad.trim()}`, 8.5, gjelderBredde) : [];
+    // Det fakturaen gjelder står linje for linje under fakturaraden: gruppert
+    // per type, med tilbudt stykkpris og sum. Postene summerer ikke
+    // nødvendigvis til fakturabeløpet (frakt, delfaktura, kreditnota).
+    const dekket = fakturaDekker(f).map(id => poster.find(x => x.id === id)).filter(Boolean);
+    const grupper = fakturaposterFor(s, dekket);
+    const merknad = (f.merknad || '').trim() ? brytTekst(`Merknad: ${f.merknad.trim()}`, 8.5, kol.belop - kol.fnr) : [];
     const levLinjer = brytTekst(f.leverandor || '–', 9, kol.belop - 70 - kol.lev);
-    const hoyde = Math.max(levLinjer.length * 12, Math.max(1, linjer.length) * 12 + merknad.length * 11) + 8;
-    if (y - hoyde < MARG + 40) { nySide(); tabellhode(); }
+    // Lange lister fortsetter på neste side, under de samme overskriftene.
+    const plass = hoyde => {
+      if (y - hoyde >= MARG + 30) return;
+      nySide(); tabellhode();
+      tekst(String(f.lopenummer), kol.nr, 10, fet); tekst('forts.', kol.fnr, 9, font, graa); y -= 14;
+    };
+    if (y - levLinjer.length * 12 - 14 < MARG + 30) { nySide(); tabellhode(); }
     tekst(String(f.lopenummer), kol.nr, 10, fet);
     tekst(f.fakturanr || '–', kol.fnr, 9);
     tekst(f.dato ? datoFelt(f.dato) : '–', kol.dato, 9);
-    let yy = y;
-    for (const l of levLinjer) { side.drawText(trygg(l), { x: kol.lev, y: yy, size: 9, font, color: svart }); yy -= 12; }
     hoyre(f.belop == null ? '–' : belop(f.belop), kol.belop, 10, fet);
-    yy = y;
-    for (const l of linjer) { side.drawText(trygg(l), { x: kol.gjelder, y: yy, size: 9, font, color: svart }); yy -= 12; }
-    for (const l of merknad) { side.drawText(trygg(l), { x: kol.gjelder, y: yy, size: 8.5, font, color: graa }); yy -= 11; }
-    y -= hoyde - 8; strek(); y -= 16;
+    for (const l of levLinjer) { tekst(l, kol.lev, 9); y -= 12; }
+    y -= 2;
+    if (!dekket.length) { plass(12); tekst('Ikke koblet', kol.fnr, 9, font, graa); y -= 12; }
+    for (const g of grupper) {
+      // Mellomtittel bare når det er flere typer å skille fra hverandre.
+      if (grupper.length > 1) { plass(28); y -= 4; tekst(g.navn, kol.fnr, 8, fet, graa); y -= 12; }
+      for (const post of g.poster) {
+        const linjer = brytTekst(posttittel(post), 9, postBredde);
+        plass(linjer.length * 12);
+        if (post.stykkpris != null) hoyre(belop(post.stykkpris), kol.stykk, 9);
+        hoyre(belop(post.tilbudt), kol.belop, 9);
+        for (const l of linjer) { tekst(l, kol.fnr, 9); y -= 12; }
+      }
+    }
+    if (merknad.length) { plass(merknad.length * 11 + 2); y -= 2; }
+    for (const l of merknad) { tekst(l, kol.fnr, 8.5, font, graa); y -= 11; }
+    strek(); y -= 16;
   }
+  if (y < MARG + 60) nySide();
   y -= 4; strek(1.5, svart); y -= 16;
   tekst('Sum fakturert', kol.nr, 11, fet); hoyre(belop(fakturert), kol.belop, 12, fet);
   y -= 24;

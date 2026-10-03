@@ -759,6 +759,7 @@ export function revisjonsposter(soknad, innkjopListe, { tittelFor, levNavn, beho
       poster.push({
         id: `${i.id}/${l.id}`, type: 'linje', innkjopId: i.id, linjeId: l.id,
         tittel: `${Number(l.antall) || 0} × ${tittelFor(i, l)}`,
+        navn: tittelFor(i, l), antall: Number(l.antall) || 0, stykkpris: b.celle[l.id][v.valgtSid].netto,
         under: `${levNavn(i, v.valgtSid)} · ${i.navn || 'Innkjøp'}`,
         alternativ: (i.priser?.[l.id]?.[v.valgtSid]?.alternativ || '').trim(),
         etterSoknad: !!sl?.etterSoknad, notat: (sl?.notat || '').trim(),
@@ -786,13 +787,65 @@ export function sumEgneMidler(poster) {
 // trekkes fra før giverens andel regnes ut. `perPost` kommer fra
 // revisjonsoppsummering(). Gir { grupper: [{ navn, poster, tilbudt, fakturert,
 // kostnad, egne, giver, moms }], sum: { … } }.
-export function fordelingPerKategori(poster, perPost, prosent, typeRekkefolge = []) {
+// Postene gruppert per kategori (type) i søknadens typerekkefølge. Løse
+// utgifter uten type står for seg til slutt.
+export function kategorigrupper(poster, typeRekkefolge = []) {
   const utenType = p => p.type === 'utgift' && !p.kategori;
   const grupper = grupperPerType(poster.filter(p => !utenType(p)), p => p.kategori, typeRekkefolge)
     .map(g => ({ navn: g.type || 'Uten type', poster: g.elementer }));
   const utgifter = poster.filter(utenType);
   if (utgifter.length) grupper.push({ navn: 'Løse utgifter', poster: utgifter });
-  const ut = grupper.map(g => {
+  return grupper;
+}
+
+// Partiturrekkefølgen for janitsjarkorps. Det første instrumentet i varenavnet
+// avgjør («Altsax/Kornett/Horn» er en saksofon); navn som ikke gjenkjennes
+// kommer til slutt.
+const PARTITUR = [
+  /piccolo|fløyte/,
+  /obo/,
+  /fagott/,
+  /(ess|alt|bass)?[- ]?klarinett/,
+  /(sopran|alt|tenor|baryton|bass)?[- ]?(saksofon|saxofon|sax)/,
+  /kornett|(piccolo)?[- ]?trompet|flygelhorn/,
+  /(alt|valt|wald|tenor)?[- ]?horn/,
+  /(alt|tenor|bass)?[- ]?trombone/,
+  /baryton|eufonium|euphonium/,
+  /tuba|sousafon/,
+  /tromme|pauke|cymbal|klokkespill|xylofon|marimba|slagverk/,
+];
+
+export function partiturplass(navn) {
+  const t = String(navn || '').toLowerCase();
+  let best = null;
+  PARTITUR.forEach((re, plass) => {
+    const m = re.exec(t);
+    if (!m) return;
+    // Starter to treff på samme sted, vinner det lengste («barytonsaksofon»
+    // er en saksofon, «flygelhorn» er ikke et horn).
+    if (!best || m.index < best.index || (m.index === best.index && m[0].length > best.lengde)) best = { plass, index: m.index, lengde: m[0].length };
+  });
+  return best ? best.plass : PARTITUR.length;
+}
+
+const erInstrumenttype = type => /^instrument(er)?$/i.test(String(type || '').trim());
+
+// Det en faktura gjelder, slik det listes i revisjonsrapporten: gruppert per
+// type som på forsiden, instrumenter i partiturrekkefølge og resten
+// alfabetisk etter varenavn.
+export function grupperFakturaposter(poster, typeRekkefolge = []) {
+  const navn = p => p.navn ?? p.tittel ?? '';
+  const alfabetisk = (a, b) => navn(a).localeCompare(navn(b), 'nb');
+  return kategorigrupper(poster, typeRekkefolge).map(g => ({
+    ...g,
+    poster: [...g.poster].sort(erInstrumenttype(g.navn)
+      ? (a, b) => partiturplass(navn(a)) - partiturplass(navn(b)) || alfabetisk(a, b)
+      : alfabetisk),
+  }));
+}
+
+export function fordelingPerKategori(poster, perPost, prosent, typeRekkefolge = []) {
+  const ut = kategorigrupper(poster, typeRekkefolge).map(g => {
     const tilbudt = ore(g.poster.reduce((s, p) => s + p.tilbudt, 0));
     const fakturert = ore(g.poster.reduce((s, p) => s + (perPost[p.id]?.fakturert ?? 0), 0));
     const kostnad = ore(g.poster.reduce((s, p) => s + (perPost[p.id]?.fakturert ?? p.tilbudt), 0));

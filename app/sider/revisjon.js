@@ -6,7 +6,7 @@ import {
 } from '../data/index.js';
 import {
   revisjonsposter, fakturaavvik, fakturaDekker, revisjonsoppsummering, pott, sumFakturert,
-  leverandorNavn, posttittel, linjerUtenValg, fordelingPerKategori, sumEgneMidler, typerekkefolgeFor,
+  leverandorNavn, posttittel, linjerUtenValg, fordelingPerKategori, grupperFakturaposter, sumEgneMidler, typerekkefolgeFor,
 } from '../data/beregning.js';
 import { escapeHtml, kr, belop, datoFelt, tidspunkt, fornavn } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
@@ -41,6 +41,11 @@ export function posterFor(s) {
     levNavn: (i, sid) => leverandorNavn(i.leverandorer?.[sid], tilstand.leverandorer) || 'Ukjent leverandør',
     behovliste: tilstand.behov,
   });
+}
+
+// Det en faktura gjelder, gruppert og sortert for revisjonsrapporten.
+export function fakturaposterFor(s, poster) {
+  return grupperFakturaposter(poster, typerekkefolgeFor(s, fellesTyperekkefolge()));
 }
 
 // Sluttoppgjøret per kategori, i søknadens typerekkefølge.

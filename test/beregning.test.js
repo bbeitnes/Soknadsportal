@@ -802,3 +802,42 @@ test('erLast: søknaden er låst når den ikke lenger er et utkast', async () =>
   assert.equal(erLast({}), false); // gamle søknader uten status regnes som utkast
   for (const status of ['sendt', 'innvilget', 'avslatt', 'avsluttet']) assert.equal(erLast({ status }), true);
 });
+
+test('partiturplass: første instrument i navnet avgjør, ukjente kommer sist', async () => {
+  const { partiturplass } = await import('../app/data/beregning.js');
+  const rekke = ['Piccolo', 'Fløyter', 'Obo', 'Fagott', 'Bassklarinett', 'Barytonsaksofon', 'Kornett', 'Flygelhorn', 'Valthorn', 'Basstrombone', 'Baryton', 'Tuba', 'Skarptromme', 'Flexatone'];
+  const plasser = rekke.map(partiturplass);
+  assert.deepEqual(plasser, [...plasser].sort((a, b) => a - b));
+  assert.equal(partiturplass('Altsax/Kornett/Horn'), partiturplass('Saksofon'));
+  assert.equal(partiturplass('Flygelhorn'), partiturplass('Trompet'));
+  assert.equal(partiturplass('Horn'), partiturplass('Althorn'));
+  assert.equal(partiturplass('Barytonsax'), partiturplass('Tenorsaksofon'));
+  assert.ok(partiturplass('Baryton') > partiturplass('Trombone'));
+  assert.ok(partiturplass('Kubjelle') > partiturplass('Pauker'));
+});
+
+test('grupperFakturaposter: typer som på forsiden, instrumenter i partiturrekkefølge, resten alfabetisk', async () => {
+  const { grupperFakturaposter } = await import('../app/data/beregning.js');
+  const post = (navn, kategori, type = 'linje') => ({ id: navn, type, navn, tittel: `1 × ${navn}`, kategori, tilbudt: 100 });
+  const poster = [
+    post('Ventilolje', 'Utstyr'), post('Tuba', 'Instrumenter'), post('Agogo Bell', 'Instrumenter'), post('Horn', 'Instrumenter'),
+    post('Klarinett', 'Instrumenter'), post('Bøylefett', 'Utstyr'), post('Kornett', 'Instrumenter'), post('Altsax/Kornett/Horn', 'Instrumenter'),
+    post('Fri linje', ''), { id: 'u', type: 'utgift', tittel: 'Porto', kategori: '', tilbudt: 50 }, post('Fløyte', 'Instrumenter'), post('Horn', 'Instrumenter'),
+  ];
+  const grupper = grupperFakturaposter(poster, ['Utstyr', 'Instrumenter']);
+  assert.deepEqual(grupper.map(g => g.navn), ['Utstyr', 'Instrumenter', 'Uten type', 'Løse utgifter']);
+  assert.deepEqual(grupper[0].poster.map(p => p.navn), ['Bøylefett', 'Ventilolje']);
+  assert.deepEqual(grupper[1].poster.map(p => p.navn), ['Fløyte', 'Klarinett', 'Altsax/Kornett/Horn', 'Kornett', 'Horn', 'Horn', 'Tuba', 'Agogo Bell']);
+  // Typen «Instrument» (entall) gjelder også, uten manuell rekkefølge.
+  const en = grupperFakturaposter([post('Tuba', 'Instrument'), post('Fløyte', 'Instrument')]);
+  assert.deepEqual(en[0].poster.map(p => p.navn), ['Fløyte', 'Tuba']);
+});
+
+test('revisjonsposter: innkjøpslinjer har varenavn, antall og netto stykkpris', async () => {
+  const { revisjonsposter } = await import('../app/data/beregning.js');
+  const i = { id: 'i1', linjer: { l1: { antall: 3 } }, leverandorer: { a: {} }, priser: { l1: { a: { raa: '100 -10%' } } }, valgt: { l1: 'a' } };
+  const s = { utgifter: { u1: { beskrivelse: 'Porto', belop: 59 } } };
+  const [linje, utgift] = revisjonsposter(s, [i], { tittelFor: () => 'Bøylefett', levNavn: () => 'L' });
+  assert.deepEqual([linje.navn, linje.antall, linje.stykkpris, linje.tilbudt], ['Bøylefett', 3, 90, 270]);
+  assert.equal(utgift.stykkpris, undefined);
+});

@@ -13,7 +13,6 @@ Velg samme lokasjon som de andre (europe-west). Produksjonsmodus.
 - **Firestore:** lim inn HELE `firebase/firestore.rules` i Rules-fanen for
   hver av de to databasene (velg databasen øverst først).
 - **Storage:** lim inn HELE `firebase/storage.rules.samlet` under Storage → Rules.
-  Filen inneholder også Bestillingsportal sine regler — de må være med.
 - **Revisorer:** reglene som skjermer revisorer må være limt inn i en database
   FØR første revisor inviteres der. Med eldre regler er enhver rad i `brukere`
   et fullt medlem. Prøv reglene som beskrevet under.

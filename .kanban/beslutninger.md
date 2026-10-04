@@ -159,3 +159,9 @@ Dataene finnes ellers bare hos Google (kort 0004). Kopien tas daglig i åpent fo
 Kopijobben har en nøkkel som bare kan lese, og restore-testen en tjenestekonto som bare kan skrive til `soknadsportal-restore` og `soknadsportal/restore/`. Da kan verken en feil i et skript eller en lekket GitHub-secret ødelegge det kopien skal beskytte. Skriving til prod utenfor portalen skjer bare med en persons egen innlogging, etter fersk kopi og uttrykkelig bekreftelse.
 **Snur når:** Vi får et behov som ikke kan løses uten (for eksempel automatisk migrering) – da tas det opp som eget kort.
 **Konsekvens for nye kort:** Ingen kort får gi en GitHub-jobb eller annen automatikk skriverett til `soknadsportal` eller `soknadsportal/prod/`. Status fra jobber vises i GitHub, ikke i portalens data.
+
+## B-26 · Jobber melder status til portalen gjennom en åpen statusfil
+**Bestemt** 2026-10-04.
+Kopijobben og restore-testen legger `sikkerhetskopi-status.json` i portalens mappe på webhotellet, og portalen henter den fra sin egen adresse (kort 0005). Slik får portalen en statuslampe uten at en jobb får skriverett til prod (B-25) og uten at portalen spør et eksternt system (B-19). Filen er åpen for alle på nettet.
+**Snur når:** Status må skjermes – da trengs en annen kanal, og B-25 må tas opp på nytt.
+**Konsekvens for nye kort:** Statusfilen inneholder aldri data fra portalen: bare tidspunkt, antall og bestått/ikke bestått. Ingen navn, beløp, e-postadresser eller filstier. Farge og alder regnes ut i portalen, ikke i filen.

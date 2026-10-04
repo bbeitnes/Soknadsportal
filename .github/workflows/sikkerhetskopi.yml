@@ -29,6 +29,8 @@ jobs:
           GOOGLE_NOKKEL_JSON: ${{ secrets.KOPI_GOOGLE_NOKKEL }}
           KOPI_PASSORD: ${{ secrets.KOPI_PASSORD }}
           KOPI_SFTP_MAPPE: ${{ secrets.KOPI_SFTP_MAPPE }}
+          # Portalens mapper (prod og test) der statusfilen til lampen legges (B-26)
+          KOPI_STATUS_MAPPER: /customers/7/7/8/chd71y6vo/webroots/r1057943/Soknadsportal,/customers/7/7/8/chd71y6vo/webroots/r1057943/Soknadsportal-test
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_USERNAME: ${{ secrets.SFTP_USERNAME }}
           SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}

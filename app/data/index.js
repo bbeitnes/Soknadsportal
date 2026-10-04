@@ -6,8 +6,8 @@
 // stier for søknadslinjer), så to som redigerer samtidig bare overskriver
 // hverandre på samme felt: siste lagring per felt vinner.
 import { lager, innlogging, SLETT } from './lager.js';
-import { ORGANISASJON_ID } from '../config/app-config.js';
-import { linjeliste, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer, linjetype, anskaffetPerBehov, finansierteLinjer, revisornokkel, revisjonsavtrykk, revisorstatus, fakturakommentarer } from './beregning.js';
+import { ORGANISASJON_ID, MILJO } from '../config/app-config.js';
+import { linjeliste, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer, linjetype, anskaffetPerBehov, finansierteLinjer, revisornokkel, revisjonsavtrykk, revisorstatus, fakturakommentarer, kopistatus } from './beregning.js';
 
 export { innlogging };
 
@@ -21,6 +21,7 @@ export const tilstand = {
   fakturaer: [],
   brukere: [],
   innstillinger: [],
+  kopistatus: null, // innholdet i sikkerhetskopi-status.json, null = ukjent
   lastet: new Set(),
 };
 
@@ -665,6 +666,34 @@ export function invitasjonstekst(bruker) {
 // første lagring.
 export function organisasjon() {
   return tilstand.innstillinger.find(i => i.id === ORGANISASJON_ID) || {};
+}
+
+// Status for sikkerhetskopien av prod. Jobbene i backup/ legger en liten fil
+// ved siden av portalen (B-26); ingenting av dette ligger i databasen. Mangler
+// filen (som på dev), er status ukjent. I demo er den oppdiktet:
+// `demoKopiAlder = 30` (timer) i konsollen gir gul, 60 rød og null ukjent –
+// eller i adressen: `?demo&kopialder=30` (`ukjent` for grå).
+export async function hentKopistatus() {
+  if (MILJO === 'demo') {
+    const iAdressen = new URLSearchParams(location.search).get('kopialder');
+    const timer = 'demoKopiAlder' in window ? window.demoKopiAlder
+      : iAdressen === null ? 5 : iAdressen === 'ukjent' ? null : Number(iAdressen);
+    tilstand.kopistatus = timer === null ? null : {
+      kopi: { tatt: new Date(Date.now() - timer * 3600000).toISOString(), dokumenter: 122, filer: 24 },
+      restoreTest: { kjort: new Date(Date.now() - 3 * 86400000).toISOString(), bestatt: true },
+    };
+    return;
+  }
+  try {
+    const svar = await fetch(`sikkerhetskopi-status.json?t=${Date.now()}`, { cache: 'no-store' });
+    tilstand.kopistatus = svar.ok ? await svar.json() : null;
+  } catch {
+    tilstand.kopistatus = null;
+  }
+}
+
+export function kopistatusNaa() {
+  return kopistatus(tilstand.kopistatus, Date.now());
 }
 
 export function oppdaterInnstillinger(id, felt) {

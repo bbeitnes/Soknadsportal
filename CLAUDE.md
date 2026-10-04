@@ -175,6 +175,13 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   `test/sikkerhetskopi.test.js`. Bare `backup/lib/firebase.mjs` snakker med Google.
   Kopien tar alle samlinger den finner, men nye lagringssteder utenfor `STORAGE_PREFIKS` må legges til.
   Dokumenter lagrer filstier MED miljøprefiks; gjenopprettingen skriver dem om (`byttPrefiks()`).
+- Statuslampe for sikkerhetskopien (B-26): jobbene legger `sikkerhetskopi-status.json` (bare tidspunkt,
+  antall, bestått – `flettStatus()` i `backup/lib/status.mjs`) i portalens mapper på ProISP.
+  `hentKopistatus()` leser filen (ved innlogging, hver halvtime og når Innstillinger åpnes),
+  `kopistatus()` i `beregning.js` gir fargen (grønn < 26 t, gul < 50 t, rød, grå = ukjent).
+  Prikken i toppmenyen (`#kopilampe`, tegnes i `app.js`) har tekst bare når den er gul/rød; detaljene
+  står under Innstillinger → Organisasjon. Revisor og mobilskjermen ser den ikke. På dev finnes ingen
+  fil (grå); i `?demo` styres den med `?demo&kopialder=30` i adressen (timer, `ukjent` = grå) eller `demoKopiAlder = 30` i konsollen.
 
 ## Kjøre lokalt (dev)
 - Dev-serveren er en Docker-container (`docker-compose.yml`, Apache som på ProISP, `app/` montert

@@ -1,9 +1,9 @@
 // Innstillinger: samler alt oppsett. Denne siden har organisasjonens
 // kontaktinfo (den står på bestillinger til leverandører). Givere,
 // Leverandører og Brukere er egne sider som deler undermenyen herfra.
-import { erAdmin, organisasjon } from '../data/index.js';
+import { erAdmin, organisasjon, kopistatusNaa } from '../data/index.js';
 import { ORGANISASJON_ID } from '../config/app-config.js';
-import { escapeHtml } from '../ui/format.js';
+import { escapeHtml, datoKl, heltall } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
 
 const SEKSJONER = [
@@ -31,6 +31,18 @@ const FELT = [
   { id: 'fakturainfo', navn: 'Faktura sendes til', linjer: 3, hjelp: 'F.eks. e-postadresse for faktura, eller hva fakturaen skal merkes med.' },
 ];
 
+// Status for sikkerhetskopien (B-26). Fargen på første linje er den samme som prikken i toppmenyen.
+function kopistatusHtml() {
+  const k = kopistatusNaa(), r = k.restore;
+  const antall = k.dokumenter === null ? '' : ` – ${heltall(k.dokumenter)} dokumenter, ${heltall(k.filer)} filer`;
+  return `
+    <div class="kopistatus">
+      <span class="etikett">Sikkerhetskopi</span>
+      <div><span class="lampe lampe-${k.farge}"></span>Siste sikkerhetskopi av prod: ${k.tatt ? datoKl(k.tatt) + antall : 'ukjent'}</div>
+      <div><span class="lampe lampe-${r.farge}"></span>Siste restore-test: ${r.kjort ? `${datoKl(r.kjort)} – ${r.bestatt ? 'bestått' : 'ikke bestått'}` : 'ukjent'}</div>
+    </div>`;
+}
+
 export const innstillingerSide = {
   meny: 'innstillinger',
 
@@ -56,6 +68,7 @@ export const innstillingerSide = {
       <main class="innhold" style="overflow:auto">
         <div class="hint">Kontaktinfoen står på bestillinger dere laster ned fra Innkjøp.${admin ? '' : ' Den endres av en administrator.'}</div>
         <div class="to-kol" style="max-width:820px; gap:16px 24px">${FELT.map(felt).join('')}</div>
+        ${kopistatusHtml()}
       </main>`;
   },
 };

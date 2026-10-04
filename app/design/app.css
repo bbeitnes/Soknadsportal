@@ -291,6 +291,17 @@ table.matrise { border-collapse: separate; border-spacing: 0; min-width: 100%; f
 body.mobilside .toppmeny nav a:not(.meny-kvittering) { display: none; }
 body.mobilside .meny-kvittering { display: inline-flex; }
 
+/* Statuslampe for sikkerhetskopien. Designsystemet har ingen grønn/gul, så lampefargene er egne. */
+.lampe { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--color-neutral-400); }
+.lampe-gronn { background: #2e9e5b; }
+.lampe-gul { background: #e0a800; }
+.lampe-rod { background: var(--color-accent); }
+.kopilampe { display: inline-flex; align-items: center; gap: 7px; min-height: 28px; padding: 0 4px; font-size: 13px; font-weight: 600; color: var(--color-text); text-decoration: none; white-space: nowrap; }
+.kopilampe:hover { background: var(--color-surface); }
+.kopistatus { display: grid; gap: 6px; margin-top: 28px; max-width: 820px; font-size: 14px; }
+.kopistatus div { display: flex; align-items: center; gap: 8px; }
+body.revisor .kopilampe, body.mobilside .kopilampe { display: none; }
+
 /* Revisor ser bare «Revisjon» i toppmenyen */
 .toppmeny nav a.meny-revisor { display: none; }
 body.revisor .toppmeny nav a { display: none; }

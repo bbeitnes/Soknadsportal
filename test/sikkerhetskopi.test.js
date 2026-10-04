@@ -10,6 +10,7 @@ import { kod, dekod, kanonisk, byttPrefiks } from '../backup/lib/koding.mjs';
 import { beholdes, stempel } from '../backup/lib/oppbevaring.mjs';
 import { LokalLager } from '../backup/lib/lager.mjs';
 import { MinneMal } from '../backup/lib/minne.mjs';
+import { flettStatus } from '../backup/lib/status.mjs';
 import { taKopi, rydd, listeKopier, velgKopi, lesKopi, hentKopi, planlegg, gjenopprett, kontroller } from '../backup/lib/kjerne.mjs';
 
 const PASSORD = 'riktig hest batteri';
@@ -210,4 +211,15 @@ test('en avbrutt opplasting (feil størrelse) lastes opp på nytt ved neste kopi
   const restore = new MinneMal('soknadsportal-restore', 'soknadsportal/restore');
   await gjenopprett({ mal: restore, lager, passord: PASSORD, bilde, tomForst: true });
   assert.equal((await kontroller({ mal: restore, bilde })).ok, true);
+});
+
+test('statusfilen: jobbene oppdaterer hver sin del, og bare tidspunkt, antall og bestått slipper gjennom (B-26)', () => {
+  const kopi = { tatt: '2026-10-05T02:17:00.000Z', dokumenter: 122, filer: 24 };
+  const etterKopi = flettStatus(null, { kopi: { ...kopi, hemmelig: 'kari@example.com' } });
+  assert.deepEqual(etterKopi, { kopi });
+  const etterTest = flettStatus({ ...etterKopi, annet: 'skal bort' }, { restoreTest: { kjort: '2026-10-01T03:43:00.000Z', bestatt: true, sti: 'x' } });
+  assert.deepEqual(etterTest, { kopi, restoreTest: { kjort: '2026-10-01T03:43:00.000Z', bestatt: true } });
+  const nyKopi = flettStatus(etterTest, { kopi: { ...kopi, tatt: '2026-10-06T02:17:00.000Z' } });
+  assert.equal(nyKopi.restoreTest.bestatt, true);
+  assert.equal(nyKopi.kopi.tatt, '2026-10-06T02:17:00.000Z');
 });

@@ -297,6 +297,12 @@ node backup/sjekk-tilgang.mjs --rolle restore
 ### 9.4 Daglig drift
 - **Kopien** tas hver natt (02:17 UTC) av Actions-jobben «Sikkerhetskopi av prod». Fersk kopi på
   kommando: Actions → «Sikkerhetskopi av prod» → Run workflow. Feiler den, sender GitHub e-post.
+- **Lampen i portalen:** etter en vellykket kopi legger jobben `sikkerhetskopi-status.json` i
+  portalens mapper (`KOPI_STATUS_MAPPER` i jobbene: `Soknadsportal` og `Soknadsportal-test`), og
+  restore-testen fører inn sitt tidspunkt samme sted. Filen er åpen på nettet og har bare
+  tidspunkt, antall og bestått (B-26). Prikken i toppmenyen er grønn under 26 timer, gul til 50,
+  så rød. Lar ikke filen seg skrive, blir jobben rød selv om kopien er tatt. Skal kopier tatt fra
+  Mac-en også oppdatere lampen, settes `KOPI_STATUS_MAPPER` i `backup/.env`.
 - **Oppbevaring:** alle kopier fra de siste 30 dagene, og den første i hver måned i 12 måneder.
   Filer lastes opp én gang; en fil som slettes i portalen ligger i arkivet så lenge en kopi viser til den.
 - **GitHub slår av planlagte jobber** etter 60 dager uten commits i repoet, og varsler på e-post

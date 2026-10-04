@@ -1009,3 +1009,32 @@ test('fakturakommentarer: bare tildelte revisorer, tomme kommentarer teller ikke
   g.soknad.tilgang = ['olav@revisor.no'];
   assert.deepEqual(fakturakommentarer(g.soknad, 'f1', brukere).map(k => k.navn), ['Olav Berg']);
 });
+
+test('kopistatus: grønn under 26 timer, gul til 50, rød over, grå når status er ukjent', async () => {
+  const { kopistatus } = await import('../app/data/beregning.js');
+  const na = Date.parse('2026-10-05T12:00:00Z');
+  const for_ = timer => ({ kopi: { tatt: new Date(na - timer * 3600000).toISOString(), dokumenter: 122, filer: 24 } });
+  assert.equal(kopistatus(for_(5), na).farge, 'gronn');
+  assert.equal(kopistatus(for_(26), na).farge, 'gronn');
+  assert.equal(kopistatus(for_(26.1), na).farge, 'gul');
+  assert.equal(kopistatus(for_(50), na).farge, 'gul');
+  assert.equal(kopistatus(for_(50.1), na).farge, 'rod');
+  assert.deepEqual([kopistatus(for_(5), na).dokumenter, kopistatus(for_(5), na).filer], [122, 24]);
+  for (const ukjent of [null, {}, { kopi: {} }, { kopi: { tatt: 'tull' } }]) {
+    const k = kopistatus(ukjent, na);
+    assert.deepEqual([k.farge, k.tatt, k.dokumenter, k.restore.farge], ['gra', null, null, 'gra']);
+  }
+});
+
+test('kopistatus: restore-testen er gul når den er over 35 dager gammel eller ikke bestått, og styrer ikke lampen', async () => {
+  const { kopistatus } = await import('../app/data/beregning.js');
+  const na = Date.parse('2026-10-05T12:00:00Z');
+  const med = (dager, bestatt) => kopistatus({
+    kopi: { tatt: new Date(na - 3600000).toISOString(), dokumenter: 1, filer: 1 },
+    restoreTest: { kjort: new Date(na - dager * 86400000).toISOString(), bestatt },
+  }, na);
+  assert.equal(med(4, true).restore.farge, 'gronn');
+  assert.equal(med(36, true).restore.farge, 'gul');
+  assert.equal(med(1, false).restore.farge, 'gul');
+  assert.equal(med(36, false).farge, 'gronn');
+});

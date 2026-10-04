@@ -13,6 +13,7 @@ import { createInterface } from 'node:readline/promises';
 import { FirebaseMal, PROD, RESTORE } from './lib/firebase.mjs';
 import { velgKopi, lesKopi, taKopi, planlegg, gjenopprett, kontroller } from './lib/kjerne.mjs';
 import { arkiv, argumenter, krev, skrivTabell, kjor } from './lib/oppsett.mjs';
+import { meldStatus } from './lib/status.mjs';
 
 kjor(async () => {
   const arg = argumenter({ dato: 'verdi', fra: 'verdi', mal: 'verdi' });
@@ -47,6 +48,7 @@ kjor(async () => {
     skrivTabell([['', 'I kopien', 'Lagt tilbake', 'Avvik'],
       ...Object.entries(k.samlinger).map(([s, x]) => [s, x.kopi, x.lagtTilbake, x.avvik]),
       ['Filer', k.filer.kopi, k.filer.lagtTilbake, k.filer.avvik]]);
+    if (database === RESTORE) await meldStatus({ restoreTest: { kjort: new Date().toISOString(), bestatt: k.ok } });
     if (!k.ok) throw new Error('Det som ble lagt tilbake stemmer ikke med kopien.');
     console.log(database === RESTORE
       ? '\nRestore-testen er bestått. Se på dataene: http://localhost:8430/?restore'

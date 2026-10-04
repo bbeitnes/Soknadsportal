@@ -4,6 +4,7 @@
 import { FirebaseMal, PROD } from './lib/firebase.mjs';
 import { taKopi, rydd, tell } from './lib/kjerne.mjs';
 import { arkiv, krev, skrivTabell, kjor } from './lib/oppsett.mjs';
+import { meldStatus } from './lib/status.mjs';
 
 kjor(async () => {
   const passord = krev('KOPI_PASSORD');
@@ -15,6 +16,9 @@ kjor(async () => {
     skrivTabell([['Samling', 'Dokumenter'], ...Object.entries(tell(bilde.dokumenter)), ['Filer i Storage', bilde.filer.length], ['– nye siden sist', nyeFiler]]);
     const r = await rydd({ lager, passord, logg: console.log });
     console.log(`\nRyddet bort ${r.slettedeKopier} gamle kopier og ${r.slettedeFiler} filer ingen kopi viser til lenger.`);
+    // Kopien er lagret før lampen i portalen får vite om den.
+    await lager.lukk();
+    await meldStatus({ kopi: { tatt: bilde.tatt, dokumenter: bilde.dokumenter.length, filer: bilde.filer.length } });
   } finally {
     await lager.lukk();
   }

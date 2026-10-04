@@ -9,8 +9,8 @@
 // og markøren, utvalget og det som er skrevet flyttes over til det nye feltet.
 // Da oppdateres f.eks. kostnaden med én gang man tabber fra antall til pris.
 import { APPNAVN, MILJO } from './config/app-config.js';
-import { tilstand, innlogging, hentTilgang, startLytting, alleLastet, erRevisor, oppdaterGiver, oppdaterBehov, oppdaterSoknad, oppdaterInnkjop, oppdaterLeverandor, oppdaterFaktura, oppdaterInnstillinger } from './data/index.js';
-import { escapeHtml } from './ui/format.js';
+import { tilstand, innlogging, hentTilgang, startLytting, alleLastet, erRevisor, hentKopistatus, kopistatusNaa, oppdaterGiver, oppdaterBehov, oppdaterSoknad, oppdaterInnkjop, oppdaterLeverandor, oppdaterFaktura, oppdaterInnstillinger } from './data/index.js';
+import { escapeHtml, datoKl } from './ui/format.js';
 import { kobleLagringsstatus, lagre, visMelding } from './ui/lagring.js';
 import { tolkFelt, tolkNokkel } from './ui/felt.js';
 import { registrerSkall } from './ui/visning.js';
@@ -64,7 +64,32 @@ function byttSide() {
     if (aktiv) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
   tegnNaa();
+  if (navn === 'innstillinger') oppdaterKopilampe();
 }
+
+// ——— Statuslampe for sikkerhetskopien ———
+// Prikk i toppmenyen: alene når kopien er fersk, med tekst når den er gammel.
+// Status hentes ved innlogging, hver halvtime og når Innstillinger åpnes, så
+// en fane som står åpen også oppdager at kopieringen har stoppet. Lampen
+// ligger utenfor siden og kan tegnes mens et felt har fokus.
+function tegnKopilampe() {
+  const el = document.getElementById('kopilampe');
+  el.hidden = !tilstand.meg || erRevisor();
+  const k = kopistatusNaa();
+  const gammel = k.farge === 'gul' || k.farge === 'rod';
+  el.title = k.tatt ? `Siste sikkerhetskopi av prod: ${datoKl(k.tatt)}` : 'Sikkerhetskopi: ukjent status';
+  el.innerHTML = `<span class="lampe lampe-${k.farge}"></span>${gammel ? `Ingen kopi siden ${datoKl(k.tatt)}` : ''}`;
+}
+
+async function oppdaterKopilampe() {
+  await hentKopistatus();
+  if (!tilstand.meg) return;
+  tegnKopilampe();
+  if (gjeldende?.side === innstillingerSide) tegn();
+}
+setInterval(() => { if (tilstand.meg && !erRevisor()) oppdaterKopilampe(); }, 30 * 60 * 1000);
+// Klikk på lampen henter alltid status på nytt, også når Innstillinger allerede er åpen.
+document.getElementById('kopilampe').addEventListener('click', () => oppdaterKopilampe());
 
 // ——— Tegning ———
 
@@ -315,6 +340,7 @@ function visInnlogging(beskjed) {
   gjeldende = null;
   document.getElementById('meny').hidden = true;
   document.getElementById('lagrestatus').hidden = true;
+  document.getElementById('kopilampe').hidden = true;
   document.getElementById('meg').hidden = true;
   innloggingsside.vis(rot, beskjed);
 }
@@ -347,6 +373,7 @@ async function start() {
     document.getElementById('meny').hidden = false;
     document.getElementById('lagrestatus').hidden = false;
     visMeg();
+    if (!erRevisor()) oppdaterKopilampe();
     stoppLytting = startLytting(() => tegn(), err => {
       console.error(err);
       rot.innerHTML = '<div class="laster">Kunne ikke hente data. Last siden på nytt.</div>';

@@ -1032,6 +1032,33 @@ export function revisjonGodkjent(statuser) {
   return statuser.length > 0 && statuser.every(r => r.status === 'godkjent');
 }
 
+// ——— Statuslampe for sikkerhetskopien ———
+// `status` er innholdet i sikkerhetskopi-status.json (skrives av jobbene i
+// backup/, B-26) eller null når filen ikke kan leses. Fargen lagres ikke; den
+// regnes ut av alderen: kopien tas hver natt, så over 26 timer betyr at én
+// natt er hoppet over, over 50 at to er det. Restore-testen kjører månedlig.
+export const KOPI_GUL_TIMER = 26;
+export const KOPI_ROD_TIMER = 50;
+export const RESTORE_GUL_DAGER = 35;
+
+export function kopistatus(status, na) {
+  const tid = iso => { const t = Date.parse(iso ?? ''); return Number.isNaN(t) ? null : t; };
+  const tatt = tid(status?.kopi?.tatt);
+  const timer = tatt === null ? null : (na - tatt) / 3600000;
+  const kjort = tid(status?.restoreTest?.kjort);
+  const bestatt = status?.restoreTest?.bestatt === true;
+  return {
+    farge: timer === null ? 'gra' : timer > KOPI_ROD_TIMER ? 'rod' : timer > KOPI_GUL_TIMER ? 'gul' : 'gronn',
+    tatt,
+    dokumenter: status?.kopi?.dokumenter ?? null,
+    filer: status?.kopi?.filer ?? null,
+    restore: {
+      kjort, bestatt,
+      farge: kjort === null ? 'gra' : !bestatt || na - kjort > RESTORE_GUL_DAGER * 86400000 ? 'gul' : 'gronn',
+    },
+  };
+}
+
 // ——— Import av behovsliste fra regneark ———
 // Tekst limt inn fra Excel/Google Sheets er tabulatorseparert; CSV-filer
 // bruker semikolon eller komma. Felt kan stå i hermetegn.

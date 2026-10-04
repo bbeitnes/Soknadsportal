@@ -147,3 +147,15 @@ Teksten skrives utenfor portalen og lastes opp i Dokumenter-listen. Skriving i p
 Bryter bevisst med B-09 (kort 0002). Revisjonen skal kunne gjøres på nett: revisor logger inn, ser bare søknadene hen er tildelt (`soknader.<id>.tilgang`), er skrivebeskyttet og kan bare skrive sin egen oppføring i `soknader.<id>.revisorer` (godkjenning, merknad, kommentarer). Bare rollen Revisor kan tildeles, så den som fører regnskapet ikke godkjenner det selv. Godkjenningen er en innlogget persons handling med avtrykk av tallene – ikke en BankID-signatur. Bruker og Administrator ser og kan fortsatt alt; resten av B-09 står.
 **Snur når:** En giver krever kvalifisert signatur (da signeringstjeneste, som krever serverdel – se B-20), eller organisasjonen vil skjerme søknader også for vanlige brukere (`tilgang`-listen er laget for det).
 **Konsekvens for nye kort:** Alt nytt som kan skrives må si om revisor kan lese det, og revisor skal aldri kunne skrive utenfor sin egen oppføring. Nye samlinger knyttet til en søknad må skjermes i reglene på samme måte som innkjøp og fakturaer. Endres det som inngår i avtrykket, blir gamle godkjenninger ugyldige.
+
+## B-24 · Sikkerhetskopien dekker alle samlinger og filer
+**Bestemt** 2026-10-04.
+Dataene finnes ellers bare hos Google (kort 0004). Kopien tas daglig i åpent format (JSON per dokument + filene), kryptert, til ProISP, og restore-testen legger den i `soknadsportal-restore` og teller dokumenter per samling og filer. En kopi som mangler en samling eller et lagringssted er ikke en kopi, og mangelen oppdages først når den trengs.
+**Snur når:** Aldri for prinsippet. Lagringsstedet (ProISP) kan byttes hvis plassen ikke holder eller vi vil ha kopier som er låst mot sletting.
+**Konsekvens for nye kort:** En ny samling, et nytt Storage-prefiks eller data lagret et annet sted må inn i kopiskriptet og i restore-testens kontroll, og restore-testen kjøres på nytt. Filstier i dokumenter har miljøprefiks (`soknadsportal/prod/…`), og gjenopprettingen skriver dem om til målets prefiks – nye felt med filstier må derfor lagre hele stien slik `lager.lastOpp()` gir den.
+
+## B-25 · Automatiske jobber har aldri skriverett til prod
+**Bestemt** 2026-10-04.
+Kopijobben har en nøkkel som bare kan lese, og restore-testen en tjenestekonto som bare kan skrive til `soknadsportal-restore` og `soknadsportal/restore/`. Da kan verken en feil i et skript eller en lekket GitHub-secret ødelegge det kopien skal beskytte. Skriving til prod utenfor portalen skjer bare med en persons egen innlogging, etter fersk kopi og uttrykkelig bekreftelse.
+**Snur når:** Vi får et behov som ikke kan løses uten (for eksempel automatisk migrering) – da tas det opp som eget kort.
+**Konsekvens for nye kort:** Ingen kort får gi en GitHub-jobb eller annen automatikk skriverett til `soknadsportal` eller `soknadsportal/prod/`. Status fra jobber vises i GitHub, ikke i portalens data.

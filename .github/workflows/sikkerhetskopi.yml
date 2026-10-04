@@ -1,0 +1,35 @@
+name: Sikkerhetskopi av prod
+# Kopierer alle samlinger og filer i prod til ProISP hver natt (OPPSETT.md §9).
+# Nøkkelen kan bare lese (B-25). «Run workflow» tar en fersk kopi med en gang.
+# GitHub slår av planlagte jobber etter 60 dager uten commits i repoet, og
+# varsler på e-post først – slå den på igjen under Actions.
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+concurrency: sikkerhetskopi
+jobs:
+  kopier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: backup
+    steps:
+      - name: Hent koden
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backup/package-lock.json
+      - run: npm ci --ignore-scripts
+      - name: Ta kopi og rydd
+        env:
+          GOOGLE_NOKKEL_JSON: ${{ secrets.KOPI_GOOGLE_NOKKEL }}
+          KOPI_PASSORD: ${{ secrets.KOPI_PASSORD }}
+          KOPI_SFTP_MAPPE: ${{ secrets.KOPI_SFTP_MAPPE }}
+          SFTP_HOST: ${{ secrets.SFTP_HOST }}
+          SFTP_USERNAME: ${{ secrets.SFTP_USERNAME }}
+          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+        run: node kopier.mjs

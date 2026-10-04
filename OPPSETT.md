@@ -177,3 +177,167 @@ nye før den gamle slettes.
    deploy til test (Actions → «Run workflow») og logg inn. Deretter prod.
 3. Bytt nøkkel i KorpsApp og Bestillingsportal og deploy dem.
 4. Når alle tre er sjekket: slett den gamle nøkkelen. Først da er den ubrukelig.
+
+## 9. Sikkerhetskopi og gjenoppretting
+Dataene (Firestore-databasen `soknadsportal` og filene under `soknadsportal/prod/` i bøtta) vernes
+på to måter. Skriptene ligger i `backup/` og publiseres ikke.
+
+| Fare | Vern |
+|---|---|
+| Noe slettes/ødelegges i portalen | Googles egne ordninger (§9.1) |
+| Google-prosjektet eller kontoen går tapt | Daglig kryptert kopi til ProISP (§9.2–9.4) |
+
+Automatiske jobber har aldri skriverett til prod (B-25): kopijobben kan bare lese, restore-testen
+kan bare skrive til `soknadsportal-restore`.
+
+Minst én person til bør ha eierrolle i Google-prosjektet og kjenne krypteringspassordet (§9.3).
+
+### 9.1 Googles egne ordninger (settes én gang, krever Blaze-abonnement)
+Sjekk først at prosjektet står på Blaze: Firebase Console → nederst i venstremenyen.
+Fra Cloud Shell på console.cloud.google.com:
+
+```bash
+P=skiensskolemusikk-b5cbc; B=skiensskolemusikk-b5cbc.firebasestorage.app
+# Gjenoppretting til et tidspunkt: 7 dager tilbake, minutt for minutt
+gcloud firestore databases update --database=soknadsportal --enable-pitr --project=$P
+# Daglig backup hos Google, beholdes i 4 uker
+gcloud firestore backups schedules create --database=soknadsportal --recurrence=daily --retention=4w --project=$P
+# Versjonering på bøtta (gjelder også Bestillingsportals filer); gamle versjoner slettes etter 90 dager
+gcloud storage buckets update gs://$B --versioning
+printf '{"rule":[{"action":{"type":"Delete"},"condition":{"daysSinceNoncurrentTime":90}}]}' > livssyklus.json && gcloud storage buckets update gs://$B --lifecycle-file=livssyklus.json
+```
+
+Kontroll: `gcloud firestore databases describe --database=soknadsportal --project=$P` viser
+`pointInTimeRecoveryEnablement: POINT_IN_TIME_RECOVERY_ENABLED`, og
+`gcloud firestore backups schedules list --database=soknadsportal --project=$P` viser planen.
+
+**Hente tilbake med Googles ordninger** (raskest når feilen er fersk og prosjektet er intakt).
+Google legger alltid tilbake i en *ny* database – den eksisterende røres ikke:
+
+```bash
+# Fra et tidspunkt de siste 7 dagene (hele minutter, UTC)
+gcloud firestore databases clone --source-database=projects/$P/databases/soknadsportal \
+  --snapshot-time=2026-10-04T10:00:00Z --destination-database=soknadsportal-sjekk --project=$P
+# Eller fra en daglig backup
+gcloud firestore backups list --project=$P
+gcloud firestore databases restore --source-backup=<navn fra listen> --destination-database=soknadsportal-sjekk --project=$P
+```
+
+Åpne `soknadsportal-sjekk` i Firebase Console og kopier tilbake det som mangler for hånd. Slett
+databasen etterpå (`gcloud firestore databases delete --database=soknadsportal-sjekk`).
+Prøv dette én gang ved oppsett. Skal *hele* prod tilbake, er §9.5 den øvde veien.
+
+En slettet eller overskrevet fil: `gcloud storage ls -a gs://$B/soknadsportal/prod/<sti>` viser
+versjonene, og `gcloud storage cp "gs://$B/<sti>#<generasjon>" gs://$B/<sti>` henter én tilbake.
+
+### 9.2 Tjenestekontoer (Cloud Shell)
+```bash
+P=skiensskolemusikk-b5cbc; B=skiensskolemusikk-b5cbc.firebasestorage.app
+
+# Kopijobben: bare lese
+gcloud iam service-accounts create soknadsportal-kopi --display-name="Søknadsportal sikkerhetskopi (leser)" --project=$P
+KOPI=serviceAccount:soknadsportal-kopi@$P.iam.gserviceaccount.com
+gcloud projects add-iam-policy-binding $P --member=$KOPI --role=roles/datastore.viewer --condition=None
+gcloud storage buckets add-iam-policy-binding gs://$B --member=$KOPI --role=roles/storage.objectViewer
+gcloud iam service-accounts keys create kopi-nokkel.json --iam-account=soknadsportal-kopi@$P.iam.gserviceaccount.com
+
+# Restore-testen: bare skrive til databasen soknadsportal-restore og soknadsportal/restore/ i bøtta
+gcloud iam service-accounts create soknadsportal-restore --display-name="Søknadsportal restore-test" --project=$P
+RESTORE=serviceAccount:soknadsportal-restore@$P.iam.gserviceaccount.com
+gcloud projects add-iam-policy-binding $P --member=$RESTORE --role=roles/datastore.user \
+  --condition="title=bare-restore-databasen,expression=resource.name==\"projects/$P/databases/soknadsportal-restore\""
+gcloud storage buckets add-iam-policy-binding gs://$B --member=$RESTORE --role=roles/storage.objectAdmin \
+  --condition="title=bare-restore-prefikset,expression=resource.name==\"projects/_/buckets/$B\" || resource.name.startsWith(\"projects/_/buckets/$B/objects/soknadsportal/restore/\")"
+gcloud iam service-accounts keys create restore-nokkel.json --iam-account=soknadsportal-restore@$P.iam.gserviceaccount.com
+```
+
+Betingelsen på bøtta krever «uniform bucket-level access» – slått på 2026-10-04
+(`gcloud storage buckets update gs://$B --uniform-bucket-level-access`; gjelder hele den delte bøtta).
+Last ned de to nøkkelfilene (Cloud Shell → ⋮ → Download), legg innholdet i GitHub-secrets (under)
+og slett filene fra Cloud Shell. De skal aldri i repoet.
+
+**Restore-databasen:** Firebase Console → Firestore → Add database → Database ID
+`soknadsportal-restore`, samme region som de andre. Lim så inn HELE `firebase/firestore.rules`
+i den (som i §2). Storage-reglene dekker allerede `soknadsportal/restore/`.
+
+### 9.3 GitHub-secrets og passord
+Repo → Settings → Secrets and variables → Actions:
+
+| Secret | Innhold |
+|---|---|
+| `KOPI_GOOGLE_NOKKEL` | Hele innholdet i `kopi-nokkel.json` |
+| `RESTORE_GOOGLE_NOKKEL` | Hele innholdet i `restore-nokkel.json` |
+| `KOPI_PASSORD` | Krypteringspassordet (langt, tilfeldig) |
+| `KOPI_SFTP_MAPPE` | Mappa på ProISP der kopiene ligger |
+
+`SFTP_HOST`, `SFTP_USERNAME` og `SFTP_PASSWORD` finnes fra før (§5).
+
+**Krypteringspassordet** kan ikke leses ut av GitHub igjen. Lagre det i passordbehandleren *før*
+det legges inn som secret, og gi det til én person til. Uten passordet er kopiene verdiløse.
+
+**Mappa på ProISP:** `/customers/7/7/8/chd71y6vo/users/chd71y6vo_bbeitnes/sikkerhetskopi-soknadsportal`
+– SFTP-brukerens hjemmemappe, utenfor webroten (rett under `/customers/…/chd71y6vo/` får brukeren
+ikke opprette mapper; prøvd 2026-10-04). Skriptet legger likevel en `.htaccess` som stenger mappa,
+og innholdet er kryptert.
+
+På Mac-en (for `hent`, restore-test og tilgangssjekk): `cd backup && npm install`, kopier
+`.env.eksempel` til `.env` og fyll inn. `.env` og nøkkelfiler ligger i `.gitignore`.
+
+Kontroller at nøklene ikke kan mer enn de skal (med den aktuelle nøkkelen i
+`GOOGLE_APPLICATION_CREDENTIALS`):
+
+```bash
+node backup/sjekk-tilgang.mjs --rolle kopi
+```
+
+```bash
+node backup/sjekk-tilgang.mjs --rolle restore
+```
+
+### 9.4 Daglig drift
+- **Kopien** tas hver natt (02:17 UTC) av Actions-jobben «Sikkerhetskopi av prod». Fersk kopi på
+  kommando: Actions → «Sikkerhetskopi av prod» → Run workflow. Feiler den, sender GitHub e-post.
+- **Oppbevaring:** alle kopier fra de siste 30 dagene, og den første i hver måned i 12 måneder.
+  Filer lastes opp én gang; en fil som slettes i portalen ligger i arkivet så lenge en kopi viser til den.
+- **GitHub slår av planlagte jobber** etter 60 dager uten commits i repoet, og varsler på e-post
+  en uke før. Slå jobbene på igjen under Actions.
+- Jobbene kjører bare fra `main`. Endringer i `backup/` virker først når de er merget dit.
+- **Til Mac-en:**
+  ```bash
+  node backup/hent.mjs
+  ```
+  henter nyeste kopi til `backup/kopier/` og kontrollerer hver fil. `--dato 2026-10-01` velger
+  en dag, `--til <mappe>` et annet sted, `--lesbar` legger også en dekryptert utgave ved siden av.
+- **Restore-test:** Actions → «Restore-test» → Run workflow (kjører også av seg selv den 1. hver
+  måned), eller på Mac-en med restore-nøkkelen:
+  ```bash
+  node backup/gjenopprett.mjs
+  ```
+  Den tømmer `soknadsportal-restore`, legger nyeste kopi inn og sammenligner antall dokumenter per
+  samling og filer med kopien. Åpne så `http://localhost:8430/?restore`, logg inn, åpne en søknad
+  og lag revisjonsrapporten. Gjør dette ved oppsett, hvert halvår, og når portalen får en ny
+  samling eller et nytt sted å lagre filer (B-24).
+- Arkivet er `db/<tidspunkt>.json.gz.spk` (alle dokumentene som JSON + fillisten) og
+  `filer/<md5>-<størrelse>.spk`. Kryptering: AES-256-GCM, nøkkel fra passordet med scrypt
+  (`backup/lib/krypto.mjs`).
+
+### 9.5 Gjenopprette prod fra arkivet
+Gjør prod *nøyaktig* som kopien: dokumenter og filer som ikke finnes i kopien slettes, også i
+`brukere`. Krever din egen Google-innlogging med skriverett (installer gcloud, så
+`gcloud auth application-default login`) – ikke en av tjenestenøklene.
+
+```bash
+node backup/gjenopprett.mjs --mal soknadsportal --dato 2026-10-01
+```
+
+Skriptet tar først en fersk kopi av prod slik den er, viser hvor mange dokumenter og filer som
+blir nye, endret og slettet, og gjør ingenting før du har skrevet `soknadsportal`. Uten `--dato`
+brukes nyeste kopi. Med `--fra backup/kopier` brukes en kopi som er hentet til Mac-en.
+Kjør gjerne restore-testen med samme dato først og se på dataene i `?restore`.
+
+### 9.6 Hvis hele Google-prosjektet er borte (ikke øvd)
+1. Nytt Firebase-prosjekt: §1–4, §6 og §8 i denne filen (databaser, regler, innlogging, CORS, API-nøkkel).
+2. Sett det nye prosjektnavnet og bøttenavnet i `app/config/firebase-config.js` og `backup/lib/firebase.mjs`.
+3. `node backup/gjenopprett.mjs --mal soknadsportal` (§9.5). Kopiene på ProISP er uavhengige av Google.
+4. Brukerne logger inn som før – tilgangen ligger i `brukere`, som følger med kopien.
+5. Sett opp §9.1–9.3 på nytt.

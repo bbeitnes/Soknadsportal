@@ -1,0 +1,7 @@
+node_modules/
+# Passord og nøkler – repoet er offentlig (B-08)
+.env
+*.json.nokkel
+*nokkel*.json
+# Kopier hentet ned lokalt
+kopier/

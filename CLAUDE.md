@@ -23,6 +23,7 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
 | `app/sider/` | Én fil per skjerm: `tegn()` gir HTML, `klikk()` håndterer knapper. `innkjop.js` er Innkjøp-fanen og kalles fra `soknad.js` |
 | `firebase/` | Regler som limes inn manuelt i Firebase Console |
 | `docker-compose.yml` | Lokal dev-server (publiseres ikke) |
+| `backup/` | Sikkerhetskopi og gjenoppretting (Node + npm, publiseres ikke). Oppskrift: OPPSETT.md §9 |
 | `test/` | `node --test test/` |
 
 ## Konvensjoner
@@ -166,7 +167,14 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   vektorgrafikk i PDF-er røres ikke, og originalen i Storage endres ikke. Et bilde byttes bare når
   det blir minst 20 % mindre.
 - Endres `firebase/firestore.rules`, må HELE filen limes inn i Console for
-  begge databasene — si fra om det i svaret.
+  alle tre databasene (prod, test og `soknadsportal-restore`) — si fra om det i svaret.
+- Sikkerhetskopi (`backup/`, B-24/B-25): `kopier.mjs` (nattlig GitHub-jobb, bare leserett) legger
+  alle samlinger + filer kryptert på ProISP; `hent.mjs` henter til Mac; `gjenopprett.mjs` legger en
+  kopi i `soknadsportal-restore` (restore-test) eller, med `--mal soknadsportal` og bekreftelse, i
+  prod. Logikken i `backup/lib/kjerne.mjs` kjenner verken Firebase eller SFTP og testes i
+  `test/sikkerhetskopi.test.js`. Bare `backup/lib/firebase.mjs` snakker med Google.
+  Kopien tar alle samlinger den finner, men nye lagringssteder utenfor `STORAGE_PREFIKS` må legges til.
+  Dokumenter lagrer filstier MED miljøprefiks; gjenopprettingen skriver dem om (`byttPrefiks()`).
 
 ## Kjøre lokalt (dev)
 - Dev-serveren er en Docker-container (`docker-compose.yml`, Apache som på ProISP, `app/` montert
@@ -180,3 +188,4 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
 - `http://localhost:8430/?demo` = data i minnet, ingen innlogging. `demoFeil = true`
   i konsollen simulerer lagringsfeil.
 - Uten `?demo` på localhost brukes testdatabasen (krever innlogging).
+- `http://localhost:8430/?restore` = databasen restore-testen fyller (`soknadsportal-restore`). Virker bare på localhost.

@@ -1,7 +1,7 @@
 ---
 id: 0004
 tittel: Sikkerhetskopi og gjenoppretting av dataene i portalen
-status: testes
+status: ferdig
 opprettet: 2026-10-03
 ---
 
@@ -169,3 +169,10 @@ Løpende. Lenke til commits, skjermbilder, avklaringer.
   bestått for begge nøklene. Første kopi tatt fra Mac (122 dokumenter, 24 filer) til
   hjemmemappa på ProISP utenfor webroten, og restore-testen bestått med 0 avvik.
   Gjenstår: secret `KOPI_SFTP_MAPPE`, se på `?restore`, og jobbene til `main`.
+- 2026-10-04: På `main` (fc1952e). Kopijobben og restore-testen kjørt i GitHub Actions med 0 avvik;
+  brukeren har sett gjennom `?restore`. Godkjent av brukeren samme dag. Bevisst ikke prøvd mot
+  ekte data: `hent.mjs`, gjenoppretting til prod (`--mal soknadsportal`, krever gcloud på Mac) og
+  Googles egen gjenoppretting (§9.1). Gjenstår utenfor kortet: gi krypteringspassordet og eierrolle
+  i Google-prosjektet til én person til.
+- 2026-10-04: `hent.mjs` kjørt mot ekte data: nyeste kopi hentet fra ProISP til `backup/kopier/`
+  (122 dokumenter, 24 filer, 51 MB), alle filer dekryptert og kontrollert.

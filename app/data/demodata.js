@@ -5,6 +5,7 @@ import { revisornokkel, revisjonsavtrykk } from './beregning.js';
 export function lagDemodata() {
   const naa = Date.now();
   const dagerSiden = d => naa - d * 86400000;
+  const datoOm = d => new Date(naa + d * 86400000).toISOString().slice(0, 10);
   const av = (epost, navn, dager) => ({ endretAv: { epost, navn }, endretTid: dagerSiden(dager) });
   const kari = ['kari@korpset.no', 'Kari Nordmann'];
   const per = ['per@korpset.no', 'Per Hansen'];
@@ -41,6 +42,7 @@ export function lagDemodata() {
   const soknader = {
     s1: {
       organisasjonId: org, giverId: 'g1', tittel: 'Instrumenter til aspirantkorpset 2026', frist: '2026-03-15', sendt: '2026-03-03',
+      nesteFrist: datoOm(-5), nesteFristHva: 'Delrapport til stiftelsen',
       status: 'innvilget', soktOverstyrt: null, innvilget: 150000, momsProsent: 8, revisjon: true,
       tilgang: ['rita@revisor.no', 'olav@revisor.no'],
       linjer: {
@@ -61,18 +63,20 @@ export function lagDemodata() {
     },
     s2: {
       organisasjonId: org, giverId: 'g2', tittel: 'Klarinetter og kornetter', frist: '2026-06-01', sendt: '2026-05-28',
+      nesteFrist: datoOm(60), nesteFristHva: 'Svar ventes',
       status: 'sendt', soktOverstyrt: 43000, momsProsent: null, revisjon: false,
       linjer: { l1: linje('b1', 2, 8500, 1), l2: linje('b7', 4, 6500, 2) },
       dokumenter: {}, ...av(...kari, 124),
     },
     s3: {
       organisasjonId: org, giverId: 'g3', tittel: 'Uniformer 2026', frist: '2026-02-01', sendt: '2026-01-20',
+      nesteFrist: datoOm(14), nesteFristHva: 'Sluttrapport til giver',
       status: 'innvilget', soktOverstyrt: null, innvilget: 42000, momsProsent: 8, revisjon: true,
       linjer: { l1: linje('b9', 30, 1400, 1) },
       dokumenter: {}, ...av(...per, 109),
     },
     s4: {
-      organisasjonId: org, giverId: 'g4', tittel: 'Seminarhelg høsten 2026', frist: '2026-10-15', sendt: null,
+      organisasjonId: org, giverId: 'g4', tittel: 'Seminarhelg høsten 2026', frist: datoOm(10), sendt: null,
       status: 'utkast', soktOverstyrt: null, momsProsent: null, revisjon: false,
       // Bare utgifter, ingen innkjøp: instruktørene er plukket inn i Utgifter.
       linjer: {

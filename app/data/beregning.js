@@ -383,6 +383,37 @@ export const SOKNADSFILTRE = {
   alle: () => true,
 };
 
+// Neste frist (kort 0010): det brukeren har skrevet i «Neste frist», ellers
+// søknadsfristen mens søknaden er utkast («Send søknaden»). Avsluttede og
+// avslåtte søknader har ingen. `tilstand` er 'forfalt' (datoen er passert),
+// 'naer' (innen FRISTVARSEL_DAGER) eller 'senere'. Ingenting av dette lagres.
+export const FRISTVARSEL_DAGER = 30;
+
+export function nesteFrist(soknad, iDag) {
+  if (!soknad || SOKNADSFILTRE.lukket(soknad)) return null;
+  const egen = soknad.nesteFrist || null;
+  const dato = egen || (soknad.status === 'utkast' ? soknad.frist : null) || null;
+  if (!dato) return null;
+  const dager = Math.round((Date.parse(dato) - Date.parse(iDag)) / 86400000);
+  return {
+    dato, dager,
+    hva: egen ? (soknad.nesteFristHva || '') : 'Send søknaden',
+    tilstand: dager < 0 ? 'forfalt' : dager <= FRISTVARSEL_DAGER ? 'naer' : 'senere',
+  };
+}
+
+// Søknadslisten: det som haster øverst (nærmeste eller forfalte neste frist
+// først). Resten: nyeste søknadsfrist først, uten frist øverst (nye utkast).
+export function sorterSoknader(soknader, iDag) {
+  const rader = [...soknader]
+    .sort((a, b) => (b.frist || '9999').localeCompare(a.frist || '9999'))
+    .map(s => ({ s, n: nesteFrist(s, iDag) }));
+  return [
+    ...rader.filter(x => x.n).sort((a, b) => a.n.dato.localeCompare(b.n.dato)),
+    ...rader.filter(x => !x.n),
+  ].map(x => x.s);
+}
+
 export function nesteRekkefolge(soknad) {
   return linjeliste(soknad).reduce((m, l) => Math.max(m, l.rekkefolge ?? 0), 0) + 1;
 }

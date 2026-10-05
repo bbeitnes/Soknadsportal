@@ -1,5 +1,7 @@
 // Bindeledd mellom sidene og appskallet (app.js), så sidene kan be om ny
 // tegning eller fokus uten å importere app.js (det ville gitt en sirkel).
+import { datoFelt } from './format.js';
+
 let skall = { tegn() {}, fokuser() {} };
 
 export function registrerSkall(funksjoner) {
@@ -20,6 +22,13 @@ export const IKON = {
   fjern: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
   las: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
 };
+
+// Dato for neste frist (`nesteFrist()` i beregning.js): aksentfarge når den
+// nærmer seg, fet og merket «Forfalt» når den er passert.
+export function fristdato(n) {
+  if (n.tilstand === 'forfalt') return `<span class="frist-forfalt">${datoFelt(n.dato)}</span><span class="fristmerke">Forfalt</span>`;
+  return `<span class="${n.tilstand === 'naer' ? 'aksent' : ''}">${datoFelt(n.dato)}</span>`;
+}
 
 // Avkrysningsboks som knapp (lagres ved klikk).
 export function avkryss(pa, etikett, handling, data = '', ekstraKlasse = '') {

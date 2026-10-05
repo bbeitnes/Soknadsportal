@@ -71,6 +71,12 @@ export function tolkDato(tekst) {
 }
 
 // «2026-03-15» → «15.03.2026». Brukes i redigerbare felt.
+// Dagens dato (lokal tid) som ÅÅÅÅ-MM-DD.
+export function iDag(naa = new Date()) {
+  const to = n => String(n).padStart(2, '0');
+  return `${naa.getFullYear()}-${to(naa.getMonth() + 1)}-${to(naa.getDate())}`;
+}
+
 export function datoFelt(iso) {
   if (!iso) return '';
   const [a, m, d] = iso.split('-');

@@ -1,7 +1,7 @@
 ---
 id: 0010
 tittel: Neste frist på søknaden
-status: neste
+status: testes
 opprettet: 2026-10-05
 ---
 
@@ -105,4 +105,5 @@ Grillet 2026-10-05 med `/grill-me` (ett spørsmål om gangen).
 
 ## Notater
 
+- 2026-10-05: Bygget på dev. Sett i `?demo`: listen (forfalt, nær, senere, utledet for utkast), feltene på en låst søknad, topplinjen, tømming av feltet. `node --test test/`: 71 av 71. Ikke pushet til test.
 Løpende. Lenke til commits, skjermbilder, avklaringer.

@@ -11,12 +11,12 @@ import {
   SOKNADSSTATUSER, statusNavn, linjeliste, linjekostnad, sumEstimert, soktBelop, soktForslag, velgbareBehov,
   pott, giverandel, momsProsent, utgiftsliste, sumUtgifter, sumFakturert, kanBliUtgift, linjerMedUtgift,
   egenandelPlanlagt, egenandelSomAndel, giverbehov, erLast, erInnvilget,
-  linjetype, grupperPerType, typeliste, flyttIListe, typerekkefolgeFor, soktLinjer, tilleggslinjer, etterRekkefolgeOgTittel,
+  linjetype, grupperPerType, typeliste, flyttIListe, typerekkefolgeFor, soktLinjer, tilleggslinjer, etterRekkefolgeOgTittel, nesteFrist,
 } from '../data/beregning.js';
-import { escapeHtml, kr, belop, heltall, datoFelt, tidspunkt, fornavn, tolkBelop, tolkDato } from '../ui/format.js';
+import { escapeHtml, kr, belop, heltall, datoFelt, tidspunkt, fornavn, tolkBelop, tolkDato, iDag } from '../ui/format.js';
 import { feltAttr } from '../ui/felt.js';
 import { lagre, visMelding } from '../ui/lagring.js';
-import { tegn, fokuser, gaaTil, avkryss, sidepanel, lukkeknapp, IKON } from '../ui/visning.js';
+import { tegn, fokuser, gaaTil, avkryss, sidepanel, lukkeknapp, IKON, fristdato } from '../ui/visning.js';
 import { utskrift } from '../ui/utskrift.js';
 import { innkjopFane } from './innkjop.js';
 import { revisjonFane } from './revisjon.js';
@@ -57,9 +57,10 @@ function velger(s) {
 
 function topp(s, fane) {
   const g = giver(s.giverId);
+  const neste = nesteFrist(s, iDag());
   const detaljer = [
     escapeHtml(g?.navn || 'Ukjent giver'),
-    `Frist ${s.frist ? datoFelt(s.frist) : '–'}`,
+    neste ? `Neste frist ${fristdato(neste)}${neste.hva ? ` – ${escapeHtml(neste.hva)}` : ''}` : `Frist ${s.frist ? datoFelt(s.frist) : '–'}`,
     `Sendt ${s.sendt ? datoFelt(s.sendt) : '–'}`,
     sistEndret(s),
   ].filter(Boolean).join(' · ');
@@ -444,6 +445,10 @@ function soknadsfane(s) {
         <div class="to-kol" style="gap:14px">
           <label class="felt"><span class="etikett">Frist</span><input class="inndata" placeholder="dd.mm.åååå" ${feltAttr(n('frist'), s.frist, 'dato')}></label>
           <label class="felt"><span class="etikett">Sendt</span><input class="inndata" placeholder="dd.mm.åååå" ${feltAttr(n('sendt'), s.sendt, 'dato')}></label>
+        </div>
+        <div class="to-kol" style="gap:14px; grid-template-columns:120px minmax(0, 1fr)">
+          <label class="felt"><span class="etikett">Neste frist</span><input class="inndata" placeholder="dd.mm.åååå" ${feltAttr(n('nesteFrist'), s.nesteFrist, 'dato')}></label>
+          <label class="felt"><span class="etikett">Hva</span><input class="inndata" placeholder="F.eks. sluttrapport til giver" ${feltAttr(n('nesteFristHva'), s.nesteFristHva, 'tekst')}></label>
         </div>
         <div class="felt"><span class="etikett">Status</span>
           <div class="segment fyll">${SOKNADSSTATUSER.map(st => `<button type="button" data-handling="status" data-id="${st.id}" aria-pressed="${s.status === st.id}"${st.id === 'utkast' && last ? ' title="Låser opp søknaden"' : ''}>${st.navn}</button>`).join('')}</div>

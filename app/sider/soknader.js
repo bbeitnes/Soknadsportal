@@ -1,10 +1,10 @@
 // Søknader: én rad per søknad. «+ Ny søknad» åpner et sidepanel.
 // Innvilget, disponert og gjenstår fylles ut fra trinn b (pott).
 import { tilstand, opprettSoknad, innkjopFor } from '../data/index.js';
-import { SOKNADSFILTRE, soktBelop, statusNavn, pott, erInnvilget } from '../data/beregning.js';
-import { escapeHtml, kr, tidspunkt, fornavn, datoFelt, tolkDato } from '../ui/format.js';
+import { SOKNADSFILTRE, soktBelop, statusNavn, pott, erInnvilget, nesteFrist, sorterSoknader } from '../data/beregning.js';
+import { escapeHtml, kr, tidspunkt, fornavn, datoFelt, tolkDato, iDag } from '../ui/format.js';
 import { lagre, visMelding } from '../ui/lagring.js';
-import { tegn, gaaTil, sidepanel, lukkeknapp } from '../ui/visning.js';
+import { tegn, gaaTil, sidepanel, lukkeknapp, fristdato } from '../ui/visning.js';
 
 const ui = { filter: 'aktive', nySoknad: false, nyttPanel: false, utkast: { giverId: null, tittel: '', frist: '' } };
 
@@ -20,8 +20,13 @@ export function sistEndret(s) {
 }
 
 function sortert() {
-  // Nyeste frist først; søknader uten frist øverst (typisk nye utkast).
-  return [...tilstand.soknader].sort((a, b) => (b.frist || '9999').localeCompare(a.frist || '9999'));
+  return sorterSoknader(tilstand.soknader, iDag());
+}
+
+function fristcelle(s) {
+  const n = nesteFrist(s, iDag());
+  if (!n) return STREK;
+  return `<div>${fristdato(n)}</div>${n.hva ? `<div class="celleunder">${escapeHtml(n.hva)}</div>` : ''}`;
 }
 
 function rad(s) {
@@ -29,12 +34,10 @@ function rad(s) {
   const sokt = soktBelop(s);
   const p = pott(s, innkjopFor(s.id));
   const innvilget = erInnvilget(s) && p.innvilget != null;
-  const iDag = new Date().toISOString().slice(0, 10);
-  const fristPasserer = s.status === 'utkast' && s.frist && s.frist >= iDag;
   return `
     <tr class="klikkbar" data-handling="apne" data-id="${s.id}">
       <td><div class="celletittel">${escapeHtml(s.tittel || 'Uten tittel')}</div><div class="celleunder">${escapeHtml(g?.navn || 'Ukjent giver')}</div></td>
-      <td class="smal ${fristPasserer ? 'aksent' : ''}" style="font-size:14px">${s.frist ? datoFelt(s.frist) : STREK}</td>
+      <td class="smal" style="font-size:14px">${fristcelle(s)}</td>
       <td class="smal"><span class="merkelapp m-${s.status}">${statusNavn(s.status)}</span></td>
       <td class="tall">${sokt ? kr(sokt) : STREK}</td>
       <td class="tall fet">${innvilget ? kr(p.innvilget) : STREK}</td>
@@ -120,7 +123,7 @@ export const soknaderSide = {
         </div>
         <div class="tabellramme" data-rull="soknader">
           <table class="liste">
-            <thead><tr><th>Søknad</th><th>Frist</th><th>Status</th><th class="tall">Søkt</th><th class="tall">Innvilget</th><th class="tall">Disponert</th><th class="tall">Gjenstår</th><th>Sist endret</th></tr></thead>
+            <thead><tr><th>Søknad</th><th>Neste frist</th><th>Status</th><th class="tall">Søkt</th><th class="tall">Innvilget</th><th class="tall">Disponert</th><th class="tall">Gjenstår</th><th>Sist endret</th></tr></thead>
             <tbody>${synlig.map(rad).join('') || '<tr class="tom-rad"><td colspan="8">Ingen søknader i dette utvalget.</td></tr>'}</tbody>
             <tfoot><tr><td colspan="3" class="dempet">${synlig.length} søknader vist</td><td class="tall fet">${kr(sumSokt)}</td><td class="tall sum">${kr(sum(synligPott, x => x.p.innvilget))}</td><td class="tall fet">${kr(sum(synligPott, x => x.p.disponert))}</td><td class="tall sum">${kr(sum(synligApne, x => x.p.gjenstar))}</td><td></td></tr></tfoot>
           </table>

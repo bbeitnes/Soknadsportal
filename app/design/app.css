@@ -42,6 +42,9 @@ a:hover { color: var(--color-accent); }
 .nokkeltall .tall { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; margin-top: 2px; }
 .etikett { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-neutral-600); font-weight: 600; }
 .aksent { color: var(--color-accent-700); }
+/* Neste frist (kort 0010): nær = aksentfarge, forfalt = fet + merke. */
+.frist-forfalt { color: var(--color-accent-700); font-weight: 700; }
+.fristmerke { display: inline-block; margin-left: 6px; padding: 0 5px; background: var(--color-accent-700); color: var(--color-neutral-100); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; vertical-align: 1px; }
 
 .innhold { flex: 1 1 auto; min-height: 0; padding: 18px 40px 20px; display: flex; flex-direction: column; gap: 10px; }
 .verktoyrad { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }

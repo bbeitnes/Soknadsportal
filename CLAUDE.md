@@ -94,6 +94,12 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   og «+ Behov fra listen» / «+ Fri linje» er slått av der – endret behov legges til i Innkjøp.
   Linjer med `etterSoknad`, innvilget beløp, tittel, frist, sendt, status og dokumenter er åpne.
   Låses opp ved å sette status til Utkast; fra innvilget/avsluttet kreves `confirm()`.
+- Neste frist (kort 0010): `soknader.<id>.nesteFrist` (dato) og `nesteFristHva` (tekst), i Søknad-fanen
+  (åpne også når søknaden er låst). `nesteFrist(soknad, iDag)` i `beregning.js` gir den som gjelder: det
+  som er skrevet, ellers søknadsfristen mens søknaden er utkast («Send søknaden»); avsluttet/avslått
+  har ingen. `tilstand` er 'forfalt' / 'naer' (≤ `FRISTVARSEL_DAGER` = 30) / 'senere' – lagres ikke.
+  `fristdato()` (`ui/visning.js`) tegner datoen; søknadslisten viser den i kolonnen «Neste frist» og
+  sorterer med `sorterSoknader()` (det som haster øverst). Revisor ser det ikke; ikke i avtrykket.
 - Linjer lagt til i en søknad som ikke lenger er utkast får `etterSoknad: true` og `notat` (fritekst).
   De teller ikke i `sumEstimert()`/søkt beløp (`soktLinjer()` / `tilleggslinjer()`), men går i innkjøp,
   pott og revisjon. PDF-rapporten viser dem ikke spesielt (bare på skjerm).

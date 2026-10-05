@@ -912,6 +912,7 @@ test('revisjonsavtrykk endres ikke av merknader, titler, typer, status og priser
     status: x => { x.soknad.status = 'innvilget'; },
     dokumenter: x => { x.soknad.dokumenter = { d1: { navn: 'Brev.pdf', sti: 'x' } }; },
     'frist og sendt': x => { x.soknad.frist = '2027-01-01'; x.soknad.sendt = '2026-01-01'; },
+    'neste frist': x => { x.soknad.nesteFrist = '2027-03-01'; x.soknad.nesteFristHva = 'Sluttrapport'; },
     utgiftsbeskrivelse: x => { x.soknad.utgifter.u1.beskrivelse = 'Frakt og porto'; },
     'type på utgift': x => { x.soknad.utgifter.u1.type = 'Utstyr'; },
     linjetittel: x => { x.innkjop[0].linjer.k1.tittel = 'Kornett Bb'; },
@@ -1127,4 +1128,51 @@ test('erTomPost: urørt post slik «+ Ny …» lager den, og ikke når noe er fy
   assert.equal(erTomPost('leverandorer', { id: 'l', navn: '', kontakt: 'Kari' }), false);
   assert.equal(erTomPost('givere', { id: 'g', navn: '', kontakt: '', momsTrekk: false, momsProsent: 8 }), true);
   assert.equal(erTomPost('givere', { id: 'g', navn: '', kontakt: '', momsTrekk: true, momsProsent: 8 }), false);
+});
+
+test('nesteFrist: egen frist, utledet fra søknadsfristen for utkast, ingen for lukkede (kort 0010)', async () => {
+  const { nesteFrist } = await import('../app/data/beregning.js');
+  const iDag = '2026-10-05';
+  // Egen frist med tekst
+  assert.deepEqual(nesteFrist({ status: 'innvilget', frist: '2026-03-15', nesteFrist: '2026-10-20', nesteFristHva: 'Sluttrapport til giver' }, iDag),
+    { dato: '2026-10-20', dager: 15, hva: 'Sluttrapport til giver', tilstand: 'naer' });
+  // Grensen: 30 dager er nær, 31 er senere, i dag er nær, i går er forfalt
+  assert.equal(nesteFrist({ status: 'sendt', nesteFrist: '2026-11-04' }, iDag).tilstand, 'naer');
+  assert.equal(nesteFrist({ status: 'sendt', nesteFrist: '2026-11-05' }, iDag).tilstand, 'senere');
+  assert.equal(nesteFrist({ status: 'sendt', nesteFrist: '2026-10-05' }, iDag).tilstand, 'naer');
+  assert.equal(nesteFrist({ status: 'sendt', nesteFrist: '2026-10-04' }, iDag).tilstand, 'forfalt');
+  // Dato uten tekst
+  assert.equal(nesteFrist({ status: 'sendt', nesteFrist: '2026-12-01' }, iDag).hva, '');
+  // Utkast uten egen frist: søknadsfristen, også når den er passert
+  assert.deepEqual(nesteFrist({ status: 'utkast', frist: '2026-10-15' }, iDag), { dato: '2026-10-15', dager: 10, hva: 'Send søknaden', tilstand: 'naer' });
+  assert.equal(nesteFrist({ status: 'utkast', frist: '2026-09-01' }, iDag).tilstand, 'forfalt');
+  // Egen frist på et utkast går foran søknadsfristen
+  assert.equal(nesteFrist({ status: 'utkast', frist: '2026-10-15', nesteFrist: '2026-10-08', nesteFristHva: 'Hent tilbud' }, iDag).hva, 'Hent tilbud');
+  // Sendt/innvilget uten egen frist, tekst uten dato, og utkast uten frist: ingen
+  assert.equal(nesteFrist({ status: 'sendt', frist: '2026-10-15' }, iDag), null);
+  assert.equal(nesteFrist({ status: 'innvilget', frist: '2026-10-15', nesteFristHva: 'Rapport' }, iDag), null);
+  assert.equal(nesteFrist({ status: 'utkast', frist: null }, iDag), null);
+  // Avsluttet og avslått: ingen, selv om feltet står igjen
+  assert.equal(nesteFrist({ status: 'avsluttet', nesteFrist: '2026-10-20' }, iDag), null);
+  assert.equal(nesteFrist({ status: 'avslatt', nesteFrist: '2026-10-20' }, iDag), null);
+});
+
+test('sorterSoknader: neste frist øverst (nærmeste først), resten som før (kort 0010)', async () => {
+  const { sorterSoknader } = await import('../app/data/beregning.js');
+  const soknader = [
+    { id: 'gammel', status: 'sendt', frist: '2025-06-01' },
+    { id: 'jan', status: 'innvilget', frist: '2026-03-15', nesteFrist: '2027-01-15' },
+    { id: 'nyUtenFrist', status: 'utkast', frist: null },
+    { id: 'forfalt', status: 'innvilget', frist: '2026-02-01', nesteFrist: '2026-10-01' },
+    { id: 'lukket', status: 'avsluttet', frist: '2026-09-01', nesteFrist: '2026-10-02' },
+    { id: 'utkast', status: 'utkast', frist: '2026-10-20' },
+    { id: 'nyere', status: 'sendt', frist: '2026-06-01' },
+  ];
+  assert.deepEqual(sorterSoknader(soknader, '2026-10-05').map(s => s.id),
+    ['forfalt', 'utkast', 'jan', 'nyUtenFrist', 'lukket', 'nyere', 'gammel']);
+});
+
+test('iDag gir lokal dato som ÅÅÅÅ-MM-DD', async () => {
+  const { iDag } = await import('../app/ui/format.js');
+  assert.equal(iDag(new Date(2026, 0, 5, 23, 30)), '2026-01-05');
 });

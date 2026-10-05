@@ -1,7 +1,7 @@
 ---
 id: 0008
 tittel: Sidepanel: «+ Ny …» i panelet og ⌘/Ctrl+Enter for neste post
-status: testes
+status: ferdig
 opprettet: 2026-10-05
 ---
 

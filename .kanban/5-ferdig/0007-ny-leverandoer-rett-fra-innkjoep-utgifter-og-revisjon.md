@@ -1,7 +1,7 @@
 ---
 id: 0007
 tittel: Ny leverandør rett fra Innkjøp og Revisjon
-status: testes
+status: ferdig
 opprettet: 2026-10-05
 ---
 

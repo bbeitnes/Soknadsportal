@@ -59,7 +59,7 @@ function nyPanel() {
     <div class="felt"><span class="etikett">Giver</span>
       <div class="valgliste">
         ${givere.map(g => `<button type="button" data-handling="velg-giver" data-id="${g.id}" aria-pressed="${u.giverId === g.id}"><span class="fyll">${escapeHtml(g.navn || 'Uten navn')}</span><span class="undertekst smal">${g.momsTrekk ? `Trekker ut momskompensasjon ${g.momsProsent ?? 0} %` : 'Ingen momsfradrag'}</span></button>`).join('')
-          || '<div class="tomt">Ingen givere enda. En administrator legger dem inn under Givere.</div>'}
+          || '<div class="tomt">Ingen givere enda. Legg dem inn under Innstillinger → Givere.</div>'}
       </div>
     </div>
     <label class="felt"><span class="etikett">Tittel</span><input class="inndata" id="ny-tittel" value="${escapeHtml(u.tittel)}" placeholder="F.eks. Instrumenter 2027"></label>

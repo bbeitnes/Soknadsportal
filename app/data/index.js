@@ -131,6 +131,16 @@ export function oppdaterGiver(id, felt) {
   return lager.oppdater('givere', id, { ...felt, ...signatur() });
 }
 
+// Frister til årshjulet (kort 0009). Kart på giveren, så hvert felt lagres for seg.
+export function leggTilFrist(giverId) {
+  const id = nyId('f');
+  return oppdaterGiver(giverId, { [`frister.${id}`]: { dato: null, tekst: '', arlig: true } }).then(() => id);
+}
+
+export function fjernFrist(giverId, fristId) {
+  return oppdaterGiver(giverId, { [`frister.${fristId}`]: SLETT });
+}
+
 export function slettGiver(id) {
   if (tilstand.soknader.some(s => s.giverId === id)) {
     return Promise.reject(new Error('Giveren har søknader og kan ikke slettes'));

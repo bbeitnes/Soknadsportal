@@ -68,7 +68,7 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
 - I «Les priser» kan en tilbudslinje settes til «+ Ny linje» (noe leverandøren tilbyr som vi ikke
   har spurt om): den blir en fri linje i innkjøpet. Leses tilbudet på nytt, gjenopprettes koblingene
   fra `vedleggId` + `tekst` på prisene, og filteret «Ikke koblet» viser resten.
-- Toppmeny: Behov · Søknader · Innstillinger. Innstillinger samler Organisasjon (`#/innstillinger`),
+- Toppmeny: Behov · Søknader · Årshjul · Innstillinger. Innstillinger samler Organisasjon (`#/innstillinger`),
   Givere (`#/givere`), Leverandører (`#/leverandorer`) og Brukere (`#/givere/brukere`) med felles
   faner (`innstillingsmeny()`); sidene har `meny: 'innstillinger'`.
 - `innstillinger/<orgId>` har `typeRekkefolge` og kontaktinfoen vår (orgNavn, orgNr, kontaktperson,
@@ -100,6 +100,16 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   har ingen. `tilstand` er 'forfalt' / 'naer' (≤ `FRISTVARSEL_DAGER` = 30) / 'senere' – lagres ikke.
   `fristdato()` (`ui/visning.js`) tegner datoen; søknadslisten viser den i kolonnen «Neste frist» og
   sorterer med `sorterSoknader()` (det som haster øverst). Revisor ser det ikke; ikke i avtrykket.
+- Årshjul (kort 0009, `#/aarshjul`, `sider/aarshjul.js`): tolv månedsruter (4 × 3) fra forrige måned.
+  Fristene ligger på giveren: `givere.<id>.frister.<fid>` = `{ dato, tekst, arlig }` (`leggTilFrist()`,
+  `fjernFrist()`). En årlig frist gjentas på samme dag hvert år (året i datoen er bare da den ble lagt
+  inn; 29.02 → 28.02 uten skuddår, `arligDato()`). `aarshjul(givere, soknader, iDag)` gir månedene med
+  giverfrister ('passert' / 'naer' / 'senere') og søknadenes `nesteFrist()`; ingenting lagres.
+  Frist og søknad kobles ikke. Revisor og mobil har ikke siden.
+- Giverpanelet (`giverpanel()` + `giverklikk()` i `sider/givere.js`) brukes både i Innstillinger → Givere
+  og i Årshjul (klikk på en giverfrist). «+ Søknad til denne fristen» lager et utkast med giveren,
+  `nesteForekomst()` som frist og tittelen «‹tekst› ‹år›». Alle brukere kan opprette og endre givere;
+  bare administrator sletter (B-29, også i reglene).
 - Linjer lagt til i en søknad som ikke lenger er utkast får `etterSoknad: true` og `notat` (fritekst).
   De teller ikke i `sumEstimert()`/søkt beløp (`soktLinjer()` / `tilleggslinjer()`), men går i innkjøp,
   pott og revisjon. PDF-rapporten viser dem ikke spesielt (bare på skjerm).

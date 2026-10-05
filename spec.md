@@ -26,7 +26,7 @@ ikke er beskrevet her. Spør før du legger til noe.
 
 ## Brukere og roller
 - **Bruker** kan gjøre alt i søknadene.
-- **Administrator** kan i tillegg invitere og fjerne brukere og vedlikeholde givere.
+- **Administrator** kan i tillegg invitere og fjerne brukere og slette givere. Alle brukere kan opprette og endre givere (B-29).
 - **Revisor** ser bare søknadene hen er satt som revisor for, og der bare
   pottlinjen, Revisjon og dokumentene på søknaden. Revisor kan ikke endre noe,
   bare godkjenne revisjonen og skrive en merknad til godkjenningen.
@@ -40,7 +40,7 @@ ikke er beskrevet her. Spør før du legger til noe.
 
 ### Giver
 Navn, kontaktinfo/notat og innstillingen "Trekk ut momskompensasjon"
-(av/på + standardprosent). Vedlikeholdes av administrator.
+(av/på + standardprosent). Kan endres av alle brukere (B-29).
 
 ### Behov (behovslisten)
 Lever UTENFOR søknadene. Felt: tittel, beskrivelse, antall, estimert

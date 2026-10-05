@@ -1,11 +1,11 @@
-// Givere. Vedlikeholdes av administrator; andre brukere ser dem lesbart.
-// (Brukerlisten og invitasjoner kommer i trinn e.)
-import { tilstand, erAdmin, opprettGiver, oppdaterGiver, slettGiver, inviterBruker, oppdaterBruker, fjernBruker, invitasjonstekst, sendInnloggingslenkeTil } from '../data/index.js';
-import { statusNavn, erTomPost } from '../data/beregning.js';
-import { escapeHtml, kr, datoFelt } from '../ui/format.js';
+// Givere og brukere. Alle brukere kan opprette og endre givere; bare
+// administrator sletter dem og ser brukerlisten (B-29).
+import { tilstand, erAdmin, opprettGiver, oppdaterGiver, slettGiver, leggTilFrist, fjernFrist, opprettSoknad, inviterBruker, oppdaterBruker, fjernBruker, invitasjonstekst, sendInnloggingslenkeTil } from '../data/index.js';
+import { statusNavn, erTomPost, fristliste, nesteForekomst } from '../data/beregning.js';
+import { escapeHtml, kr, datoFelt, iDag } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
 import { lagre, ferdigLagret, visMelding } from '../ui/lagring.js';
-import { tegn, fokuser, avkryss, sidepanel, lukkeknapp, nesteknapp } from '../ui/visning.js';
+import { tegn, fokuser, gaaTil, avkryss, sidepanel, lukkeknapp, nesteknapp, IKON } from '../ui/visning.js';
 import { innstillingsmeny } from './innstillinger.js';
 
 const ui = { seksjon: 'givere', panel: null, nyttPanel: false, invitasjon: { epost: '', rolle: 'bruker' }, kopiert: null, sender: null, sendt: null };
@@ -18,32 +18,54 @@ function sortert() {
   return [...tilstand.givere].sort((a, b) => (a.navn || '').localeCompare(b.navn || '', 'nb'));
 }
 
-function panel(g) {
-  const admin = erAdmin();
+// Fristene til årshjulet (kort 0009). Hver frist er en egen post; en årlig
+// frist gjentas på samme dag hvert år.
+function fristrad(g, f) {
+  const nokkel = felt => `givere/${g.id}/frister.${f.id}.${felt}`;
+  const neste = nesteForekomst(f, iDag());
+  const passert = !!f.dato && !neste;
+  const naar = !f.dato ? '' : f.arlig ? `${datoFelt(f.dato).slice(0, 5)} · hvert år` : passert ? 'Passert' : 'Engang';
+  return `
+    <div class="fristrad ${passert ? 'passert' : ''}">
+      <div class="fristfelt">
+        <input class="inndata" placeholder="dd.mm.åååå" title="Dato" ${feltAttr(nokkel('dato'), f.dato, 'dato')}>
+        <input class="inndata" placeholder="Hva, f.eks. ordinær tildeling" title="Hva fristen gjelder" ${feltAttr(nokkel('tekst'), f.tekst)}>
+        <button type="button" class="ikonknapp" data-handling="frist-slett" data-id="${f.id}" title="Slett fristen">${IKON.lukk}</button>
+      </div>
+      <div class="fristvalg">
+        ${avkryss(!!f.arlig, 'Årlig', 'frist-arlig', `data-id="${f.id}"`)}
+        <span class="undertekst fyll">${naar}</span>
+        ${neste ? `<button type="button" class="knapp knapp-ramme knapp-liten" style="height:26px; font-size:12px" data-handling="frist-soknad" data-id="${f.id}" title="Oppretter et utkast med giveren og frist ${datoFelt(neste)}">+ Søknad til denne fristen</button>` : ''}
+      </div>
+    </div>`;
+}
+
+// Giverpanelet. Brukes i registeret (Innstillinger → Givere, med «+ Ny giver»
+// nederst) og i Årshjul. Alle brukere kan endre; bare administrator sletter (B-29).
+export function giverpanel(g, { nytt = false, neste = false } = {}) {
   const soknader = tilstand.soknader.filter(s => s.giverId === g.id);
   const eksempel = kr(1000 * (100 - (g.momsProsent ?? 0)) / 100);
   const nokkel = f => `givere/${g.id}/${f}`;
+  const frister = fristliste(g);
   return sidepanel(`
     <div class="panelhode">
       <div>
         <div class="etikett">Giver</div>
-        ${admin
-          ? `<input class="tittelfelt" ${feltAttr(nokkel('navn'), g.navn)} placeholder="Navn">`
-          : `<h2>${escapeHtml(g.navn || 'Uten navn')}</h2>`}
+        <input class="tittelfelt" ${feltAttr(nokkel('navn'), g.navn)} placeholder="Navn">
       </div>
       ${lukkeknapp()}
     </div>
     <label class="felt"><span class="etikett">Kontaktinfo og notat</span>
-      ${admin
-        ? tekstomrade(nokkel('kontakt'), g.kontakt, 'class="inndata" rows="4" placeholder="Kontaktperson, e-post, telefon, søknadsfrister …"')
-        : `<div style="white-space:pre-line; font-size:14px">${escapeHtml(g.kontakt || '–')}</div>`}
+      ${tekstomrade(nokkel('kontakt'), g.kontakt, 'class="inndata" rows="4" placeholder="Kontaktperson, e-post, telefon …"')}
     </label>
+    <div class="felt"><span class="etikett">Søknadsfrister</span>
+      ${frister.map(f => fristrad(g, f)).join('') || '<div class="undertekst">Ingen frister enda. De vises i Årshjul.</div>'}
+      <button type="button" class="knapp knapp-ramme knapp-liten" style="align-self:flex-start" data-handling="frist-ny">+ Frist</button>
+    </div>
     <div class="boksrute">
-      ${admin
-        ? avkryss(!!g.momsTrekk, 'Trekk ut momskompensasjon', 'moms', '', 'fet')
-        : `<div style="font-weight:600">Momskompensasjon: ${escapeHtml(momsTekst(g))}</div>`}
+      ${avkryss(!!g.momsTrekk, 'Trekk ut momskompensasjon', 'moms', '', 'fet')}
       ${g.momsTrekk ? `
-        ${admin ? `<div class="innrykk" style="display:flex; align-items:center; gap:10px"><span class="dempet">Standardprosent</span><input class="inndata prosent" inputmode="numeric" ${feltAttr(nokkel('momsProsent'), g.momsProsent, 'prosent')}><span>%</span></div>` : ''}
+        <div class="innrykk" style="display:flex; align-items:center; gap:10px"><span class="dempet">Standardprosent</span><input class="inndata prosent" inputmode="numeric" ${feltAttr(nokkel('momsProsent'), g.momsProsent, 'prosent')}><span>%</span></div>
         <div class="innrykk undertekst">Eksempel: en vare til 1 000 kr dekkes med ${eksempel} kr fra giveren; resten dekkes av momskompensasjonen året etter. Kan justeres per søknad.</div>`
       : '<div class="innrykk undertekst">Søknader til denne giveren viser ingen ekstra kolonner.</div>'}
     </div>
@@ -53,10 +75,43 @@ function panel(g) {
           || '<div class="tomt">Ingen søknader enda.</div>'}
       </div>
     </div>
-    ${admin ? nesteknapp('+ Ny giver') : ''}
+    ${neste ? nesteknapp('+ Ny giver') : ''}
     <div class="panelbunn"><span></span>
-      ${admin && !soknader.length ? '<button type="button" class="knapp knapp-fare" data-handling="slett">Slett giver</button>' : ''}
-    </div>`, { nytt: ui.nyttPanel });
+      ${erAdmin() && !soknader.length ? '<button type="button" class="knapp knapp-fare" data-handling="slett">Slett giver</button>' : ''}
+    </div>`, { nytt });
+}
+
+// Knappene i giverpanelet. Gir true når handlingen hørte til panelet.
+// `lukk` kalles når giveren slettes.
+export async function giverklikk(handling, el, g, lukk) {
+  if (!g) return false;
+  if (handling === 'moms') lagre(() => oppdaterGiver(g.id, { momsTrekk: !g.momsTrekk }));
+  else if (handling === 'frist-ny') {
+    if (!(await ferdigLagret())) return true;
+    const id = await lagre(() => leggTilFrist(g.id));
+    if (id) { fokuser(`givere/${g.id}/frister.${id}.dato`); tegn(); }
+  }
+  else if (handling === 'frist-arlig') {
+    const f = g.frister?.[el.dataset.id];
+    if (f) lagre(() => oppdaterGiver(g.id, { [`frister.${el.dataset.id}.arlig`]: !f.arlig }));
+  }
+  else if (handling === 'frist-slett') lagre(() => fjernFrist(g.id, el.dataset.id));
+  else if (handling === 'frist-soknad') {
+    if (!(await ferdigLagret())) return true;
+    const f = tilstand.givere.find(x => x.id === g.id)?.frister?.[el.dataset.id];
+    const frist = nesteForekomst(f, iDag());
+    if (!frist) return true;
+    const tittel = `${(f.tekst || g.navn || 'Søknad').trim()} ${frist.slice(0, 4)}`;
+    const id = await lagre(() => opprettSoknad({ giverId: g.id, tittel, frist }));
+    if (id) gaaTil(`#/soknad/${id}`);
+  }
+  else if (handling === 'slett') {
+    if (!erAdmin() || !confirm(`Slette giveren «${g.navn || 'Uten navn'}»?`)) return true;
+    lukk?.();
+    lagre(() => slettGiver(g.id));
+  }
+  else return false;
+  return true;
 }
 
 // ——— Brukere (bare administrator) ———
@@ -85,7 +140,7 @@ function brukere() {
   const liste = [...tilstand.brukere].sort((a, b) => (a.navn || a.epost).localeCompare(b.navn || b.epost, 'nb'));
   return `
     <div class="verktoyrad">
-      <div class="hint">Alle brukere kan gjøre alt i søknadene. Administratorer kan i tillegg invitere og fjerne brukere og vedlikeholde givere. Revisorer ser bare søknadene de er satt som revisor for (velges på søknaden), og kan ikke endre noe.</div>
+      <div class="hint">Alle brukere kan gjøre alt i søknadene. Administratorer kan i tillegg invitere og fjerne brukere og slette givere. Revisorer ser bare søknadene de er satt som revisor for (velges på søknaden), og kan ikke endre noe.</div>
       <button type="button" class="knapp knapp-primar" data-handling="inviter">+ Inviter bruker</button>
     </div>
     <div class="tabellramme" data-rull="brukere">
@@ -148,32 +203,33 @@ export const givereSide = {
       <header class="sidehode">
         <div>
           <h1>${visBrukere ? 'Brukere' : 'Givere'}</h1>
-          <div class="ingress">${visBrukere ? 'Hvem som har tilgang til portalen.' : 'Vedlikeholdes av administrator. Momsinnstillingen arves av nye søknader til giveren.'}</div>
+          <div class="ingress">${visBrukere ? 'Hvem som har tilgang til portalen.' : 'Kontaktinfo, søknadsfrister og momsinnstilling. Fristene vises i Årshjul, og momsinnstillingen arves av nye søknader til giveren.'}</div>
         </div>
       </header>
       ${innstillingsmeny(visBrukere ? 'givere/brukere' : 'givere')}
       <main class="innhold">
         ${visBrukere ? brukere() : `
         <div class="verktoyrad">
-          <div class="hint">Klikk en giver for å ${erAdmin() ? 'endre kontaktinfo og momsinnstilling' : 'se detaljer'}.</div>
-          ${erAdmin() ? '<button type="button" class="knapp knapp-primar" data-handling="ny">+ Ny giver</button>' : ''}
+          <div class="hint">Klikk en giver for å endre kontaktinfo, frister og momsinnstilling.</div>
+          <button type="button" class="knapp knapp-primar" data-handling="ny">+ Ny giver</button>
         </div>
         <div class="tabellramme" data-rull="givere">
           <table class="liste">
-            <thead><tr><th>Giver</th><th>Kontakt</th><th>Momskompensasjon</th><th class="tall">Søknader</th></tr></thead>
+            <thead><tr><th>Giver</th><th>Kontakt</th><th>Frister</th><th>Momskompensasjon</th><th class="tall">Søknader</th></tr></thead>
             <tbody>
               ${givere.map(g => `
                 <tr class="klikkbar ${g.id === ui.panel ? 'valgt' : ''}" data-handling="apne" data-id="${g.id}">
                   <td class="fet">${escapeHtml(g.navn || 'Uten navn')}</td>
                   <td class="dempet" style="max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${escapeHtml((g.kontakt || '–').split('\n')[0])}</td>
+                  <td class="smal dempet">${escapeHtml(fristliste(g).filter(f => f.dato).map(f => f.arlig ? datoFelt(f.dato).slice(0, 5) : datoFelt(f.dato)).join(', ') || '–')}</td>
                   <td class="smal"><span class="merkelapp ${g.momsTrekk ? 'm-pa' : 'm-av'}">${escapeHtml(momsTekst(g))}</span></td>
                   <td class="tall">${tilstand.soknader.filter(s => s.giverId === g.id).length}</td>
-                </tr>`).join('') || '<tr class="tom-rad"><td colspan="4">Ingen givere enda.</td></tr>'}
+                </tr>`).join('') || '<tr class="tom-rad"><td colspan="5">Ingen givere enda.</td></tr>'}
             </tbody>
           </table>
         </div>`}
       </main>
-      ${valgt ? panel(valgt) : ui.panel === 'inviter' ? inviterPanel() : ''}`;
+      ${valgt ? giverpanel(valgt, { nytt: ui.nyttPanel, neste: true }) : ui.panel === 'inviter' ? inviterPanel() : ''}`;
     ui.nyttPanel = false;
     return html;
   },
@@ -220,19 +276,13 @@ export const givereSide = {
     else if (handling === 'lukk-panel') { ui.panel = null; tegn(); }
     else if (handling === 'ny' || handling === 'neste') {
       if (handling === 'neste') {
-        if (!erAdmin() || !(await ferdigLagret())) return;
+        if (!(await ferdigLagret())) return;
         const apen = tilstand.givere.find(x => x.id === ui.panel);
         if (apen && erTomPost('givere', apen)) { fokuser(`givere/${apen.id}/navn`); tegn(); return; }
       }
       const id = await lagre(() => opprettGiver());
       if (id) { ui.panel = id; fokuser(`givere/${id}/navn`); tegn(); }
-    } else if (handling === 'moms' && g) {
-      lagre(() => oppdaterGiver(g.id, { momsTrekk: !g.momsTrekk }));
-    } else if (handling === 'slett' && g) {
-      if (!confirm(`Slette giveren «${g.navn || 'Uten navn'}»?`)) return;
-      ui.panel = null;
-      lagre(() => slettGiver(g.id));
-    }
+    } else await giverklikk(handling, el, g, () => { ui.panel = null; });
   },
 
   escape() {

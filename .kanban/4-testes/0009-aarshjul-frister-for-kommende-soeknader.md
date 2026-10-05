@@ -1,7 +1,7 @@
 ---
 id: 0009
 tittel: Årshjul: frister for kommende søknader
-status: neste
+status: testes
 opprettet: 2026-10-05
 ---
 
@@ -111,5 +111,6 @@ Grillet 2026-10-05 med `/grill-me` (ett spørsmål om gangen).
 
 ## Notater
 
+- 2026-10-05: Bygget på dev. Sett i `?demo` (som administrator): rutenettet, grå forrige måned, markering, søknadslinjer, giverpanelet fra en frist, «+ Frist», årlig 29.02 → 28. februar 2027, engang utenfor vinduet, «+ Søknad til denne fristen» (ga «Ordinær tildeling 2027» med frist 15.03.2027), fristkolonne i giverlisten. `node --test test/`: 74 av 74. Ikke sett: vanlig bruker mot testdatabasen (krever at reglene limes inn), revisor og mobil. Reglene er IKKE limt inn i Console ennå.
 - 2026-10-05: Grillingen av kort 0010 (Q7) endret søknadslinjene her: årshjulet viser søknadens neste frist i stedet for søknadsfristen. Q5 i grillingen over er dermed justert. 0010 bygges først.
 Løpende. Lenke til commits, skjermbilder, avklaringer.

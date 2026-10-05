@@ -19,10 +19,13 @@ export function lagDemodata() {
   };
 
   const givere = {
-    g1: { organisasjonId: org, navn: 'Sparebankstiftelsen Nord', kontakt: 'Søknadsportal på nett. Frister 15. mars og 15. september.\nKontakt: Nina Hauge, nina@sbnord.no', momsTrekk: true, momsProsent: 8, ...av(...kari, 40) },
-    g2: { organisasjonId: org, navn: 'Kulturrådet', kontakt: 'Instrumentfondet. Frist 1. juni.', momsTrekk: false, momsProsent: 8, ...av(...kari, 40) },
+    g1: { organisasjonId: org, navn: 'Sparebankstiftelsen Nord', kontakt: 'Søknadsportal på nett. Frister 15. mars og 15. september.\nKontakt: Nina Hauge, nina@sbnord.no', momsTrekk: true, momsProsent: 8, ...av(...kari, 40),
+      frister: { f1: { dato: '2026-03-15', tekst: 'Ordinær tildeling', arlig: true }, f2: { dato: '2026-09-15', tekst: 'Ordinær tildeling', arlig: true } } },
+    g2: { organisasjonId: org, navn: 'Kulturrådet', kontakt: 'Instrumentfondet. Frist 1. juni.', momsTrekk: false, momsProsent: 8, ...av(...kari, 40),
+      frister: { f1: { dato: '2026-06-01', tekst: 'Instrumentfondet', arlig: true }, f2: { dato: datoOm(20), tekst: 'Ekstra utlysning: talentmidler', arlig: false } } },
     g3: { organisasjonId: org, navn: 'Gjensidigestiftelsen', kontakt: 'Løpende søknader. Krever revisjonsrapport ved avslutning.', momsTrekk: true, momsProsent: 8, ...av(...per, 30) },
-    g4: { organisasjonId: org, navn: 'Kommunen – kulturmidler', kontakt: 'Kultursjef Ole Vik, ole.vik@kommune.no', momsTrekk: false, momsProsent: 8, ...av(...per, 20) },
+    g4: { organisasjonId: org, navn: 'Kommunen – kulturmidler', kontakt: 'Kultursjef Ole Vik, ole.vik@kommune.no', momsTrekk: false, momsProsent: 8, ...av(...per, 20),
+      frister: { f1: { dato: datoOm(-3), tekst: 'Tilskudd til arrangement', arlig: false } } },
   };
 
   const behov = {

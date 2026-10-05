@@ -96,10 +96,12 @@ service cloud.firestore {
       allow delete: if erAdmin() && id != epost();
     }
 
+    // Alle brukere kan opprette og endre givere (også frister og
+    // momsinnstilling); bare administrator sletter (B-29).
     match /givere/{id} {
       allow read: if erMedlem();
-      allow create: if erAdmin() && riktigOrg();
-      allow update: if erAdmin() && orgUendret();
+      allow create: if erBruker() && riktigOrg();
+      allow update: if erBruker() && orgUendret();
       allow delete: if erAdmin();
     }
 

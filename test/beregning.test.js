@@ -1176,3 +1176,72 @@ test('iDag gir lokal dato som ÅÅÅÅ-MM-DD', async () => {
   const { iDag } = await import('../app/ui/format.js');
   assert.equal(iDag(new Date(2026, 0, 5, 23, 30)), '2026-01-05');
 });
+
+test('årshjul: tolv måneder fra forrige måned, årlige frister én gang, engangsfrister til måneden etter (kort 0009)', async () => {
+  const { aarshjul } = await import('../app/data/beregning.js');
+  const givere = [
+    { id: 'g1', navn: 'Stiftelsen', frister: {
+      a: { dato: '2024-03-15', tekst: 'Ordinær', arlig: true },
+      b: { dato: '2024-09-15', tekst: 'Ordinær', arlig: true },
+      c: { dato: '2026-12-01', tekst: 'Ekstra', arlig: false },
+      d: { dato: null, tekst: 'Uten dato', arlig: true },
+    } },
+    { id: 'g2', navn: 'Fondet', frister: {
+      e: { dato: '2026-10-01', tekst: 'Tidligere i måneden', arlig: false },
+      f: { dato: '2026-11-04', tekst: '30 dager', arlig: false },
+      g: { dato: '2026-11-05', tekst: '31 dager', arlig: false },
+      h: { dato: '2026-08-31', tekst: 'For gammel', arlig: false },
+      i: { dato: '2027-09-01', tekst: 'For langt fram', arlig: false },
+    } },
+    { id: 'g3', navn: 'Uten frister' },
+  ];
+  const hjul = aarshjul(givere, [], '2026-10-05');
+  assert.deepEqual(hjul.map(m => `${m.aar}-${m.maaned}`), ['2026-9', '2026-10', '2026-11', '2026-12', '2027-1', '2027-2', '2027-3', '2027-4', '2027-5', '2027-6', '2027-7', '2027-8']);
+  assert.deepEqual(hjul.map(m => m.forrige), [true, ...Array(11).fill(false)]);
+  assert.equal(hjul[1].denne, true);
+  const i = (aar, mnd) => hjul.find(m => m.aar === aar && m.maaned === mnd).poster.map(p => `${p.dato} ${p.navn} ${p.tekst} ${p.tilstand}`);
+  assert.deepEqual(i(2027, 3), ['2027-03-15 Stiftelsen Ordinær senere']);
+  assert.deepEqual(i(2026, 9), ['2026-09-15 Stiftelsen Ordinær passert']);
+  assert.deepEqual(i(2026, 12), ['2026-12-01 Stiftelsen Ekstra senere']);
+  assert.deepEqual(i(2026, 10), ['2026-10-01 Fondet Tidligere i måneden passert']);
+  assert.deepEqual(i(2026, 11), ['2026-11-04 Fondet 30 dager naer', '2026-11-05 Fondet 31 dager senere']);
+  assert.equal(hjul.flatMap(m => m.poster).length, 6);
+  // Engangsfristen 01.12.2026 står til og med januar 2027 og er borte i februar
+  assert.equal(aarshjul(givere, [], '2027-01-20')[0].poster.some(p => p.fristId === 'c'), true);
+  assert.equal(aarshjul(givere, [], '2027-02-01').flatMap(m => m.poster).some(p => p.fristId === 'c'), false);
+});
+
+test('årshjul: 29.02 står på 28.02 uten skuddår, og søknadene vises med neste frist (kort 0009)', async () => {
+  const { aarshjul, arligDato } = await import('../app/data/beregning.js');
+  assert.equal(arligDato('2024-02-29', 2027), '2027-02-28');
+  assert.equal(arligDato('2024-02-29', 2028), '2028-02-29');
+  const givere = [{ id: 'g', navn: 'Skuddår', frister: { a: { dato: '2024-02-29', tekst: '', arlig: true } } }];
+  const soknader = [
+    { id: 'u', tittel: 'Klarinetter 2027', status: 'utkast', frist: '2027-06-01' },
+    { id: 'i', tittel: 'Uniformer', status: 'innvilget', frist: '2026-02-01', nesteFrist: '2027-03-01', nesteFristHva: 'Sluttrapport til giver' },
+    { id: 'f', tittel: 'Forfalt', status: 'innvilget', nesteFrist: '2026-09-20', nesteFristHva: 'Delrapport' },
+    { id: 'gammel', tittel: 'Lenge forfalt', status: 'innvilget', nesteFrist: '2026-07-01' },
+    { id: 's', tittel: 'Sendt uten neste frist', status: 'sendt', frist: '2026-11-01' },
+    { id: 'a', tittel: 'Avsluttet', status: 'avsluttet', nesteFrist: '2026-11-01' },
+  ];
+  const poster = aarshjul(givere, soknader, '2026-10-05').flatMap(m => m.poster);
+  assert.deepEqual(poster.map(p => `${p.type} ${p.dato} ${p.navn} · ${p.tekst} · ${p.tilstand}`), [
+    'soknad 2026-09-20 Forfalt · Delrapport · forfalt',
+    'giver 2027-02-28 Skuddår ·  · senere',
+    'soknad 2027-03-01 Uniformer · Sluttrapport til giver · senere',
+    'soknad 2027-06-01 Klarinetter 2027 · Send søknaden · senere',
+  ]);
+});
+
+test('fristliste og nesteForekomst: årlig går til neste år når datoen er passert (kort 0009)', async () => {
+  const { fristliste, nesteForekomst } = await import('../app/data/beregning.js');
+  const iDag = '2026-10-05';
+  assert.equal(nesteForekomst({ dato: '2024-03-15', arlig: true }, iDag), '2027-03-15');
+  assert.equal(nesteForekomst({ dato: '2024-10-05', arlig: true }, iDag), '2026-10-05');
+  assert.equal(nesteForekomst({ dato: '2024-12-01', arlig: true }, iDag), '2026-12-01');
+  assert.equal(nesteForekomst({ dato: '2026-12-01', arlig: false }, iDag), '2026-12-01');
+  assert.equal(nesteForekomst({ dato: '2026-10-04', arlig: false }, iDag), null);
+  assert.equal(nesteForekomst({ dato: null, arlig: true }, iDag), null);
+  assert.deepEqual(fristliste({ frister: { a: { dato: '2026-09-15' }, b: { dato: null }, c: { dato: '2024-03-15' } } }).map(f => f.id), ['c', 'a', 'b']);
+  assert.deepEqual(fristliste({}), []);
+});

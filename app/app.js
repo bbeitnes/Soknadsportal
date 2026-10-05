@@ -23,9 +23,10 @@ import { leverandorerSide } from './sider/leverandorer.js';
 import { kvitteringSide } from './sider/kvittering.js';
 import { innstillingerSide } from './sider/innstillinger.js';
 import { revisorSide } from './sider/revisor.js';
+import { aarshjulSide } from './sider/aarshjul.js';
 
 const rot = document.getElementById('side');
-const SIDER = { soknader: soknaderSide, soknad: soknadSide, behov: behovSide, givere: givereSide, leverandorer: leverandorerSide, kvittering: kvitteringSide, innstillinger: innstillingerSide, revisor: revisorSide };
+const SIDER = { soknader: soknaderSide, soknad: soknadSide, behov: behovSide, givere: givereSide, leverandorer: leverandorerSide, kvittering: kvitteringSide, innstillinger: innstillingerSide, revisor: revisorSide, aarshjul: aarshjulSide };
 
 document.title = APPNAVN;
 document.getElementById('merke').innerHTML = MILJO === 'prod' ? 'Søknadsportal' : `Søknadsportal<small>${MILJO.toUpperCase()}</small>`;

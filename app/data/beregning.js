@@ -414,6 +414,70 @@ export function sorterSoknader(soknader, iDag) {
   ].map(x => x.s);
 }
 
+// ——— Årshjul (kort 0009) ———
+// Fristene ligger på giveren: `givere.<id>.frister.<fid>` = { dato, tekst, arlig }.
+// En årlig frist gjentas på samme dag hvert år; året i datoen er bare året
+// den ble lagt inn. Neste forekomst, måned og markering regnes ut her.
+
+const toSifre = n => String(n).padStart(2, '0');
+const erSkuddaar = aar => (aar % 4 === 0 && aar % 100 !== 0) || aar % 400 === 0;
+const dagerMellom = (fra, til) => Math.round((Date.parse(til) - Date.parse(fra)) / 86400000);
+
+// Datoen en årlig frist faller på i et gitt år (29.02 blir 28.02 uten skuddår).
+export function arligDato(dato, aar) {
+  const [, m, d] = dato.split('-');
+  return `${aar}-${m}-${m === '02' && d === '29' && !erSkuddaar(aar) ? '28' : d}`;
+}
+
+// Giverens frister som liste, sortert på dag i året. Uten dato sist (nye).
+export function fristliste(giver) {
+  const nokkel = f => (f.dato ? f.dato.slice(5) : '99') + (f.tekst || '');
+  return Object.entries(giver?.frister || {}).map(([id, f]) => ({ id, ...f }))
+    .sort((a, b) => nokkel(a).localeCompare(nokkel(b), 'nb'));
+}
+
+// Neste gang fristen inntreffer (i dag teller med). null når den mangler
+// dato eller er en engangsfrist som er passert.
+export function nesteForekomst(frist, iDag) {
+  if (!frist?.dato) return null;
+  if (!frist.arlig) return frist.dato >= iDag ? frist.dato : null;
+  const aar = Number(iDag.slice(0, 4));
+  const iAar = arligDato(frist.dato, aar);
+  return iAar >= iDag ? iAar : arligDato(frist.dato, aar + 1);
+}
+
+// Tolv måneder: forrige måned (`forrige`), inneværende (`denne`) og ti fram.
+// Hver måned har `poster` sortert på dato:
+//   { type: 'giver', dato, giverId, fristId, navn, tekst, tilstand }   tilstand: 'passert' | 'naer' | 'senere'
+//   { type: 'soknad', dato, soknadId, navn, tekst, tilstand }          tilstand fra nesteFrist()
+// Vinduet har hver kalendermåned én gang, så en årlig frist står ett sted.
+export function aarshjul(givere, soknader, iDag) {
+  const [aar, maaned] = iDag.split('-').map(Number);
+  const maaneder = [];
+  for (let i = -1; i < 11; i++) {
+    const n = aar * 12 + (maaned - 1) + i;
+    maaneder.push({ aar: Math.floor(n / 12), maaned: n % 12 + 1, forrige: i === -1, denne: i === 0, poster: [] });
+  }
+  const maanedFor = dato => maaneder.find(m => dato.startsWith(`${m.aar}-${toSifre(m.maaned)}-`));
+  for (const g of givere) {
+    for (const f of fristliste(g)) {
+      if (!f.dato) continue;
+      const dato = f.arlig ? arligDato(f.dato, maaneder.find(m => m.maaned === Number(f.dato.slice(5, 7))).aar) : f.dato;
+      const dager = dagerMellom(iDag, dato);
+      maanedFor(dato)?.poster.push({
+        type: 'giver', dato, giverId: g.id, fristId: f.id, navn: g.navn || 'Uten navn', tekst: f.tekst || '',
+        tilstand: dager < 0 ? 'passert' : dager <= FRISTVARSEL_DAGER ? 'naer' : 'senere',
+      });
+    }
+  }
+  for (const s of soknader) {
+    const n = nesteFrist(s, iDag);
+    if (n) maanedFor(n.dato)?.poster.push({ type: 'soknad', dato: n.dato, soknadId: s.id, navn: s.tittel || 'Uten tittel', tekst: n.hva, tilstand: n.tilstand });
+  }
+  for (const m of maaneder) m.poster.sort((a, b) => a.dato.localeCompare(b.dato) || a.type.localeCompare(b.type) || a.navn.localeCompare(b.navn, 'nb'));
+  return maaneder;
+}
+
 export function nesteRekkefolge(soknad) {
   return linjeliste(soknad).reduce((m, l) => Math.max(m, l.rekkefolge ?? 0), 0) + 1;
 }

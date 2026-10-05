@@ -1085,6 +1085,29 @@ export function revisjonsoppsummering(fakturaer, poster) {
   return { fakturert: ore(fakturaer.reduce((s, f) => s + (Number(f.belop) || 0), 0)), manglerFaktura, avvikSum: ore(avvikSum), avvikAntall, ikkeKoblet, egeninnsats: ore(egeninnsats), perPost };
 }
 
+// Momskompensasjonen fordelt på året varene er kjøpt (kort 0012). Den kommer
+// året etter kjøpet, så regnskapet trenger beløpet per år. Året er året i
+// fakturadatoen; en kreditnota følger sin egen dato. `moms` (totalen i
+// rapporten) deles etter fakturert beløp per år – egne midler fordeles altså
+// forholdsmessig (B-18: bare på summer). Fakturaer uten dato samles i en rad
+// med `ar: null`, sist. Øreresten legges på siste rad, så radene summerer til
+// totalen. Gir [{ ar, mottas, fakturert, moms }].
+export function momsPerAr(fakturaer, moms) {
+  const perAr = new Map();
+  for (const f of fakturaer) {
+    const ar = /^\d{4}-/.test(f.dato || '') ? Number(f.dato.slice(0, 4)) : null;
+    perAr.set(ar, (perAr.get(ar) || 0) + (Number(f.belop) || 0));
+  }
+  const total = [...perAr.values()].reduce((s, b) => s + b, 0);
+  const rader = [...perAr].filter(([, b]) => ore(b))
+    .sort(([a], [b]) => (a ?? Infinity) - (b ?? Infinity))
+    .map(([ar, b]) => ({ ar, mottas: ar == null ? null : ar + 1, fakturert: ore(b), moms: ore(moms * b / total) }));
+  if (!ore(total) || !rader.length) return [];
+  const siste = rader.at(-1);
+  siste.moms = ore(moms - rader.slice(0, -1).reduce((s, r) => s + r.moms, 0));
+  return rader;
+}
+
 // ——— Revisor og godkjenning ———
 // En revisor er en bruker med rollen «revisor» som står i `soknad.tilgang`
 // (liste med e-postadresser). Hver revisor har sin egen oppføring

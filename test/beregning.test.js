@@ -1245,3 +1245,46 @@ test('fristliste og nesteForekomst: årlig går til neste år når datoen er pas
   assert.deepEqual(fristliste({ frister: { a: { dato: '2026-09-15' }, b: { dato: null }, c: { dato: '2024-03-15' } } }).map(f => f.id), ['c', 'a', 'b']);
   assert.deepEqual(fristliste({}), []);
 });
+
+// ——— Momskompensasjon per år (kort 0012) ———
+test('momsPerAr fordeler momskompensasjonen etter fakturert beløp per kjøpsår', async () => {
+  const { momsPerAr } = await import('../app/data/beregning.js');
+  // 8 %, fakturert 60 000 + 40 000, egne midler 20 000 → 6 400 i alt.
+  const f = [{ dato: '2026-11-03', belop: 35000 }, { dato: '2027-02-10', belop: 40000 }, { dato: '2026-12-28', belop: 25000 }];
+  assert.deepEqual(momsPerAr(f, 6400), [
+    { ar: 2026, mottas: 2027, fakturert: 60000, moms: 3840 },
+    { ar: 2027, mottas: 2028, fakturert: 40000, moms: 2560 },
+  ]);
+});
+
+test('momsPerAr: ett år gir én rad, uten fakturaer ingen', async () => {
+  const { momsPerAr } = await import('../app/data/beregning.js');
+  assert.deepEqual(momsPerAr([{ dato: '2026-05-12', belop: 1000 }, { dato: '2026-06-01', belop: 500 }], 120),
+    [{ ar: 2026, mottas: 2027, fakturert: 1500, moms: 120 }]);
+  assert.deepEqual(momsPerAr([], 0), []);
+});
+
+test('momsPerAr: faktura uten dato får egen rad sist, uten mottaksår', async () => {
+  const { momsPerAr } = await import('../app/data/beregning.js');
+  const rader = momsPerAr([{ dato: null, belop: 2500 }, { dato: '2026-05-12', belop: 7500 }], 800);
+  assert.deepEqual(rader, [
+    { ar: 2026, mottas: 2027, fakturert: 7500, moms: 600 },
+    { ar: null, mottas: null, fakturert: 2500, moms: 200 },
+  ]);
+});
+
+test('momsPerAr: kreditnota trekker ned sitt eget år, også til negativt', async () => {
+  const { momsPerAr } = await import('../app/data/beregning.js');
+  const rader = momsPerAr([{ dato: '2026-12-01', belop: 10000 }, { dato: '2027-01-15', belop: -2000 }], 640);
+  assert.deepEqual(rader, [
+    { ar: 2026, mottas: 2027, fakturert: 10000, moms: 800 },
+    { ar: 2027, mottas: 2028, fakturert: -2000, moms: -160 },
+  ]);
+});
+
+test('momsPerAr: øreresten legges på siste rad så radene summerer til totalen', async () => {
+  const { momsPerAr } = await import('../app/data/beregning.js');
+  const rader = momsPerAr([{ dato: '2025-03-01', belop: 100 }, { dato: '2026-03-01', belop: 100 }, { dato: '2027-03-01', belop: 100 }], 100);
+  assert.deepEqual(rader.map(r => r.moms), [33.33, 33.33, 33.34]);
+  assert.equal(Math.round(rader.reduce((s, r) => s + r.moms, 0) * 100), 10000);
+});

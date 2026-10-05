@@ -1,7 +1,7 @@
 ---
 id: 0012
 tittel: Momskompensasjon per år i revisjonsrapporten
-status: neste
+status: testes
 opprettet: 2026-10-05
 ---
 
@@ -72,3 +72,5 @@ Reglene i `firebase/firestore.rules` endres ikke. `revisjonsavtrykk()` endres ik
 ## Notater
 
 Løpende. Lenke til commits, skjermbilder, avklaringer.
+
+- 2026-10-05: Bygget. `momsPerAr()` i `beregning.js` med fem tester, underlinjene på forsiden i `ui/rapport.js`, og demosøknaden «Uniformer 2026» har fakturaer i 2025 og 2026 (240,00 = 144,00 + 96,00). «Instrumenter til aspirantkorpset 2026» viser ett-års-varianten.

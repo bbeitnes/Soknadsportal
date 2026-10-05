@@ -194,6 +194,10 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   grupperes som på forsiden (`grupperFakturaposter()` → `kategorigrupper()`), med mellomtittel bare
   når fakturaen har flere typer. Typen «Instrument»/«Instrumenter» sorteres i partiturrekkefølge
   (`partiturplass()`, fast liste i `beregning.js`), resten alfabetisk. Ingen sum eller avvik per faktura.
+- Momskompensasjon per år (kort 0012): `momsPerAr(fakturaer, moms)` deler rapportens momskompensasjon på
+  kjøpsår (året i fakturadatoen, kreditnota på sin egen dato) etter fakturert beløp; øreresten på siste
+  rad, fakturaer uten dato i raden «Uten dato». Forsiden i rapporten skriver «ventes mottatt <år>» i selve
+  linjen når alt er kjøpt samme år, ellers én underlinje per år. Bare i PDF-en; lagres ikke.
 - Rapporten krymper store bilder (`ui/bildekrymp.js`: maks 1600 px på lengste side, men minst
   1000 px på korteste; JPEG-kvalitet 0,6), både løse bildebilag og bilder inne i PDF-bilag – JPEG
   (DCTDecode) og tapsfritt lagrede (FlateDecode, typisk «skriv ut til PDF» av et foto). Tekst og

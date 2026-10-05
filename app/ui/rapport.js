@@ -10,7 +10,7 @@
 //      Bilder blir egne sider; PDF-er kopieres inn side for side. Store
 //      bilder (også inne i PDF-bilag) krympes først, se bildekrymp.js.
 import { tilstand, innkjopFor, fakturaerFor, filBytes, revisorerFor } from '../data/index.js';
-import { pott, fakturaDekker, giverandelOre, posttittel, revisjonsoppsummering, sumEgneMidler } from '../data/beregning.js';
+import { pott, fakturaDekker, giverandelOre, posttittel, revisjonsoppsummering, sumEgneMidler, momsPerAr } from '../data/beregning.js';
 import { posterFor, fordelingFor, fakturaposterFor } from '../sider/revisjon.js';
 import { belop, datoFelt, datoKl } from './format.js';
 import { krympBilde, krympBilderIPdf } from './bildekrymp.js';
@@ -115,7 +115,21 @@ export async function lagRevisjonsrapport(s) {
     tekst(sumEgeninnsats ? 'Fordeling av det som er brukt' : 'Fordeling av det fakturerte', MARG, 10, fet, graa); y -= 20;
     if (harEgne) linje('Egne midler', belop(egne));
     linje(p.harMoms ? `Fra giver (${p.giverProsent} %${harEgne ? ' etter egne midler' : ''})` : 'Fra giver', belop(fraGiver));
-    if (p.harMoms) linje(`Fra momskompensasjon (${p.prosent} %) – forventes mottatt neste år`, belop(brukt - egne - fraGiver));
+    if (p.harMoms) {
+      // Kompensasjonen kommer året etter kjøpet. Ett kjøpsår står i selve
+      // linjen; flere år (eller fakturaer uten dato) får hver sin underlinje.
+      const moms = brukt - egne - fraGiver, perAr = momsPerAr(fakturaer, moms);
+      const ettAr = perAr.length === 1 && perAr[0].ar != null;
+      linje(`Fra momskompensasjon (${p.prosent} %)${ettAr ? ` – ventes mottatt ${perAr[0].mottas}` : ''}`, belop(moms));
+      if (perAr.length && !ettAr) {
+        y += 4;
+        for (const r of perAr) {
+          tekst(r.ar == null ? 'Uten dato' : `Kjøp i ${r.ar} – ventes mottatt ${r.mottas}`, MARG + 14, 10, font, graa);
+          hoyre(belop(r.moms), A4[0] - MARG, 10, font, graa); y -= 15;
+        }
+        y -= 7;
+      }
+    }
   }
   // Samme fordeling per kategori, slik giveren kan se at egenandelen er innfridd.
   if (harEgne) {

@@ -76,6 +76,11 @@ export function lagDemodata() {
       nesteFrist: datoOm(14), nesteFristHva: 'Sluttrapport til giver',
       status: 'innvilget', soktOverstyrt: null, innvilget: 42000, momsProsent: 8, revisjon: true,
       linjer: { l1: linje('b9', 30, 1400, 1) },
+      // Kjøp i to år på samme tildeling: momskompensasjonen kommer i to omganger.
+      utgifter: {
+        u1: { beskrivelse: 'Uniformsmerker', belop: 1800, dato: '2025-12-15', type: 'Uniform', lagtInnAv: { epost: per[0], navn: per[1] }, rekkefolge: 1 },
+        u2: { beskrivelse: 'Brodering av merker', belop: 1200, dato: '2026-03-10', type: 'Uniform', lagtInnAv: { epost: per[0], navn: per[1] }, rekkefolge: 2 },
+      },
       dokumenter: {}, ...av(...per, 109),
     },
     s4: {
@@ -165,6 +170,8 @@ export function lagDemodata() {
   };
 
   Object.assign(fakturaer, {
+    f6: { organisasjonId: org, soknadId: 's3', lopenummer: 1, leverandor: 'Uniformshuset', fakturanr: '25-0931', dato: '2025-12-15', belop: 1800, fil: null, dekker: { 'utgift|u1': true }, merknad: '', lagtInnAv: { epost: per[0], navn: per[1] }, tid: dagerSiden(290), ...av(...per, 290) },
+    f7: { organisasjonId: org, soknadId: 's3', lopenummer: 2, leverandor: 'Uniformshuset', fakturanr: '26-0114', dato: '2026-03-10', belop: 1200, fil: null, dekker: { 'utgift|u2': true }, merknad: '', lagtInnAv: { epost: per[0], navn: per[1] }, tid: dagerSiden(200), ...av(...per, 200) },
     f4: { organisasjonId: org, soknadId: 's5', lopenummer: 1, leverandor: 'Kontormøbler AS', fakturanr: '55012', dato: '2025-05-06', belop: 13800, fil: null, dekker: { 'utgift|u1': true }, merknad: '', lagtInnAv: { epost: per[0], navn: per[1] }, tid: dagerSiden(310), ...av(...per, 310) },
     f5: { organisasjonId: org, soknadId: 's5', lopenummer: 2, leverandor: 'Clas Ohlson', fakturanr: 'Kvittering', dato: '2025-05-14', belop: 5960, fil: null, dekker: { 'utgift|u2': true }, merknad: '', lagtInnAv: { epost: per[0], navn: per[1] }, tid: dagerSiden(305), ...av(...per, 305) },
   });

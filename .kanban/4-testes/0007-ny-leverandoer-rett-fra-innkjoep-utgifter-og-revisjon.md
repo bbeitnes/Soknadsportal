@@ -85,7 +85,7 @@ Grillet 2026-10-05 med `/grill-me`. Omfanget ble snevret inn: Utgifter falt ut, 
 
 Løpende. Lenke til commits, skjermbilder, avklaringer.
 
-- 2026-10-05: Bygget og prøvd på dev (`?demo`), begge veier. Knappen under leverandørfeltet i Revisjon er
-  ikke med i Tab-rekkefølgen (Tab går rett til Fakturanr), så føring av fakturaer med ukjente navn ikke får
-  et ekstra stopp. Rettet samtidig at «+ Opprett …» i Innkjøp ble tilbudt for en leverandør som finnes i
+- 2026-10-05: Bygget og prøvd på dev (`?demo`), begge veier. Rettet samtidig at «+ Opprett …» i Innkjøp ble tilbudt for en leverandør som finnes i
   registeret, men alt er med i innkjøpet.
+- 2026-10-05: Etter første prøving: knappen i Revisjon er med i Tab-rekkefølgen, og Escape i et felt som
+  ikke er endret lukker panelet direkte (gjelder alle sider, se B-28). Før måtte en trykke to ganger.

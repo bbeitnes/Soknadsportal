@@ -174,6 +174,6 @@ En fri linje i søknaden kan plukkes inn i Utgifter og få faktura koblet til ut
 
 ## B-28 · Faste taster i sidepanel: Enter lagrer, Escape angrer eller lukker, ⌘/Ctrl+Enter gir neste
 **Bestemt** 2026-10-05.
-Tastene skal bety det samme i alle sidepanel (kort 0008). Enter i et enlinjefelt lagrer feltet (blur, B-03), Escape i et felt angrer og ellers lukker panelet, og ⌘/Ctrl+Enter i et panel som viser en post opprettet med «+ Ny …» lagrer feltet og åpner en ny tom post – det samme som knappen «+ Ny …» nederst i panelet. Uten en fast regel finner hvert nytt panel på sin egen snarvei.
+Tastene skal bety det samme i alle sidepanel (kort 0008). Enter i et enlinjefelt lagrer feltet (blur, B-03), Escape i et felt angrer det som er skrevet – er ingenting endret, lukker den panelet, som utenfor felt, og ⌘/Ctrl+Enter i et panel som viser en post opprettet med «+ Ny …» lagrer feltet og åpner en ny tom post – det samme som knappen «+ Ny …» nederst i panelet. Uten en fast regel finner hvert nytt panel på sin egen snarvei.
 **Snur når:** Brukerne ber om at Enter skal gå til neste felt, eller en tast kolliderer med noe nettleseren eller et nytt felt trenger.
 **Konsekvens for nye kort:** Nye sidepanel bruker disse tastene og gir dem ikke annen betydning. Et nytt panel som oppretter poster med «+ Ny …» får knappen nederst og ⌘/Ctrl+Enter. Alt en hurtigtast gjør skal også kunne gjøres med en synlig knapp.

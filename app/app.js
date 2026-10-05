@@ -314,8 +314,12 @@ document.addEventListener('keydown', e => {
   const el = e.target;
   if (el.matches?.('[data-felt]')) {
     if (e.key === 'Enter' && el.tagName === 'INPUT') { e.preventDefault(); el.blur(); }
-    if (e.key === 'Escape') { el.value = el.dataset.verdi; el.blur(); e.preventDefault(); }
-    return;
+    if (e.key !== 'Escape') return;
+    // Escape angrer det som er skrevet. Er ingenting endret, er det ikke noe
+    // å angre, og tasten går videre til siden (lukker panelet).
+    const endret = el.value !== el.dataset.verdi;
+    el.value = el.dataset.verdi; el.blur(); e.preventDefault();
+    if (endret) return;
   }
   if (e.key === 'Enter' && el.matches?.('input[data-blur-ved-enter]')) { e.preventDefault(); el.blur(); return; }
   if (e.key === 'Escape' && gjeldende?.side.escape?.()) { e.preventDefault(); tegn(); }

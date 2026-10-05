@@ -112,7 +112,7 @@ function fakturaPanel(s, f, poster) {
     </div>
     <div class="to-kol">
       <div class="felt" style="grid-column:1 / -1"><label class="felt"><span class="etikett">Leverandør</span><input class="inndata" list="leverandorliste" ${feltAttr(n('leverandor'), f.leverandor)}><datalist id="leverandorliste">${register.map(x => `<option value="${escapeHtml(x)}">`).join('')}</datalist></label>
-        <button type="button" class="knapp knapp-ramme knapp-liten" style="align-self:flex-start" tabindex="-1" data-handling="registrer-leverandor" title="Legger leverandøren i registeret og åpner den, så kontaktinfo kan fylles ut" ${kjentLeverandor(f.leverandor) ? 'hidden' : ''}>${escapeHtml(registrerTekst(f.leverandor))}</button></div>
+        <button type="button" class="knapp knapp-ramme knapp-liten" style="align-self:flex-start" data-handling="registrer-leverandor" title="Legger leverandøren i registeret og åpner den, så kontaktinfo kan fylles ut" ${kjentLeverandor(f.leverandor) ? 'hidden' : ''}>${escapeHtml(registrerTekst(f.leverandor))}</button></div>
       <label class="felt"><span class="etikett">Fakturanr</span><input class="inndata" ${feltAttr(n('fakturanr'), f.fakturanr)}></label>
       <label class="felt"><span class="etikett">Dato</span><input class="inndata" placeholder="dd.mm.åååå" ${feltAttr(n('dato'), f.dato, 'dato')}></label>
       <label class="felt"><span class="etikett">Beløp</span><input class="inndata tall" inputmode="decimal" placeholder="0,00" title="Negativt beløp = kreditnota" ${feltAttr(n('belop'), f.belop, 'belop')}><span class="undertekst">Negativt = kreditnota</span></label>

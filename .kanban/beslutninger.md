@@ -183,3 +183,9 @@ Tastene skal bety det samme i alle sidepanel (kort 0008). Enter i et enlinjefelt
 Endrer bevisst B-09, der administrator alene vedlikeholdt givere (kort 0009). Med årshjulet ligger søknadsfristene på giveren, og den som oppdager en ny ordning eller en flyttet frist skal kunne legge den inn selv – også kontaktinfo og momsinnstilling. Sletting kan ikke angres og blir hos administrator. Brukerlisten er fortsatt bare administrators; resten av B-09 står.
 **Snur når:** Momsinnstillingen blir endret ved en feil så tallene i søknader blir gale – da skjermes det feltet igjen.
 **Konsekvens for nye kort:** Nye felt på giveren kan skrives av alle brukere og må tåle det. Kort som trenger noe bare administrator kan endre, må si det uttrykkelig og få egen regel. Revisor kan fortsatt bare lese givere.
+
+## B-30 · Leser er en fjerde rolle: ser alt, skriver ingenting
+**Bestemt** 2026-10-05.
+Endrer bevisst B-09 og B-23 (kort 0011). Styreleder og andre skal kunne følge med på behov, søknader og økonomi uten å kunne endre noe ved et uhell. Leseren ser alt en vanlig bruker ser – ingen tildeling per søknad – på de samme skjermene uten redigering. Firestore-reglene gir skriverett bare til rollene `bruker` og `administrator` (hviteliste), så en ukjent rolle aldri får skrive. Filer i Storage er bare sperret i skjermen, som for revisor: Storage-reglene kan ikke slå opp rollen uten en serverdel (B-20).
+**Snur når:** En leser endrer eller sletter filer utenom skjermen, eller organisasjonen vil skjerme enkelte søknader for lesere – da trengs rollen i innloggingen (serverdel) eller tildeling per søknad.
+**Konsekvens for nye kort:** Alt nytt som kan skrives må være skrivebeskyttet for leseren, både på skjermen og i reglene, og nye regler gir skriverett med hvitelisten – aldri «alle unntatt …». Nye roller må legges uttrykkelig inn i reglene før de tas i bruk. Leseren kan ikke tildeles som revisor.

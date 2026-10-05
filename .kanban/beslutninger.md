@@ -177,3 +177,9 @@ En fri linje i søknaden kan plukkes inn i Utgifter og få faktura koblet til ut
 Tastene skal bety det samme i alle sidepanel (kort 0008). Enter i et enlinjefelt lagrer feltet (blur, B-03), Escape i et felt angrer det som er skrevet – er ingenting endret, lukker den panelet, som utenfor felt, og ⌘/Ctrl+Enter i et panel som viser en post opprettet med «+ Ny …» lagrer feltet og åpner en ny tom post – det samme som knappen «+ Ny …» nederst i panelet. Uten en fast regel finner hvert nytt panel på sin egen snarvei.
 **Snur når:** Brukerne ber om at Enter skal gå til neste felt, eller en tast kolliderer med noe nettleseren eller et nytt felt trenger.
 **Konsekvens for nye kort:** Nye sidepanel bruker disse tastene og gir dem ikke annen betydning. Et nytt panel som oppretter poster med «+ Ny …» får knappen nederst og ⌘/Ctrl+Enter. Alt en hurtigtast gjør skal også kunne gjøres med en synlig knapp.
+
+## B-29 · Alle brukere kan opprette og endre givere – bare administrator sletter
+**Bestemt** 2026-10-05.
+Endrer bevisst B-09, der administrator alene vedlikeholdt givere (kort 0009). Med årshjulet ligger søknadsfristene på giveren, og den som oppdager en ny ordning eller en flyttet frist skal kunne legge den inn selv – også kontaktinfo og momsinnstilling. Sletting kan ikke angres og blir hos administrator. Brukerlisten er fortsatt bare administrators; resten av B-09 står.
+**Snur når:** Momsinnstillingen blir endret ved en feil så tallene i søknader blir gale – da skjermes det feltet igjen.
+**Konsekvens for nye kort:** Nye felt på giveren kan skrives av alle brukere og må tåle det. Kort som trenger noe bare administrator kan endre, må si det uttrykkelig og få egen regel. Revisor kan fortsatt bare lese givere.

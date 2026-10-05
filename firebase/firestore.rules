@@ -28,15 +28,33 @@ service cloud.firestore {
       return erMedlem() && get(minRad()).data.rolle == 'administrator';
     }
 
+    // Rollen på egen rad. Rader uten rolle (eldre invitasjoner) er brukere.
+    function rolle() {
+      let r = get(minRad()).data.get('rolle', 'bruker');
+      return r == null ? 'bruker' : r;
+    }
+
     // Revisor: ser bare søknadene hen er tildelt, og skriver bare sin egen
     // oppføring på dem (se soknader under).
     function erRevisor() {
-      return erMedlem() && get(minRad()).data.get('rolle', 'bruker') == 'revisor';
+      return erMedlem() && rolle() == 'revisor';
     }
 
-    // Bruker eller administrator: kan alt i søknadene.
+    // Bruker eller administrator: kan alt i søknadene. Skriverett gis bare
+    // til disse to rollene (hviteliste, B-30) – en rolle reglene ikke
+    // kjenner, får aldri skrive.
     function erBruker() {
-      return erMedlem() && get(minRad()).data.get('rolle', 'bruker') != 'revisor';
+      return erMedlem() && rolle() in ['bruker', 'administrator'];
+    }
+
+    // Leser (B-30): ser alt en bruker ser, men skriver ingenting – bortsett
+    // fra å gjøre sin egen rad aktiv ved første innlogging (se brukere).
+    function erLeser() {
+      return erMedlem() && rolle() == 'leser';
+    }
+
+    function serAlt() {
+      return erBruker() || erLeser();
     }
 
     // Revisoren er tildelt søknaden når e-posten står i `tilgang`.
@@ -85,7 +103,7 @@ service cloud.firestore {
       // Egen rad kan alltid leses — også når den ikke finnes, så appen
       // kan svare «ingen tilgang» i stedet for en tilgangsfeil.
       // Revisorer får bare lese sin egen rad, ikke brukerlisten.
-      allow read: if erBruker() || (innlogget() && id == epost());
+      allow read: if serAlt() || (innlogget() && id == epost());
       // Første innlogging: en invitert bruker gjør seg selv aktiv og kan
       // sette navnet sitt. Rolle og alt annet kan bare administrator endre.
       allow update: if erAdmin()
@@ -117,7 +135,7 @@ service cloud.firestore {
     // Revisorer leser bare søknader de står i `tilgang` på. Klienten må
     // spørre med where('tilgang', 'array-contains', <e-post>).
     match /soknader/{id} {
-      allow read: if erBruker() || (erRevisor() && epost() in resource.data.tilgang);
+      allow read: if serAlt() || (erRevisor() && epost() in resource.data.tilgang);
       allow create: if erBruker() && riktigOrg() && !('revisorer' in request.resource.data);
       allow update: if (erBruker() && orgUendret() && rorerIkkeRevisorer())
         || (erRevisor() && revisorSkriving());
@@ -127,14 +145,14 @@ service cloud.firestore {
     // Revisorer leser innkjøp og fakturaer for tildelte søknader. Klienten må
     // spørre med where('soknadId', '==', <id>).
     match /innkjop/{id} {
-      allow read: if erBruker() || revisorFor(resource.data.soknadId);
+      allow read: if serAlt() || revisorFor(resource.data.soknadId);
       allow create: if erBruker() && riktigOrg();
       allow update: if erBruker() && orgUendret();
       allow delete: if erBruker();
     }
 
     match /fakturaer/{id} {
-      allow read: if erBruker() || revisorFor(resource.data.soknadId);
+      allow read: if serAlt() || revisorFor(resource.data.soknadId);
       allow create: if erBruker() && riktigOrg();
       allow update: if erBruker() && orgUendret();
       allow delete: if erBruker();

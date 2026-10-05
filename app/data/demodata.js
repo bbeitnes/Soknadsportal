@@ -13,6 +13,8 @@ export function lagDemodata() {
   const brukere = {
     'kari@korpset.no': { organisasjonId: org, epost: 'kari@korpset.no', navn: 'Kari Nordmann', rolle: 'administrator', status: 'aktiv' },
     'per@korpset.no': { organisasjonId: org, epost: 'per@korpset.no', navn: 'Per Hansen', rolle: 'bruker', status: 'aktiv' },
+    // ?demo=leser logger inn som Siri.
+    'siri@korpset.no': { organisasjonId: org, epost: 'siri@korpset.no', navn: 'Siri Styreleder', rolle: 'leser', status: 'aktiv' },
     // ?demo=revisor logger inn som Rita.
     'rita@revisor.no': { organisasjonId: org, epost: 'rita@revisor.no', navn: 'Rita Revisor', rolle: 'revisor', status: 'aktiv' },
     'olav@revisor.no': { organisasjonId: org, epost: 'olav@revisor.no', navn: 'Olav Berg', rolle: 'revisor', status: 'aktiv' },

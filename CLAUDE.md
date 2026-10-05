@@ -155,13 +155,22 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   `rekkefolge`. `innstillinger` er valgfri ved oppstart (tom liste hvis reglene mangler).
 - Import av behov fra regneark: `tolkBehovimport()`; `IMPORTFELT` er det panelet viser og
   testes mot det som faktisk gjenkjennes.
-- Roller: `bruker`, `administrator`, `revisor` (`brukere.<epost>.rolle`; `erAdmin()`, `erRevisor()`).
+- Roller: `bruker`, `administrator`, `leser`, `revisor` (`brukere.<epost>.rolle`; `erAdmin()`, `erLeser()`, `erRevisor()`).
   Revisor (B-23) ser bare søknader der e-posten står i `soknader.<id>.tilgang` (liste), og der bare
   pottlinjen, Revisjon (skrivebeskyttet) og dokumentene. Ruten er `#/revisor` (liste,
   `sider/revisor.js`) og `#/soknad/<id>`; alt annet sender revisoren til listen (`lesRute()` i
   `app.js`). `startLytting()` henter for revisor søknadene med `array-contains` på `tilgang` og
   innkjøp/fakturaer per tildelt søknad (`lager.lytt(…, filter)`); brukerlisten leses ikke.
   Reglene i `firebase/firestore.rules` er den reelle sperren – skjermen bare skjuler.
+- Leser (B-30, `erLeser()`): ser alt en bruker ser, men skriver ingenting. Skjermene er de samme:
+  `skrivevern()` i `app.js` kjøres etter hver tegning og gjør `data-felt` om til lesefelt, fjerner
+  handlingsknapper og lar knapper som viser en tilstand (avkrysning, valgt i gruppe) stå uten å virke.
+  Bare handlingene i `LESEHANDLINGER` slippes gjennom – en ny knapp som bare åpner/blar/laster ned må
+  legges inn der. Tekst og rader som bare gjelder redigering merkes `bare-skriv` (skjules med CSS).
+  `lager` i `data/index.js` er pakket inn så all skriving avvises for en leser. Ingen kvitteringsskjerm,
+  ingen lagrestatus, merket «Leserett» i toppmenyen. Reglene gir skriverett med hviteliste (`erBruker()`
+  = bruker/administrator) og leserett med `serAlt()`; filer i Storage er bare sperret i skjermen.
+  `?demo=leser` logger inn som Siri.
 - Revisorer tildeles i Søknad-fanen (`settRevisor()`, bare brukere med rollen Revisor). Hver revisor
   har sin egen oppføring `soknader.<id>.revisorer.<nøkkel>` = `{ epost, navn, godkjent: { tid,
   avtrykk }, merknad }` (`revisornokkel()`: e-posten med alt annet enn a–z/0–9 som «_», samme i
@@ -229,6 +238,7 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   brukeren har sett på dem der og sier fra.
 - `http://localhost:8430/?demo=revisor` = samme demodata, innlogget som revisoren Rita (tildelt to
   søknader; «Noteskap og notemapper 2025» er Avsluttet og kan godkjennes). Reglene gjelder ikke i demo.
+- `http://localhost:8430/?demo=leser` = samme demodata, innlogget som Siri med bare leserett.
 - `http://localhost:8430/?demo` = data i minnet, ingen innlogging. `demoFeil = true`
   i konsollen simulerer lagringsfeil.
 - Uten `?demo` på localhost brukes testdatabasen (krever innlogging).

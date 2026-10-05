@@ -5,7 +5,7 @@
 // Hver skriving oppdaterer bare feltene som faktisk er endret (med punktum-
 // stier for søknadslinjer), så to som redigerer samtidig bare overskriver
 // hverandre på samme felt: siste lagring per felt vinner.
-import { lager, innlogging, SLETT } from './lager.js';
+import { lager as lageret, innlogging, SLETT } from './lager.js';
 import { ORGANISASJON_ID, MILJO } from '../config/app-config.js';
 import { linjeliste, linjekostnad, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer, linjetype, anskaffetPerBehov, finansierteLinjer, revisornokkel, revisjonsavtrykk, revisorstatus, fakturakommentarer, kopistatus } from './beregning.js';
 
@@ -26,6 +26,25 @@ export const tilstand = {
 };
 
 const SAMLINGER = ['givere', 'behov', 'soknader', 'innkjop', 'leverandorer', 'fakturaer', 'brukere', 'innstillinger'];
+
+// Leser (B-30): ser alt en bruker ser, men kan ikke endre noe. Reglene i
+// firestore.rules er sperren for dataene; filer i Storage er bare sperret her
+// og i skjermen (se skrivevern() i app.js).
+export function erLeser() {
+  return tilstand.meg?.rolle === 'leser';
+}
+
+// All skriving går gjennom `lager`. En leser stoppes her, så en knapp som
+// skulle ha sluppet gjennom skrivevernet i skjermen heller ikke lagrer noe.
+const SKRIVING = new Set(['opprett', 'sett', 'oppdater', 'flett', 'slett', 'lastOpp', 'slettFil']);
+const lager = new Proxy(lageret, {
+  get(mal, navn) {
+    const verdi = mal[navn];
+    if (typeof verdi !== 'function') return verdi;
+    if (!SKRIVING.has(navn)) return verdi.bind(mal);
+    return (...argumenter) => erLeser() ? Promise.reject(new Error('Du har bare leserett')) : verdi.apply(mal, argumenter);
+  },
+});
 
 export function erAdmin() {
   return tilstand.meg?.rolle === 'administrator';

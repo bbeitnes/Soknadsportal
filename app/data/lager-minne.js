@@ -1,7 +1,8 @@
 // Demo-lagring i minnet: samme grensesnitt som lager-firebase.js, men uten
 // nett og innlogging. Brukes bare på localhost med ?demo, for å prøve
 // skjermbildene. Alt forsvinner ved omlasting. ?demo=revisor logger inn som
-// revisoren i demodataene (tilgangsreglene i Firestore finnes ikke her).
+// revisoren i demodataene, ?demo=leser som en med bare leserett
+// (tilgangsreglene i Firestore finnes ikke her).
 //
 // Feil kan simuleres fra konsollen: `demoFeil = true` får neste lagringer
 // til å feile, så feilmeldingen og «Prøv igjen» kan testes.
@@ -92,9 +93,12 @@ export const lager = {
   },
 };
 
-const demobruker = new URLSearchParams(location.search).get('demo') === 'revisor'
-  ? { epost: 'rita@revisor.no', navn: 'Rita Revisor', bekreftet: true }
-  : { epost: 'kari@korpset.no', navn: 'Kari Nordmann', bekreftet: true };
+const DEMOBRUKERE = {
+  revisor: { epost: 'rita@revisor.no', navn: 'Rita Revisor', bekreftet: true },
+  leser: { epost: 'siri@korpset.no', navn: 'Siri Styreleder', bekreftet: true },
+};
+const demobruker = DEMOBRUKERE[new URLSearchParams(location.search).get('demo')]
+  || { epost: 'kari@korpset.no', navn: 'Kari Nordmann', bekreftet: true };
 
 export const innlogging = {
   vedEndring(tilbakekall) {

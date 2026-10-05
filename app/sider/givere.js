@@ -116,7 +116,7 @@ export async function giverklikk(handling, el, g, lukk) {
 
 // ——— Brukere (bare administrator) ———
 
-const ROLLER = [['bruker', 'Bruker'], ['administrator', 'Administrator'], ['revisor', 'Revisor']];
+const ROLLER = [['bruker', 'Bruker'], ['administrator', 'Administrator'], ['leser', 'Leser'], ['revisor', 'Revisor']];
 
 function brukerRad(b) {
   const meg = b.id === tilstand.meg.epost;
@@ -140,7 +140,7 @@ function brukere() {
   const liste = [...tilstand.brukere].sort((a, b) => (a.navn || a.epost).localeCompare(b.navn || b.epost, 'nb'));
   return `
     <div class="verktoyrad">
-      <div class="hint">Alle brukere kan gjøre alt i søknadene. Administratorer kan i tillegg invitere og fjerne brukere og slette givere. Revisorer ser bare søknadene de er satt som revisor for (velges på søknaden), og kan ikke endre noe.</div>
+      <div class="hint">Alle brukere kan gjøre alt i søknadene. Administratorer kan i tillegg invitere og fjerne brukere og slette givere. Lesere ser alt, men kan ikke endre noe. Revisorer ser bare søknadene de er satt som revisor for (velges på søknaden), og kan ikke endre noe.</div>
       <button type="button" class="knapp knapp-primar" data-handling="inviter">+ Inviter bruker</button>
     </div>
     <div class="tabellramme" data-rull="brukere">
@@ -210,7 +210,7 @@ export const givereSide = {
       <main class="innhold">
         ${visBrukere ? brukere() : `
         <div class="verktoyrad">
-          <div class="hint">Klikk en giver for å endre kontaktinfo, frister og momsinnstilling.</div>
+          <div class="hint bare-skriv">Klikk en giver for å endre kontaktinfo, frister og momsinnstilling.</div>
           <button type="button" class="knapp knapp-primar" data-handling="ny">+ Ny giver</button>
         </div>
         <div class="tabellramme" data-rull="givere">

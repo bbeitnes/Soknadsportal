@@ -9,7 +9,7 @@
 // og markøren, utvalget og det som er skrevet flyttes over til det nye feltet.
 // Da oppdateres f.eks. kostnaden med én gang man tabber fra antall til pris.
 import { APPNAVN, MILJO } from './config/app-config.js';
-import { tilstand, innlogging, hentTilgang, startLytting, alleLastet, erRevisor, hentKopistatus, kopistatusNaa, oppdaterGiver, oppdaterBehov, oppdaterSoknad, oppdaterInnkjop, oppdaterLeverandor, oppdaterFaktura, oppdaterInnstillinger } from './data/index.js';
+import { tilstand, innlogging, hentTilgang, startLytting, alleLastet, erRevisor, erLeser, hentKopistatus, kopistatusNaa, oppdaterGiver, oppdaterBehov, oppdaterSoknad, oppdaterInnkjop, oppdaterLeverandor, oppdaterFaktura, oppdaterInnstillinger } from './data/index.js';
 import { escapeHtml, datoKl } from './ui/format.js';
 import { kobleLagringsstatus, lagre, visMelding } from './ui/lagring.js';
 import { tolkFelt, tolkNokkel } from './ui/felt.js';
@@ -45,7 +45,9 @@ function lesRute() {
   // Revisor har bare listen over tildelte søknader og revisjonen av dem.
   if (erRevisor()) return navn === 'soknad' && parametre[0] ? { navn, parametre: [parametre[0]] } : { navn: 'revisor', parametre: [] };
   if (navn === 'revisor') return { navn: 'soknader', parametre: [] };
-  if (!navn && window.matchMedia('(max-width: 700px)').matches) return { navn: 'kvittering', parametre: [] };
+  // En leser kan ikke levere kvitteringer og får aldri den skjermen.
+  if (erLeser() && navn === 'kvittering') return { navn: 'soknader', parametre: [] };
+  if (!navn && !erLeser() && window.matchMedia('(max-width: 700px)').matches) return { navn: 'kvittering', parametre: [] };
   return { navn: SIDER[navn] ? navn : 'soknader', parametre };
 }
 
@@ -103,6 +105,34 @@ function redigerer() {
 
 let tegner = false;
 
+// ——— Leserett (B-30) ———
+// En leser får de samme skjermene som en bruker, men skrivevernet: etter hver
+// tegning gjøres feltene om til lesefelt, og alt som endrer noe tas bort.
+// Bare handlingene under (åpne, bla, filtrere, laste ned) slippes gjennom.
+// Knapper som viser en tilstand (avkrysning, valgt i en gruppe) blir stående,
+// men virker ikke.
+const LESEHANDLINGER = new Set(['apne', 'apne-giver', 'lukk-panel', 'filter', 'velger', 'bytt', 'skriv-ut', 'rapport', 'bestilling',
+  'apne-dok', 'apne-fil', 'apne-faktura', 'apne-vedlegg', 'vedlegg-celle', 'tilbud-celle', 'leverandor', 'innkjop-velg', 'ikke-fordelt']);
+
+function skrivevern() {
+  rot.querySelectorAll('[data-felt]').forEach(el => {
+    if (el.matches('select, input[type=checkbox]')) el.disabled = true; else el.readOnly = true;
+    el.removeAttribute('placeholder');
+    el.classList.add('lesefelt');
+  });
+  rot.querySelectorAll('[data-handling]').forEach(el => {
+    if (LESEHANDLINGER.has(el.dataset.handling)) return;
+    // Rene handlingsknapper fjernes; det som viser en tilstand, blir stående.
+    const viserTilstand = el.hasAttribute('aria-pressed') || (el.className.trim() && !el.matches('.knapp, .ikonknapp'));
+    if (el.tagName === 'BUTTON' && !viserTilstand) { el.remove(); return; }
+    el.removeAttribute('title'); // «Klikk for å endre …» gjelder ikke
+    if ('disabled' in el) el.disabled = true; else el.removeAttribute('data-handling');
+  });
+  rot.querySelectorAll('input[type=file]').forEach(el => (el.closest('label') || el).remove());
+  rot.querySelectorAll('[data-dra]').forEach(el => { el.removeAttribute('data-dra'); el.removeAttribute('draggable'); el.classList.add('ikke-dra'); });
+  for (const attributt of ['data-slipp', 'data-slippmal', 'data-dobbelt']) rot.querySelectorAll(`[${attributt}]`).forEach(el => el.removeAttribute(attributt));
+}
+
 // Tegningen legges i en egen oppgave (setTimeout 0). Firestore kan melde
 // en endring midt i en Tab-overgang — før markøren har landet i neste felt —
 // og da ville vi ikke visst hvilket felt som skulle få fokus tilbake.
@@ -142,6 +172,7 @@ function tegnNaa() {
 
   tegner = true; // focusout fra feltet som fjernes skal ikke lagre
   rot.innerHTML = gjeldende.side.tegn(gjeldende.parametre);
+  if (erLeser()) skrivevern();
   tegner = false;
 
   rot.querySelectorAll('[data-rull]').forEach(el => {
@@ -255,6 +286,7 @@ rot.addEventListener('click', e => {
   gjeldende?.side.klikkOveralt?.(e);
   const el = e.target.closest('[data-handling]');
   if (!el || !rot.contains(el) || el.disabled) return;
+  if (erLeser() && !LESEHANDLINGER.has(el.dataset.handling)) return;
   gjeldende?.side.klikk?.(el.dataset.handling, el, e);
 });
 
@@ -264,10 +296,12 @@ rot.addEventListener('dblclick', e => {
 });
 
 rot.addEventListener('paste', e => {
+  if (erLeser()) return;
   gjeldende?.side.limInn?.(e.target, e.clipboardData?.getData('text') ?? '', e);
 });
 
 rot.addEventListener('change', e => {
+  if (erLeser()) return;
   if (e.target.matches('input[type=file]')) gjeldende?.side.filer?.(e.target, [...e.target.files]);
   // Nedtrekkslister lagres med én gang man velger, ikke først ved blur.
   if (e.target.matches('select[data-felt]')) lagreFelt(e.target);
@@ -279,7 +313,7 @@ rot.addEventListener('dragover', e => {
 rot.addEventListener('dragleave', e => e.target.closest('[data-slipp]')?.classList.remove('over'));
 rot.addEventListener('drop', e => {
   const sone = e.target.closest('[data-slipp]');
-  if (!sone) return;
+  if (!sone || erLeser()) return;
   e.preventDefault();
   sone.classList.remove('over');
   gjeldende?.side.filer?.(sone, [...e.dataTransfer.files]);
@@ -290,7 +324,7 @@ rot.addEventListener('focusout', e => {
   if (tegner) return;
   const el = e.target;
   if (el.matches?.('[data-felt]')) lagreFelt(el);
-  else gjeldende?.side.fokusUt?.(el, e);
+  else if (!erLeser()) gjeldende?.side.fokusUt?.(el, e);
   setTimeout(tegnHvisVentende, 0);
 });
 
@@ -298,7 +332,7 @@ const OPPDATER = { givere: oppdaterGiver, behov: oppdaterBehov, soknader: oppdat
 
 // Gir false når verdien er ugyldig (da vises meldingen og feltet settes tilbake).
 function lagreFelt(el) {
-  if (el.value === el.dataset.verdi) return true;
+  if (erLeser() || el.value === el.dataset.verdi) return true;
   const svar = tolkFelt(el);
   if (!svar.ok) {
     visMelding(svar.melding);
@@ -349,7 +383,7 @@ function visMeg() {
   const m = tilstand.meg;
   const el = document.getElementById('meg');
   el.hidden = false;
-  el.innerHTML = `<span>${escapeHtml(m.navn || m.epost)}</span><button type="button" id="logg-ut">Logg ut</button>`;
+  el.innerHTML = `${erLeser() ? '<b class="lesemerke" title="Du kan se alt, men ikke endre noe">Leserett</b>' : ''}<span>${escapeHtml(m.navn || m.epost)}</span><button type="button" id="logg-ut">Logg ut</button>`;
   el.querySelector('#logg-ut').addEventListener('click', () => innlogging.loggUt());
 }
 
@@ -390,8 +424,9 @@ async function start() {
       return;
     }
     document.body.classList.toggle('revisor', erRevisor());
+    document.body.classList.toggle('leser', erLeser());
     document.getElementById('meny').hidden = false;
-    document.getElementById('lagrestatus').hidden = false;
+    document.getElementById('lagrestatus').hidden = erLeser(); // ingenting å lagre
     visMeg();
     if (!erRevisor()) oppdaterKopilampe();
     stoppLytting = startLytting(() => tegn(), err => {

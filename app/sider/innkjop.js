@@ -151,7 +151,7 @@ function matrise(s, i) {
   const tomt = !b.linjer.length
     ? `<tr><td class="m-linje dempet" style="padding:24px 24px">Ingen linjer enda. Bruk «behov ikke fordelt» eller «+ Fri linje».</td>${b.leverandorer.map(() => '<td></td>').join('')}<td class="m-valgt"></td></tr>` : '';
   return `
-    <div class="hint" style="flex:0 0 auto">Klikk en pris for å velge, dobbeltklikk for å endre (<code>1200 -15%</code> eller <code>1200 -180</code>). <span style="letter-spacing:1px">•••</span> i cellen: alternativt produkt, tilbudsdokument og egne midler. Be leverandøren om pris per linje – vi sammenligner netto stykkpris. Lim inn fra regneark for å fylle flere celler. Skal en vare fordeles på flere leverandører, del linjen med pilene ved antallet.</div>
+    <div class="hint bare-skriv" style="flex:0 0 auto">Klikk en pris for å velge, dobbeltklikk for å endre (<code>1200 -15%</code> eller <code>1200 -180</code>). <span style="letter-spacing:1px">•••</span> i cellen: alternativt produkt, tilbudsdokument og egne midler. Be leverandøren om pris per linje – vi sammenligner netto stykkpris. Lim inn fra regneark for å fylle flere celler. Skal en vare fordeles på flere leverandører, del linjen med pilene ved antallet.</div>
     <div class="tabellramme" data-rull="matrise">
       <table class="matrise">
         <thead><tr>

@@ -278,7 +278,7 @@ function utgiftsfane(s) {
           ${planlagte.map(rad).join('')}
           ${delt ? gruppe('Andre utgifter', andre, `${antall(andre)} · det som kom i tillegg`) : ''}
           ${andre.map(rad).join('')}
-          <tr class="ny-utgift">
+          <tr class="ny-utgift bare-skriv">
             <td><input class="celleinn tekst ny" id="ny-utgift-beskrivelse" placeholder="Ny utgift – beskrivelse"></td>
             <td></td>
             <td><input class="celleinn tekst ny" id="ny-utgift-dato" placeholder="dd.mm.åååå"></td>

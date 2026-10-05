@@ -58,7 +58,7 @@ export const leverandorerSide = {
       ${innstillingsmeny('leverandorer')}
       <main class="innhold">
         <div class="verktoyrad">
-          <div class="hint">Klikk en leverandør for å endre kontaktinfo.</div>
+          <div class="hint bare-skriv">Klikk en leverandør for å endre kontaktinfo.</div>
           <button type="button" class="knapp knapp-primar" data-handling="ny">+ Ny leverandør</button>
         </div>
         <div class="tabellramme" data-rull="leverandorer">

@@ -370,3 +370,14 @@ tr.slipp-under td { box-shadow: inset 0 -2px 0 var(--color-accent); }
 .matrise tr.m-gruppe td { background: var(--color-surface); border-bottom: 1px solid var(--color-neutral-400); padding-top: 4px; padding-bottom: 3px; }
 .matrise tr.m-gruppe .m-linje { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-neutral-800); }
 .matrise tr.m-gruppe .m-valgt { font-size: 13px; font-weight: 700; color: var(--color-neutral-800); }
+
+/* ——— Leserett (B-30): samme skjermer, uten redigering ——— */
+.lesemerke { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; font-size: 12px; font-weight: 600; background: var(--color-text); color: var(--color-neutral-100); }
+body.leser .meny-kvittering { display: none !important; }
+body.leser .lesefelt, body.leser .lesefelt:focus { background: transparent; border-color: transparent; box-shadow: none; outline: 0; cursor: default; color: var(--color-text); opacity: 1; resize: none; }
+body.leser select.lesefelt { appearance: none; background-image: none; }
+body.leser #side button:disabled:not(.knapp) { cursor: default; opacity: 1; }
+body.leser #side button:disabled:not(.knapp):hover { background: transparent; }
+body.leser #side .segment button[aria-pressed="true"]:disabled:hover { background: var(--color-text); }
+body.leser .ikke-dra { visibility: hidden; }
+body.leser .bare-skriv { display: none !important; }

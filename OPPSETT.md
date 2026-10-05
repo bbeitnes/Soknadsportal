@@ -64,6 +64,42 @@ Gjøres i testdatabasen hver gang `firebase/firestore.rules` er endret.
 6. Logg inn som vanlig bruker og se at alt virker som før: åpne en søknad,
    endre et felt, legg inn og slett en faktura.
 
+### Prøve reglene som leser
+Gjøres i testdatabasen når `firebase/firestore.rules` er endret. Reglene må
+være limt inn FØR noen får rollen Leser – med eldre regler har en leser full
+skriverett.
+
+1. Lim inn reglene (alle databasene).
+2. Som administrator: inviter en ekstra e-postadresse du selv har, med rollen
+   Leser. Noter ID-en til en søknad (`#/soknad/<ID>`).
+3. Logg inn som leseren (eget nettleservindu). Du skal se Behov, Søknader,
+   Årshjul og Innstillinger som en bruker, merket «Leserett» i toppmenyen, og
+   ingen felt eller knapper som endrer noe.
+4. Åpne konsollen (F12) som leseren, sett inn ID-en og lim inn:
+
+   ```js
+   const SOKNAD = '<ID til en søknad>';
+   const { lager } = await import('./data/lager.js');
+   const les = samling => new Promise((ok, feil) => { const stopp = lager.lytt(samling, l => { setTimeout(stopp); ok(l); }, feil); });
+   const prov = async (hva, f) => { try { await f(); console.error('FEIL – ble tillatt:', hva); } catch { console.log('OK – avvist:', hva); } };
+   await prov('endre tittel på en søknad', () => lager.oppdater('soknader', SOKNAD, { tittel: 'endret av leser' }));
+   await prov('opprette søknad', () => lager.opprett('soknader', { tittel: 'fra leser' }));
+   await prov('opprette behov', () => lager.opprett('behov', { tittel: 'fra leser' }));
+   await prov('opprette innkjøp', () => lager.opprett('innkjop', { soknadId: SOKNAD }));
+   await prov('opprette faktura', () => lager.opprett('fakturaer', { soknadId: SOKNAD, belop: 1 }));
+   await prov('opprette giver', () => lager.opprett('givere', { navn: 'fra leser' }));
+   await prov('opprette leverandør', () => lager.opprett('leverandorer', { navn: 'fra leser' }));
+   await prov('endre innstillinger', () => lager.flett('innstillinger', 'skiens-skolemusikk', { orgNavn: 'x' }));
+   await prov('gjøre seg selv til administrator', async () => lager.oppdater('brukere', (await import('./data/index.js')).tilstand.meg.epost, { rolle: 'administrator' }));
+   console.log('Skal gå bra – leser alt:', (await les('soknader')).length, 'søknader,', (await les('fakturaer')).length, 'fakturaer,', (await les('brukere')).length, 'brukere');
+   ```
+
+   Alle linjene skal si «OK – avvist», og den siste skal skrive ut antall uten
+   feil. Står det «FEIL – ble tillatt», stemmer ikke reglene: fjern leseren og
+   si fra. (Ble noe opprettet ved en feil, slett det i Firebase Console.)
+
+Filer i Storage er ikke sperret for en leser i reglene, bare i skjermen (B-30).
+
 ## 3. Innlogging
 Authentication → Sign-in method:
 - Google er allerede på (brukes av Bestillingsportal).

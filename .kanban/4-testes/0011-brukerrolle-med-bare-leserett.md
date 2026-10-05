@@ -1,7 +1,7 @@
 ---
 id: 0011
 tittel: Brukerrolle med bare leserett
-status: neste
+status: testes
 opprettet: 2026-10-05
 ---
 
@@ -72,3 +72,5 @@ Faller ut som ny beslutning: B-30.
 ## Notater
 
 Løpende. Lenke til commits, skjermbilder, avklaringer.
+
+- 2026-10-05: Bygget og sett på dev med `?demo=leser`. Skjermene skrivevernes felles i `app.js` (`skrivevern()`, `LESEHANDLINGER`), datalaget avviser skriving for en leser, og reglene har hviteliste. Gjenstår å bekrefte på test: regelsperren med en ekte testbruker med rollen Leser (krever at reglene er limt inn først).

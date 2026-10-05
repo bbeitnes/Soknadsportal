@@ -171,3 +171,9 @@ Kopijobben og restore-testen legger `sikkerhetskopi-status.json` i portalens map
 En fri linje i søknaden kan plukkes inn i Utgifter og få faktura koblet til uten innkjøp (kort 0006). Ligger samme linje både i et innkjøp og som utgift, belastes potten to ganger, og «Ikke fordelt» slutter å være en huskeliste over det som gjenstår. Derfor er linjen tatt hånd om når den ligger ett av stedene, og den må fjernes der før den kan føres det andre.
 **Snur når:** En linje faktisk må deles mellom tilbudsinnkjøp og direkte utgift – da må delingen bære hvert sitt beløp, som delte innkjøpslinjer (B-13).
 **Konsekvens for nye kort:** Alt som lister «ledige» søknadslinjer (for innkjøp eller utgifter) må utelukke linjer som ligger det andre stedet. Bare frie linjer kan føres som utgift; skal behovslinjer det, må «Finansiert» og «Anskaffet» også kunne komme fra en utgift.
+
+## B-28 · Faste taster i sidepanel: Enter lagrer, Escape angrer eller lukker, ⌘/Ctrl+Enter gir neste
+**Bestemt** 2026-10-05.
+Tastene skal bety det samme i alle sidepanel (kort 0008). Enter i et enlinjefelt lagrer feltet (blur, B-03), Escape i et felt angrer og ellers lukker panelet, og ⌘/Ctrl+Enter i et panel som viser en post opprettet med «+ Ny …» lagrer feltet og åpner en ny tom post – det samme som knappen «+ Ny …» nederst i panelet. Uten en fast regel finner hvert nytt panel på sin egen snarvei.
+**Snur når:** Brukerne ber om at Enter skal gå til neste felt, eller en tast kolliderer med noe nettleseren eller et nytt felt trenger.
+**Konsekvens for nye kort:** Nye sidepanel bruker disse tastene og gir dem ikke annen betydning. Et nytt panel som oppretter poster med «+ Ny …» får knappen nederst og ⌘/Ctrl+Enter. Alt en hurtigtast gjør skal også kunne gjøres med en synlig knapp.

@@ -1,7 +1,7 @@
 ---
 id: 0012
 tittel: Momskompensasjon per år i revisjonsrapporten
-status: testes
+status: ferdig
 opprettet: 2026-10-05
 ---
 
@@ -23,14 +23,14 @@ det er uryddig å måtte regne det ut for hånd fra fakturaene.
 
 Eksempel: 8 %, fakturert 60 000,00 i 2026 og 40 000,00 i 2027, egne midler 20 000,00.
 
-- [ ] Gitt eksempelet når jeg lager revisjonsrapporten så står totallinjen «Fra momskompensasjon (8 %)» med 6 400,00 på forsiden, uten teksten «neste år», og under den én linje per år: «Kjøp i 2026 – ventes mottatt 2027» 3 840,00 og «Kjøp i 2027 – ventes mottatt 2028» 2 560,00
-- [ ] Gitt en søknad der alle fakturaer er datert samme år (2026) når jeg lager rapporten så står det «Fra momskompensasjon (8 %) – ventes mottatt 2027» på én linje, uten underlinjer
-- [ ] Gitt at en faktura mangler dato når jeg lager rapporten så får den en egen underlinje «Uten dato» uten mottaksår, også når alle de andre er fra samme år
-- [ ] Gitt en kreditnota datert et annet år enn fakturaen den retter når jeg lager rapporten så trekker den ned beløpet for sitt eget år (et år med bare kreditnota får negativt beløp)
-- [ ] Gitt flere underlinjer når jeg summerer dem så blir summen nøyaktig lik totallinjen på øret (øreresten ligger på siste linje)
-- [ ] Gitt en post med egeninnsats når jeg lager rapporten så gir den ingen momskompensasjon og ingen egen årslinje
-- [ ] Gitt en søknad til en giver uten momskompensasjon når jeg lager rapporten så er forsiden uendret (B-18)
-- [ ] Gitt `?demo` når jeg åpner demodataene så finnes det en søknad med momskompensasjon og fakturaer i to år som viser oppstillingen
+- [x] Gitt eksempelet når jeg lager revisjonsrapporten så står totallinjen «Fra momskompensasjon (8 %)» med 6 400,00 på forsiden, uten teksten «neste år», og under den én linje per år: «Kjøp i 2026 – ventes mottatt 2027» 3 840,00 og «Kjøp i 2027 – ventes mottatt 2028» 2 560,00
+- [x] Gitt en søknad der alle fakturaer er datert samme år (2026) når jeg lager rapporten så står det «Fra momskompensasjon (8 %) – ventes mottatt 2027» på én linje, uten underlinjer
+- [x] Gitt at en faktura mangler dato når jeg lager rapporten så får den en egen underlinje «Uten dato» uten mottaksår, også når alle de andre er fra samme år
+- [x] Gitt en kreditnota datert et annet år enn fakturaen den retter når jeg lager rapporten så trekker den ned beløpet for sitt eget år (et år med bare kreditnota får negativt beløp)
+- [x] Gitt flere underlinjer når jeg summerer dem så blir summen nøyaktig lik totallinjen på øret (øreresten ligger på siste linje)
+- [x] Gitt en post med egeninnsats når jeg lager rapporten så gir den ingen momskompensasjon og ingen egen årslinje
+- [x] Gitt en søknad til en giver uten momskompensasjon når jeg lager rapporten så er forsiden uendret (B-18)
+- [x] Gitt `?demo` når jeg åpner demodataene så finnes det en søknad med momskompensasjon og fakturaer i to år som viser oppstillingen
 
 ## Avgrensning
 

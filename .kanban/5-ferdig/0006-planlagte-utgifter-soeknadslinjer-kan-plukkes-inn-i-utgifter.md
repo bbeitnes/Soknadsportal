@@ -1,7 +1,7 @@
 ---
 id: 0006
 tittel: Planlagte utgifter: søknadslinjer kan plukkes inn i Utgifter
-status: testes
+status: ferdig
 opprettet: 2026-10-05
 ---
 

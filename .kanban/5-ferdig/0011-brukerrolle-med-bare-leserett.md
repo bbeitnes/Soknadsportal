@@ -1,7 +1,7 @@
 ---
 id: 0011
 tittel: Brukerrolle med bare leserett
-status: testes
+status: ferdig
 opprettet: 2026-10-05
 ---
 
@@ -20,17 +20,17 @@ har behov for innsyn, ikke for å redigere.
 
 ## Akseptansekriterier
 
-- [ ] Gitt at jeg er administrator når jeg åpner brukerlisten så kan jeg velge rollen «Leser» for en bruker, ved siden av Bruker, Administrator og Revisor
-- [ ] Gitt at jeg er logget inn som leser når jeg åpner Behov, Søknader, en søknad (alle faner) og Innstillinger (Organisasjon, Givere, Leverandører) så ser jeg det samme innholdet som en bruker, men alle felt vises som tekst, og det finnes ingen knapper som oppretter, sletter, laster opp, velger pris eller importerer, og ingenting kan dras
-- [ ] Gitt at jeg er logget inn som leser når jeg ser på toppmenyen så står merket «Leserett» der, og fanen Brukere i Innstillinger vises ikke
-- [ ] Gitt at jeg er logget inn som leser når jeg blar i faner, åpner sidepanel, filtrerer, åpner et bilag og laster ned revisjonsrapporten eller en bestilling så virker det som for en bruker
-- [ ] Gitt at jeg er logget inn som leser når jeg åpner Revisjon så ser jeg revisorenes status, merknader og kommentarer, men kan ikke godkjenne eller kommentere, og jeg kan ikke velges som revisor i Søknad-fanen
-- [ ] Gitt at jeg er logget inn som leser på en smal skjerm når jeg åpner portalen uten rute så kommer jeg til søknadslisten, ikke til kvitteringsskjermen, og `#/kvittering` sender meg til søknadslisten
-- [ ] Gitt en testbruker med rollen Leser på test-siden når hen prøver å skrive til `soknader`, `behov`, `innkjop`, `fakturaer`, `givere`, `leverandorer` eller `innstillinger` utenom skjermen så avviser Firestore skrivingen
-- [ ] Gitt en invitert leser når hen logger inn første gang så blir raden i `brukere` aktiv og navnet kan settes – ingenting annet kan skrives
-- [ ] Gitt en bruker med en rolle reglene ikke kjenner når hen prøver å skrive så avvises det (skriverett gis bare til `bruker` og `administrator`)
-- [ ] Gitt `?demo=leser` når jeg åpner dev så er jeg innlogget som en leser i demodataene
-- [ ] Gitt at reglene er endret når kortet leveres så sier svaret fra om at HELE `firebase/firestore.rules` må limes inn i prod, test og `soknadsportal-restore` – og at det må gjøres FØR noen får rollen Leser
+- [x] Gitt at jeg er administrator når jeg åpner brukerlisten så kan jeg velge rollen «Leser» for en bruker, ved siden av Bruker, Administrator og Revisor
+- [x] Gitt at jeg er logget inn som leser når jeg åpner Behov, Søknader, en søknad (alle faner) og Innstillinger (Organisasjon, Givere, Leverandører) så ser jeg det samme innholdet som en bruker, men alle felt vises som tekst, og det finnes ingen knapper som oppretter, sletter, laster opp, velger pris eller importerer, og ingenting kan dras
+- [x] Gitt at jeg er logget inn som leser når jeg ser på toppmenyen så står merket «Leserett» der, og fanen Brukere i Innstillinger vises ikke
+- [x] Gitt at jeg er logget inn som leser når jeg blar i faner, åpner sidepanel, filtrerer, åpner et bilag og laster ned revisjonsrapporten eller en bestilling så virker det som for en bruker
+- [x] Gitt at jeg er logget inn som leser når jeg åpner Revisjon så ser jeg revisorenes status, merknader og kommentarer, men kan ikke godkjenne eller kommentere, og jeg kan ikke velges som revisor i Søknad-fanen
+- [x] Gitt at jeg er logget inn som leser på en smal skjerm når jeg åpner portalen uten rute så kommer jeg til søknadslisten, ikke til kvitteringsskjermen, og `#/kvittering` sender meg til søknadslisten
+- [x] Gitt en testbruker med rollen Leser på test-siden når hen prøver å skrive til `soknader`, `behov`, `innkjop`, `fakturaer`, `givere`, `leverandorer` eller `innstillinger` utenom skjermen så avviser Firestore skrivingen
+- [x] Gitt en invitert leser når hen logger inn første gang så blir raden i `brukere` aktiv og navnet kan settes – ingenting annet kan skrives
+- [x] Gitt en bruker med en rolle reglene ikke kjenner når hen prøver å skrive så avvises det (skriverett gis bare til `bruker` og `administrator`)
+- [x] Gitt `?demo=leser` når jeg åpner dev så er jeg innlogget som en leser i demodataene
+- [x] Gitt at reglene er endret når kortet leveres så sier svaret fra om at HELE `firebase/firestore.rules` må limes inn i prod, test og `soknadsportal-restore` – og at det må gjøres FØR noen får rollen Leser
 
 ## Avgrensning
 

@@ -754,6 +754,24 @@ export function leverandorIRegister(navn, register) {
   return !n || register.some(l => (l.navn || '').trim().toLowerCase() === n);
 }
 
+// Er posten urørt siden «+ Ny …» lagde den? Da gir «neste» i sidepanelet
+// (knappen nederst og ⌘/Ctrl+Enter) ingen ny post. Verdiene er de som
+// `opprett…()` setter; tom tekst, null og tomme kart regnes som det samme.
+const URORT = {
+  fakturaer: { leverandor: '', fakturanr: '', dato: null, belop: null, fil: null, dekker: {}, merknad: '' },
+  behov: { type: '', tittel: '', beskrivelse: '', antall: 1, estPris: 0, statusOverstyring: null },
+  leverandorer: { navn: '', kontakt: '' },
+  givere: { navn: '', kontakt: '', momsTrekk: false },
+};
+
+export function erTomPost(samling, post) {
+  const tom = v => v == null || (typeof v === 'string' && !v.trim()) || (typeof v === 'object' && !Object.keys(v).length);
+  return Object.entries(URORT[samling]).every(([felt, standard]) => {
+    const v = post?.[felt];
+    return tom(standard) ? tom(v) : v === standard || v == null;
+  });
+}
+
 // ——— Fakturaer og revisjon ———
 // En faktura hører til én søknad, får et løpenummer der, og kan dekke
 // flere «poster»: valgte tilbudslinjer (innkjopId/linjeId) og løse

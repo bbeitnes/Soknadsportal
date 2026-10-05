@@ -1,10 +1,10 @@
 // Behovslisten: alt korpset trenger, uavhengig av søknad.
 import { tilstand, opprettBehov, oppdaterBehov, slettBehov, importerBehov, fellesTyperekkefolge, settFellesTyperekkefolge, settBehovrekkefolge, anskaffet, finansierte } from '../data/index.js';
-import { behovsinfo, statusNavn, tolkBehovimport, IMPORTFELT, grupperPerType, typeliste, etterRekkefolgeOgTittel, flyttIListe } from '../data/beregning.js';
+import { behovsinfo, statusNavn, erTomPost, tolkBehovimport, IMPORTFELT, grupperPerType, typeliste, etterRekkefolgeOgTittel, flyttIListe } from '../data/beregning.js';
 import { escapeHtml, kr, tidspunkt, fornavn } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
-import { lagre } from '../ui/lagring.js';
-import { tegn, fokuser, sidepanel, lukkeknapp } from '../ui/visning.js';
+import { lagre, ferdigLagret } from '../ui/lagring.js';
+import { tegn, fokuser, sidepanel, lukkeknapp, nesteknapp } from '../ui/visning.js';
 import { utskrift } from '../ui/utskrift.js';
 
 const ui = { filter: 'apne', panel: null, nyttPanel: false, importTekst: '', importerer: false };
@@ -103,6 +103,7 @@ function panel(b) {
           || '<div class="tomt">Ikke med i noen søknad enda. Behovet kan velges når du lager en søknad.</div>'}
       </div>
     </div>
+    ${nesteknapp('+ Nytt behov')}
     <div class="panelbunn"><span>${escapeHtml(endretTekst(b))}</span>
       ${info.bruk.length ? '' : '<button type="button" class="knapp knapp-fare" data-handling="slett">Slett behov</button>'}
     </div>`, { nytt: ui.nyttPanel });
@@ -243,7 +244,13 @@ export const behovSide = {
     else if (handling === 'apne') { ui.panel = el.dataset.id; ui.nyttPanel = true; tegn(); }
     else if (handling === 'lukk-panel') { ui.panel = null; tegn(); }
     else if (handling === 'skriv-ut') skrivUt(beregn());
-    else if (handling === 'ny') {
+    else if (handling === 'ny' || handling === 'neste') {
+      // «Neste» fra panelet: en urørt post gir ingen ny, bare markøren i første felt.
+      if (handling === 'neste') {
+        if (!(await ferdigLagret())) return;
+        const apen = tilstand.behov.find(x => x.id === ui.panel);
+        if (apen && erTomPost('behov', apen)) { fokuser(`behov/${apen.id}/tittel`); tegn(); return; }
+      }
       const id = await lagre(() => opprettBehov());
       if (id) {
         if (ui.filter === 'lukket') ui.filter = 'apne';

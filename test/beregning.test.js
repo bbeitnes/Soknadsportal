@@ -1104,3 +1104,27 @@ test('leverandorIRegister: sammenligner uten hensyn til store/små bokstaver og 
   assert.equal(leverandorIRegister('  ', register), true);
   assert.equal(leverandorIRegister('Ny AS', []), false);
 });
+
+test('erTomPost: urørt post slik «+ Ny …» lager den, og ikke når noe er fylt ut', async () => {
+  const { erTomPost } = await import('../app/data/beregning.js');
+  const faktura = { id: 'f', soknadId: 's', lopenummer: 4, leverandor: '', fakturanr: '', dato: null, belop: null, fil: null, dekker: {}, merknad: '', tid: 1 };
+  assert.equal(erTomPost('fakturaer', faktura), true);
+  assert.equal(erTomPost('fakturaer', { ...faktura, leverandor: '  ' }), true);
+  assert.equal(erTomPost('fakturaer', { ...faktura, leverandor: 'Nordic Brass' }), false);
+  assert.equal(erTomPost('fakturaer', { ...faktura, belop: 0 }), false); // 0 kr er skrevet inn
+  assert.equal(erTomPost('fakturaer', { ...faktura, fil: { navn: 'a.pdf', sti: 'x' } }), false);
+  assert.equal(erTomPost('fakturaer', { ...faktura, dekker: { 'i1|l1': true } }), false);
+  assert.equal(erTomPost('fakturaer', { ...faktura, merknad: 'delfaktura' }), false);
+
+  const behov = { id: 'b', type: '', tittel: '', beskrivelse: '', antall: 1, estPris: 0, statusOverstyring: null };
+  assert.equal(erTomPost('behov', behov), true);
+  assert.equal(erTomPost('behov', { ...behov, tittel: 'Kornett' }), false);
+  assert.equal(erTomPost('behov', { ...behov, antall: 3 }), false);
+  assert.equal(erTomPost('behov', { ...behov, estPris: 500 }), false);
+  assert.equal(erTomPost('behov', { ...behov, statusOverstyring: 'anskaffet' }), false);
+
+  assert.equal(erTomPost('leverandorer', { id: 'l', navn: '', kontakt: '' }), true);
+  assert.equal(erTomPost('leverandorer', { id: 'l', navn: '', kontakt: 'Kari' }), false);
+  assert.equal(erTomPost('givere', { id: 'g', navn: '', kontakt: '', momsTrekk: false, momsProsent: 8 }), true);
+  assert.equal(erTomPost('givere', { id: 'g', navn: '', kontakt: '', momsTrekk: true, momsProsent: 8 }), false);
+});

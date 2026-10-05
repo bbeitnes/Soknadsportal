@@ -9,6 +9,7 @@ let visLagretTil = 0;
 let feil = null; // { melding, igjen }
 let melding = null; // { tekst } — valideringsfeil uten «Prøv igjen»
 let tidtaker;
+const ventende = new Set();
 
 function el() {
   return document.getElementById('lagrestatus');
@@ -54,7 +55,21 @@ export function kobleLagringsstatus() {
 
 // Kjører en skriving og viser status. Returnerer resultatet, eller
 // undefined hvis den feilet (feilen vises da i toppmenyen).
-export async function lagre(skriving) {
+export function lagre(skriving) {
+  const lofte = utfor(skriving);
+  ventende.add(lofte);
+  lofte.finally(() => ventende.delete(lofte));
+  return lofte;
+}
+
+// Venter til alle skrivinger som er i gang er ferdige (f.eks. feltet som
+// nettopp ble forlatt). Gir false hvis en lagring har feilet.
+export async function ferdigLagret() {
+  while (ventende.size) await Promise.all([...ventende]);
+  return !feil;
+}
+
+async function utfor(skriving) {
   pagaende++;
   melding = null;
   tegn();

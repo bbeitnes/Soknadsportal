@@ -31,6 +31,13 @@ export function sidepanel(innhold, { nytt = false, rull = 'panel' } = {}) {
   return `<aside class="sidepanel" tabindex="-1" data-rull="${rull}" data-nytt="${nytt ? 'ja' : 'nei'}">${innhold}</aside>`;
 }
 
+// «+ Ny …» nederst i et panel som viser en post: åpner en ny tom post uten
+// å gå veien om verktøyraden. ⌘/Ctrl+Enter trykker på den (se app.js).
+const MAC = /Mac|iPhone|iPad/.test(globalThis.navigator?.platform || '');
+export function nesteknapp(tekst) {
+  return `<button type="button" class="knapp knapp-ramme" style="align-self:flex-start" data-handling="neste" title="Åpner en ny tom i panelet (${MAC ? '⌘' : 'Ctrl'} + Enter)">${tekst}</button>`;
+}
+
 export function lukkeknapp(handling = 'lukk-panel') {
   return `<button type="button" class="ikonknapp" data-handling="${handling}" title="Lukk (Esc)">${IKON.lukk}</button>`;
 }

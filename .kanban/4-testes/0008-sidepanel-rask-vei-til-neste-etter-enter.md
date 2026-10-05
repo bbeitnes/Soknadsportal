@@ -1,7 +1,7 @@
 ---
 id: 0008
 tittel: Sidepanel: «+ Ny …» i panelet og ⌘/Ctrl+Enter for neste post
-status: neste
+status: testes
 opprettet: 2026-10-05
 ---
 
@@ -74,3 +74,7 @@ Grillet 2026-10-05 med `/grill-me`. Løsningen ble valgt, og kriteriene er skrev
 ## Notater
 
 Løpende. Lenke til commits, skjermbilder, avklaringer.
+
+- 2026-10-05: Bygget og prøvd på dev (`?demo`) i alle fire panelene. «Urørt post» er `erTomPost()` i
+  `beregning.js` (testet). For behov regnes også antall ≠ 1, estimert pris og overstyrt status som utfylt;
+  for giver avkrysningen for momskompensasjon.

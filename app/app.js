@@ -295,23 +295,38 @@ rot.addEventListener('focusout', e => {
 
 const OPPDATER = { givere: oppdaterGiver, behov: oppdaterBehov, soknader: oppdaterSoknad, innkjop: oppdaterInnkjop, leverandorer: oppdaterLeverandor, fakturaer: oppdaterFaktura, innstillinger: oppdaterInnstillinger };
 
+// Gir false når verdien er ugyldig (da vises meldingen og feltet settes tilbake).
 function lagreFelt(el) {
-  if (el.value === el.dataset.verdi) return;
+  if (el.value === el.dataset.verdi) return true;
   const svar = tolkFelt(el);
   if (!svar.ok) {
     visMelding(svar.melding);
     el.value = el.dataset.verdi;
-    return;
+    return false;
   }
   el.dataset.verdi = el.value; // unngå dobbel lagring hvis focusout kommer to ganger
   const { samling, id, sti } = tolkNokkel(el.dataset.felt);
   const felt = gjeldende?.side.forLagring?.(samling, id, sti, svar.verdi) || { [sti]: svar.verdi };
   lagre(() => OPPDATER[samling](id, felt));
   ventendeTegning = true; // tall/summer oppdateres når feltet er forlatt
+  return true;
 }
 
 document.addEventListener('keydown', e => {
   const el = e.target;
+  // ⌘/Ctrl+Enter = «+ Ny …» nederst i panelet (B-28). Feltet lagres først;
+  // er verdien ugyldig, blir en stående.
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    const neste = rot.querySelector('.sidepanel [data-handling="neste"]');
+    if (!neste) return;
+    e.preventDefault();
+    if (el.matches?.('[data-felt]')) {
+      if (!lagreFelt(el)) return;
+      el.blur();
+    }
+    neste.click();
+    return;
+  }
   if (el.matches?.('[data-felt]')) {
     if (e.key === 'Enter' && el.tagName === 'INPUT') { e.preventDefault(); el.blur(); }
     if (e.key !== 'Escape') return;

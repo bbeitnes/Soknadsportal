@@ -1,11 +1,11 @@
 // Givere. Vedlikeholdes av administrator; andre brukere ser dem lesbart.
 // (Brukerlisten og invitasjoner kommer i trinn e.)
 import { tilstand, erAdmin, opprettGiver, oppdaterGiver, slettGiver, inviterBruker, oppdaterBruker, fjernBruker, invitasjonstekst, sendInnloggingslenkeTil } from '../data/index.js';
-import { statusNavn } from '../data/beregning.js';
+import { statusNavn, erTomPost } from '../data/beregning.js';
 import { escapeHtml, kr, datoFelt } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
-import { lagre, visMelding } from '../ui/lagring.js';
-import { tegn, fokuser, avkryss, sidepanel, lukkeknapp } from '../ui/visning.js';
+import { lagre, ferdigLagret, visMelding } from '../ui/lagring.js';
+import { tegn, fokuser, avkryss, sidepanel, lukkeknapp, nesteknapp } from '../ui/visning.js';
 import { innstillingsmeny } from './innstillinger.js';
 
 const ui = { seksjon: 'givere', panel: null, nyttPanel: false, invitasjon: { epost: '', rolle: 'bruker' }, kopiert: null, sender: null, sendt: null };
@@ -53,6 +53,7 @@ function panel(g) {
           || '<div class="tomt">Ingen søknader enda.</div>'}
       </div>
     </div>
+    ${admin ? nesteknapp('+ Ny giver') : ''}
     <div class="panelbunn"><span></span>
       ${admin && !soknader.length ? '<button type="button" class="knapp knapp-fare" data-handling="slett">Slett giver</button>' : ''}
     </div>`, { nytt: ui.nyttPanel });
@@ -217,7 +218,12 @@ export const givereSide = {
     }
     else if (handling === 'apne') { ui.panel = el.dataset.id; ui.nyttPanel = true; tegn(); }
     else if (handling === 'lukk-panel') { ui.panel = null; tegn(); }
-    else if (handling === 'ny') {
+    else if (handling === 'ny' || handling === 'neste') {
+      if (handling === 'neste') {
+        if (!erAdmin() || !(await ferdigLagret())) return;
+        const apen = tilstand.givere.find(x => x.id === ui.panel);
+        if (apen && erTomPost('givere', apen)) { fokuser(`givere/${apen.id}/navn`); tegn(); return; }
+      }
       const id = await lagre(() => opprettGiver());
       if (id) { ui.panel = id; fokuser(`givere/${id}/navn`); tegn(); }
     } else if (handling === 'moms' && g) {

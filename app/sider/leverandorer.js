@@ -2,11 +2,11 @@
 // administrator kan slette, og bare når leverandøren ikke er brukt i noe
 // innkjøp. Innkjøpene henter navn og kontakt herfra.
 import { tilstand, erAdmin, opprettLeverandor, slettLeverandor } from '../data/index.js';
-import { innkjopMedLeverandor } from '../data/beregning.js';
+import { innkjopMedLeverandor, erTomPost } from '../data/beregning.js';
 import { escapeHtml, tidspunkt, fornavn } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
-import { lagre } from '../ui/lagring.js';
-import { tegn, fokuser, sidepanel, lukkeknapp } from '../ui/visning.js';
+import { lagre, ferdigLagret } from '../ui/lagring.js';
+import { tegn, fokuser, sidepanel, lukkeknapp, nesteknapp } from '../ui/visning.js';
 import { innstillingsmeny } from './innstillinger.js';
 
 const ui = { panel: null, nyttPanel: false };
@@ -16,8 +16,9 @@ function sortert() {
 }
 
 // Brukes også fra søknaden (Innkjøp og Revisjon), som håndterer
-// «lukk-panel» og «slett» selv.
-export function leverandorpanel(lev, nytt = false) {
+// «lukk-panel» og «slett» selv. `neste` gir «+ Ny leverandør» nederst – bare
+// i registeret, for fra søknaden skal en tilbake dit en kom fra.
+export function leverandorpanel(lev, nytt = false, neste = false) {
   const brukt = innkjopMedLeverandor(lev.id, tilstand.innkjop);
   const nokkel = f => `leverandorer/${lev.id}/${f}`;
   return sidepanel(`
@@ -34,6 +35,7 @@ export function leverandorpanel(lev, nytt = false) {
         }).join('') || '<div class="tomt">Ikke brukt i noe innkjøp enda.</div>'}
       </div>
     </div>
+    ${neste ? nesteknapp('+ Ny leverandør') : ''}
     <div class="panelbunn"><span>${lev.endretAv ? `Sist endret av ${escapeHtml(fornavn(lev.endretAv.navn, lev.endretAv.epost))}, ${tidspunkt(lev.endretTid)}` : ''}</span>
       ${erAdmin() && !brukt.length ? '<button type="button" class="knapp knapp-fare" data-handling="slett">Slett leverandør</button>' : ''}
     </div>`, { nytt });
@@ -73,7 +75,7 @@ export const leverandorerSide = {
           </table>
         </div>
       </main>
-      ${valgt ? leverandorpanel(valgt, ui.nyttPanel) : ''}`;
+      ${valgt ? leverandorpanel(valgt, ui.nyttPanel, true) : ''}`;
     ui.nyttPanel = false;
     return html;
   },
@@ -82,7 +84,12 @@ export const leverandorerSide = {
     const lev = tilstand.leverandorer.find(x => x.id === ui.panel);
     if (handling === 'apne') { ui.panel = el.dataset.id; ui.nyttPanel = true; tegn(); }
     else if (handling === 'lukk-panel') { ui.panel = null; tegn(); }
-    else if (handling === 'ny') {
+    else if (handling === 'ny' || handling === 'neste') {
+      if (handling === 'neste') {
+        if (!(await ferdigLagret())) return;
+        const apen = tilstand.leverandorer.find(x => x.id === ui.panel);
+        if (apen && erTomPost('leverandorer', apen)) { fokuser(`leverandorer/${apen.id}/navn`); tegn(); return; }
+      }
       const id = await lagre(() => opprettLeverandor());
       if (id) { ui.panel = id; fokuser(`leverandorer/${id}/navn`); tegn(); }
     } else if (handling === 'slett' && lev) {

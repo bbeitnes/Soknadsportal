@@ -8,12 +8,12 @@ import {
 } from '../data/index.js';
 import {
   revisjonsposter, fakturaavvik, fakturaDekker, revisjonsoppsummering, pott, sumFakturert,
-  leverandorNavn, leverandorIRegister, posttittel, linjerUtenValg, fordelingPerKategori, grupperFakturaposter, sumEgneMidler, typerekkefolgeFor,
+  leverandorNavn, leverandorIRegister, erTomPost, posttittel, linjerUtenValg, fordelingPerKategori, grupperFakturaposter, sumEgneMidler, typerekkefolgeFor,
 } from '../data/beregning.js';
 import { escapeHtml, kr, belop, datoFelt, datoKl, tidspunkt, fornavn } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
-import { lagre, visMelding } from '../ui/lagring.js';
-import { tegn, fokuser, sidepanel, lukkeknapp, IKON } from '../ui/visning.js';
+import { lagre, ferdigLagret, visMelding } from '../ui/lagring.js';
+import { tegn, fokuser, sidepanel, lukkeknapp, nesteknapp, IKON } from '../ui/visning.js';
 import { lagRevisjonsrapport } from '../ui/rapport.js';
 import { klargjorBilde } from '../ui/bilde.js';
 import { leverandorpanel } from './leverandorer.js';
@@ -136,6 +136,7 @@ function fakturaPanel(s, f, poster) {
     </div>
     <label class="felt"><span class="etikett">Merknad</span>${tekstomrade(n('merknad'), f.merknad, 'class="inndata" rows="2" placeholder="F.eks. hvorfor beløpet avviker fra tilbudet, eller «delfaktura – resten kommer i oktober»"')}<span class="undertekst">Vises i fakturalisten og i revisjonsrapporten.</span></label>
     ${kommentarliste(s, f) ? `<div class="felt"><span class="etikett">Kommentar fra revisor</span>${kommentarliste(s, f)}<span class="undertekst">Revisoren fjerner kommentaren selv når saken er løst. Står ikke i rapporten.</span></div>` : ''}
+    ${nesteknapp('+ Ny faktura')}
     <div class="panelbunn"><span>Lagt inn av ${escapeHtml(fornavn(f.lagtInnAv?.navn, f.lagtInnAv?.epost))}, ${tidspunkt(f.tid)}</span><button type="button" class="knapp knapp-fare" data-handling="slett-faktura">Slett faktura</button></div>`, { nytt: ui.nyttPanel });
 }
 
@@ -300,6 +301,12 @@ export const revisjonFane = {
         if (confirm('Trekke godkjenningen din av denne revisjonen?')) lagre(() => trekkGodkjenning(s));
         return true;
       case 'revisjon-pa': lagre(() => oppdaterSoknad(s.id, { revisjon: true })); return true;
+      case 'neste': {
+        // Fra fakturapanelet: en urørt faktura gir ingen ny, bare markøren i første felt.
+        if (!(await ferdigLagret())) return true;
+        const apen = tilstand.fakturaer.find(x => x.id === ui.panel);
+        if (apen && erTomPost('fakturaer', apen)) { fokuser(`fakturaer/${apen.id}/leverandor`); tegn(); return true; }
+      } // faller gjennom
       case 'ny-faktura': {
         const id = await lagre(() => opprettFaktura(s.id));
         if (id) { ui.panel = id; ui.nyttPanel = true; fokuser(`fakturaer/${id}/leverandor`); tegn(); }

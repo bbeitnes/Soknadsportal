@@ -79,6 +79,10 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   og i Revisjon («+ Legg … i leverandørregisteret» under fakturaens leverandørfelt når navnet er ukjent,
   `leverandorIRegister()`). I Revisjon ligger det oppå fakturapanelet (`ui.leverandor`); lukkes det, vises
   fakturaen igjen og får registernavnet (`lukkLeverandor()`). Fakturaens leverandør er fortsatt fritekst.
+- Taster i sidepanel (B-28): Enter lagrer feltet, Escape angrer (er feltet uendret, lukker den panelet),
+  ⌘/Ctrl+Enter trykker på `nesteknapp()` («+ Ny …» nederst i panelet, `data-handling="neste"`). Faktura,
+  behov, leverandør (bare i registeret) og giver har den. Sidens `klikk()` venter på `ferdigLagret()` og
+  oppretter ingen ny hvis posten er urørt (`erTomPost()`, verdiene må følge `opprett…()` i `data/index.js`).
 - Bestilling: `bestilling()` (beregning) gir linjene som er valgt hos én leverandør; `ui/bestilling.js`
   lager PDF-en med pdf-lib. Knappen ligger i leverandørpanelet i Innkjøp. Portalen sender den ikke.
 - En vare fordeles på flere leverandører ved å dele innkjøpslinjen (`delInnkjopslinje()`): to linjer

@@ -1,7 +1,7 @@
 ---
 id: 0005
 tittel: Statuslampe for sikkerhetskopien i portalen
-status: testes
+status: ferdig
 opprettet: 2026-10-04
 ---
 
@@ -127,3 +127,7 @@ Løpende. Lenke til commits, skjermbilder, avklaringer.
   04.17») i stedet for formatet i grillingen; kriteriene er rettet. Designsystemet har ingen
   grønn/gul, så lampefargene er egne i `app.css`. Vist på dev i `?demo` med alle fire farger.
   Statusfilen er ikke skrevet til ProISP ennå – det skjer første gang kopijobben kjører fra `main`.
+- 2026-10-05: På `main` (dee072e). Kopijobben og restore-testen skrev statusfilen til begge
+  mappene; filen lest fra nettet og inneholder bare tidspunkt, antall og bestått. Brukeren har
+  sett lampen på test-siden og godkjent. Lagt til underveis: `?demo&kopialder=30` i adressen, og
+  klikk på lampen henter alltid status på nytt. Ikke prøvd: halvtimesoppdateringen i en åpen fane.

@@ -1,13 +1,14 @@
 // Revisjon-fanen: fakturaer med løpenummer, hva potten er brukt på, og
 // revisjonsrapporten (PDF). Brukes av sider/soknad.js.
 import {
-  tilstand, innkjopFor, fakturaerFor, oppdaterSoknad, opprettFaktura, slettFaktura,
+  tilstand, innkjopFor, fakturaerFor, oppdaterSoknad, opprettFaktura, oppdaterFaktura, slettFaktura,
+  opprettLeverandor, slettLeverandor,
   settDekker, lastOppFakturafil, dokumentUrl, fellesTyperekkefolge,
   erRevisor, revisorerFor, minRevisorsti, godkjennRevisjon, trekkGodkjenning, kommentarerFor,
 } from '../data/index.js';
 import {
   revisjonsposter, fakturaavvik, fakturaDekker, revisjonsoppsummering, pott, sumFakturert,
-  leverandorNavn, posttittel, linjerUtenValg, fordelingPerKategori, grupperFakturaposter, sumEgneMidler, typerekkefolgeFor,
+  leverandorNavn, leverandorIRegister, posttittel, linjerUtenValg, fordelingPerKategori, grupperFakturaposter, sumEgneMidler, typerekkefolgeFor,
 } from '../data/beregning.js';
 import { escapeHtml, kr, belop, datoFelt, datoKl, tidspunkt, fornavn } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
@@ -15,8 +16,13 @@ import { lagre, visMelding } from '../ui/lagring.js';
 import { tegn, fokuser, sidepanel, lukkeknapp, IKON } from '../ui/visning.js';
 import { lagRevisjonsrapport } from '../ui/rapport.js';
 import { klargjorBilde } from '../ui/bilde.js';
+import { leverandorpanel } from './leverandorer.js';
 
-const ui = { panel: null, nyttPanel: false, lagerRapport: false };
+// `leverandor`: leverandøren fra registeret som vises i stedet for
+// fakturapanelet (lagt inn fra fakturaen). Lukkes den, vises fakturaen igjen.
+// `nyssLagtInn`: navnet vi kom tilbake med. Fakturapanelet tegnes før lagringen
+// av et rettet navn er tilbake i `tilstand`, og skal ikke tilby å legge det inn igjen.
+const ui = { panel: null, nyttPanel: false, lagerRapport: false, leverandor: null, nyssLagtInn: null };
 
 // Linjetittel for en innkjøpslinje: fra søknaden/behovet, ellers kopien.
 function tittelFor(s) {
@@ -64,6 +70,33 @@ function avvikTekst(avvik) {
   return (avvik > 0 ? '+' : '−') + belop(Math.abs(avvik));
 }
 
+const kjentLeverandor = navn => leverandorIRegister(navn, tilstand.leverandorer) || (navn || '').trim().toLowerCase() === ui.nyssLagtInn;
+const registrerTekst = navn => `+ Legg «${(navn || '').trim()}» i leverandørregisteret`;
+
+// Knappen under leverandørfeltet følger det som skrives (uten ny tegning,
+// så markøren blir stående).
+document.addEventListener('input', e => {
+  if (!/^fakturaer\/[^/]+\/leverandor$/.test(e.target.dataset?.felt || '')) return;
+  const knapp = document.querySelector('[data-handling="registrer-leverandor"]');
+  if (!knapp) return;
+  knapp.hidden = kjentLeverandor(e.target.value);
+  knapp.textContent = registrerTekst(e.target.value);
+});
+
+// Tilbake fra leverandørpanelet til fakturaen. Er navnet rettet i panelet,
+// får fakturaen det navnet. Feltet leses fra skjermen: en lagring som nettopp
+// er startet, er ikke nødvendigvis kommet tilbake i `tilstand` enda.
+function lukkLeverandor(f) {
+  const lev = tilstand.leverandorer.find(l => l.id === ui.leverandor);
+  const felt = document.querySelector(`[data-felt="leverandorer/${ui.leverandor}/navn"]`);
+  const navn = (felt ? felt.value : lev?.navn || '').trim();
+  ui.leverandor = null;
+  ui.nyssLagtInn = lev && navn ? navn.toLowerCase() : null;
+  if (!f) return;
+  if (lev && navn && navn !== f.leverandor) lagre(() => oppdaterFaktura(f.id, { leverandor: navn }));
+  fokuser(`fakturaer/${f.id}/fakturanr`);
+}
+
 function fakturaPanel(s, f, poster) {
   const n = felt => `fakturaer/${f.id}/${felt}`;
   const alle = fakturaerFor(s.id);
@@ -78,7 +111,8 @@ function fakturaPanel(s, f, poster) {
       ${lukkeknapp()}
     </div>
     <div class="to-kol">
-      <label class="felt" style="grid-column:1 / -1"><span class="etikett">Leverandør</span><input class="inndata" list="leverandorliste" ${feltAttr(n('leverandor'), f.leverandor)}><datalist id="leverandorliste">${register.map(x => `<option value="${escapeHtml(x)}">`).join('')}</datalist></label>
+      <div class="felt" style="grid-column:1 / -1"><label class="felt"><span class="etikett">Leverandør</span><input class="inndata" list="leverandorliste" ${feltAttr(n('leverandor'), f.leverandor)}><datalist id="leverandorliste">${register.map(x => `<option value="${escapeHtml(x)}">`).join('')}</datalist></label>
+        <button type="button" class="knapp knapp-ramme knapp-liten" style="align-self:flex-start" tabindex="-1" data-handling="registrer-leverandor" title="Legger leverandøren i registeret og åpner den, så kontaktinfo kan fylles ut" ${kjentLeverandor(f.leverandor) ? 'hidden' : ''}>${escapeHtml(registrerTekst(f.leverandor))}</button></div>
       <label class="felt"><span class="etikett">Fakturanr</span><input class="inndata" ${feltAttr(n('fakturanr'), f.fakturanr)}></label>
       <label class="felt"><span class="etikett">Dato</span><input class="inndata" placeholder="dd.mm.åååå" ${feltAttr(n('dato'), f.dato, 'dato')}></label>
       <label class="felt"><span class="etikett">Beløp</span><input class="inndata tall" inputmode="decimal" placeholder="0,00" title="Negativt beløp = kreditnota" ${feltAttr(n('belop'), f.belop, 'belop')}><span class="undertekst">Negativt = kreditnota</span></label>
@@ -191,6 +225,8 @@ export const revisjonFane = {
     const p = pott(s, innkjopFor(s.id));
     const valgt = fakturaer.find(f => f.id === ui.panel);
     if (ui.panel && !valgt) ui.panel = null;
+    const leverandor = valgt && !les ? tilstand.leverandorer.find(l => l.id === ui.leverandor) : null;
+    if (ui.leverandor && !leverandor) ui.leverandor = null;
     // Egne midler per post (lagt inn i Innkjøp, kan rettes her). Da grupperes
     // postene per kategori med delsum, så det går fram hvor mye vi dekker selv
     // i hver. Har søknaden en egenandel, skal fordelingen gå opp med den.
@@ -246,7 +282,7 @@ export const revisjonFane = {
           ${utenValgTekst(s)}
         </div>
       </div>
-      ${valgt ? (les ? fakturaPanelLes : fakturaPanel)(s, valgt, poster) : ''}`;
+      ${leverandor ? leverandorpanel(leverandor, ui.nyttPanel) : valgt ? (les ? fakturaPanelLes : fakturaPanel)(s, valgt, poster) : ''}`;
     ui.nyttPanel = false;
     return html;
   },
@@ -269,8 +305,26 @@ export const revisjonFane = {
         if (id) { ui.panel = id; ui.nyttPanel = true; fokuser(`fakturaer/${id}/leverandor`); tegn(); }
         return true;
       }
-      case 'apne-faktura': ui.panel = el.dataset.id; ui.nyttPanel = true; tegn(); return true;
-      case 'lukk-panel': ui.panel = null; tegn(); return true;
+      case 'registrer-leverandor': {
+        if (!f) return true;
+        const navn = (document.querySelector(`[data-felt="fakturaer/${f.id}/leverandor"]`)?.value || '').trim();
+        if (kjentLeverandor(navn)) return true;
+        const id = await lagre(() => opprettLeverandor(navn));
+        if (id) { ui.leverandor = id; ui.nyttPanel = true; fokuser(`leverandorer/${id}/kontakt`); tegn(); }
+        return true;
+      }
+      case 'slett': {
+        const lev = tilstand.leverandorer.find(l => l.id === ui.leverandor);
+        if (!lev) return false;
+        if (!confirm(`Slette leverandøren «${lev.navn || 'Uten navn'}»?`)) return true;
+        ui.leverandor = null;
+        lagre(() => slettLeverandor(lev.id));
+        return true;
+      }
+      case 'apne-faktura': ui.panel = el.dataset.id; ui.leverandor = null; ui.nyssLagtInn = null; ui.nyttPanel = true; tegn(); return true;
+      case 'lukk-panel':
+        if (ui.leverandor) lukkLeverandor(f); else ui.panel = null;
+        tegn(); return true;
       case 'dekker': if (f) lagre(() => settDekker(f, el.dataset.post, el.getAttribute('aria-pressed') !== 'true')); return true;
       case 'apne-fil': {
         if (!f?.fil) return true;
@@ -309,9 +363,10 @@ export const revisjonFane = {
   },
 
   escape() {
+    if (ui.leverandor) { lukkLeverandor(tilstand.fakturaer.find(x => x.id === ui.panel)); return true; }
     if (ui.panel) { ui.panel = null; return true; }
     return false;
   },
 
-  forlat() { ui.panel = null; },
+  forlat() { ui.panel = null; ui.leverandor = null; ui.nyssLagtInn = null; },
 };

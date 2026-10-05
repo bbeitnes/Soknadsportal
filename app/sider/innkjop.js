@@ -15,7 +15,7 @@ import {
 } from '../data/index.js';
 import {
   INNKJOPSSTATUSER, innkjopsstatusNavn, innkjopsberegning, billigstPerLinje, tolkRutenett,
-  ikkeFordelte, vedleggsliste, momsProsent, giverandel, leverandorNavn, leverandorKontakt,
+  ikkeFordelte, vedleggsliste, momsProsent, giverandel, leverandorNavn, leverandorKontakt, leverandorIRegister,
   grupperInnkjopslinjer, grupperPerType, linjetype, typeliste, typerekkefolgeFor, tolkPris, velgbareBehov,
   tolkTilbudslinjer, tilbudsprisTekst, foreslaKobling, bestilling,
 } from '../data/beregning.js';
@@ -25,6 +25,7 @@ import { lagre, visMelding } from '../ui/lagring.js';
 import { tegn, fokuser, sidepanel, lukkeknapp, IKON } from '../ui/visning.js';
 import { lesPdfLinjer } from '../ui/pdftekst.js';
 import { lagBestilling } from '../ui/bestilling.js';
+import { leverandorpanel } from './leverandorer.js';
 
 const ui = { aktiv: {}, panel: null, nyttPanel: false, redigerer: null, sok: '', limTekst: false, lesing: null, lagerBestilling: false };
 
@@ -523,13 +524,15 @@ document.addEventListener('input', e => {
   if (e.target.id !== 'lev-sok') return;
   ui.sok = e.target.value;
   const sok = ui.sok.trim().toLowerCase();
-  let treff = 0, eksakt = false;
+  let treff = 0;
   document.querySelectorAll('[data-handling="velg-leverandor"]').forEach(b => {
     const n = b.dataset.navn.toLowerCase();
     b.hidden = !!sok && !n.includes(sok);
     if (!b.hidden) treff++;
-    if (n === sok) eksakt = true;
   });
+  // Mot hele registeret – også leverandører som alt er med i innkjøpet og
+  // derfor ikke står i listen.
+  const eksakt = leverandorIRegister(sok, tilstand.leverandorer);
   const tom = document.getElementById('lev-tom');
   if (tom) { tom.hidden = treff > 0; tom.textContent = sok ? 'Ingen treff i registeret.' : 'Alle leverandørene i registeret er alt med.'; }
   const ny = document.querySelector('[data-handling="ny-leverandor"]');
@@ -547,6 +550,7 @@ export const innkjopFane = {
     else if (aktiv && ui.panel?.type === 'ikke-fordelt') panel = ikkeFordeltPanel(s, aktiv, ikkeFordelt);
     else if (aktiv && ui.panel?.type === 'tilbud' && aktiv.leverandorer?.[ui.panel.sid] && aktiv.linjer?.[ui.panel.lid]) panel = tilbudPanel(s, aktiv, ui.panel.lid, ui.panel.sid);
     else if (aktiv && ui.panel?.type === 'velg-leverandor') panel = velgLeverandorPanel(aktiv);
+    else if (ui.panel?.type === 'register' && tilstand.leverandorer.some(l => l.id === ui.panel.id)) panel = leverandorpanel(tilstand.leverandorer.find(l => l.id === ui.panel.id), ui.nyttPanel);
     else if (aktiv && ui.panel?.type === 'behov-fra-listen') panel = behovFraListenPanel(s, aktiv);
     else if (aktiv && ui.panel?.type === 'les-priser' && ui.lesing?.status === 'klar' && aktiv.leverandorer?.[ui.lesing.sid]) panel = lesPriserPanel(s, aktiv);
     else if (ui.panel) ui.panel = null;
@@ -631,7 +635,13 @@ export const innkjopFane = {
         if (!levNavn) return true;
         ui.panel = null;
         const id = await lagre(() => opprettLeverandor(levNavn));
-        if (id) lagre(() => leggTilLeverandor(i, id));
+        if (!id) return true;
+        await lagre(() => leggTilLeverandor(i, id));
+        // Videre til leverandørpanelet fra registeret, så kontaktinfoen kan
+        // fylles ut med en gang. Escape lukker til matrisen.
+        ui.panel = { type: 'register', id }; ui.nyttPanel = true;
+        fokuser(`leverandorer/${id}/kontakt`);
+        tegn();
         return true;
       }
       case 'leverandor': apne('leverandor'); return true;

@@ -15,7 +15,9 @@ function sortert() {
   return [...tilstand.leverandorer].sort((a, b) => (a.navn || '').localeCompare(b.navn || '', 'nb'));
 }
 
-function panel(lev) {
+// Brukes også fra søknaden (Innkjøp og Revisjon), som håndterer
+// «lukk-panel» og «slett» selv.
+export function leverandorpanel(lev, nytt = false) {
   const brukt = innkjopMedLeverandor(lev.id, tilstand.innkjop);
   const nokkel = f => `leverandorer/${lev.id}/${f}`;
   return sidepanel(`
@@ -34,7 +36,7 @@ function panel(lev) {
     </div>
     <div class="panelbunn"><span>${lev.endretAv ? `Sist endret av ${escapeHtml(fornavn(lev.endretAv.navn, lev.endretAv.epost))}, ${tidspunkt(lev.endretTid)}` : ''}</span>
       ${erAdmin() && !brukt.length ? '<button type="button" class="knapp knapp-fare" data-handling="slett">Slett leverandør</button>' : ''}
-    </div>`, { nytt: ui.nyttPanel });
+    </div>`, { nytt });
 }
 
 export const leverandorerSide = {
@@ -71,7 +73,7 @@ export const leverandorerSide = {
           </table>
         </div>
       </main>
-      ${valgt ? panel(valgt) : ''}`;
+      ${valgt ? leverandorpanel(valgt, ui.nyttPanel) : ''}`;
     ui.nyttPanel = false;
     return html;
   },

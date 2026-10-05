@@ -74,6 +74,11 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
 - `innstillinger/<orgId>` har `typeRekkefolge` og kontaktinfoen vår (orgNavn, orgNr, kontaktperson,
   telefon, epost, adresse, leveringsadresse, fakturainfo) som flate felt. Skrives alltid med
   `lager.flett()` (setDoc merge) – aldri `sett()`, som ville slettet de andre feltene.
+- Ny leverandør fra søknaden (kort 0007): `leverandorpanel()` i `sider/leverandorer.js` er registerpanelet
+  og brukes også i Innkjøp («+ Opprett … og legg til» åpner det etterpå, `ui.panel.type === 'register'`)
+  og i Revisjon («+ Legg … i leverandørregisteret» under fakturaens leverandørfelt når navnet er ukjent,
+  `leverandorIRegister()`). I Revisjon ligger det oppå fakturapanelet (`ui.leverandor`); lukkes det, vises
+  fakturaen igjen og får registernavnet (`lukkLeverandor()`). Fakturaens leverandør er fortsatt fritekst.
 - Bestilling: `bestilling()` (beregning) gir linjene som er valgt hos én leverandør; `ui/bestilling.js`
   lager PDF-en med pdf-lib. Knappen ligger i leverandørpanelet i Innkjøp. Portalen sender den ikke.
 - En vare fordeles på flere leverandører ved å dele innkjøpslinjen (`delInnkjopslinje()`): to linjer

@@ -1093,3 +1093,14 @@ test('å koble en utgift til en søknadslinje endrer verken det søkte, potten e
   assert.deepEqual(pott(koblet, []), pott(los, []));
   assert.equal(revisjonsavtrykk(koblet, [], fakturaer), revisjonsavtrykk(los, [], fakturaer));
 });
+
+test('leverandorIRegister: sammenligner uten hensyn til store/små bokstaver og mellomrom i endene', async () => {
+  const { leverandorIRegister } = await import('../app/data/beregning.js');
+  const register = [{ id: 'a', navn: 'Musikkhuset AS' }, { id: 'b', navn: '' }];
+  assert.equal(leverandorIRegister('musikkhuset as ', register), true);
+  assert.equal(leverandorIRegister('Musikhuset AS', register), false);
+  assert.equal(leverandorIRegister('Musikk', register), false); // delvis treff er ikke nok
+  assert.equal(leverandorIRegister('', register), true); // tomt felt: ingenting å legge inn
+  assert.equal(leverandorIRegister('  ', register), true);
+  assert.equal(leverandorIRegister('Ny AS', []), false);
+});

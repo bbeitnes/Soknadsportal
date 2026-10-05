@@ -747,6 +747,13 @@ export function innkjopMedLeverandor(leverandorId, innkjopListe) {
   return innkjopListe.filter(i => leverandorer(i).some(l => l.leverandorId === leverandorId));
 }
 
+// Finnes navnet i leverandørregisteret? Store/små bokstaver og mellomrom i
+// endene teller ikke. Et tomt navn regnes som kjent (ingenting å legge inn).
+export function leverandorIRegister(navn, register) {
+  const n = (navn || '').trim().toLowerCase();
+  return !n || register.some(l => (l.navn || '').trim().toLowerCase() === n);
+}
+
 // ——— Fakturaer og revisjon ———
 // En faktura hører til én søknad, får et løpenummer der, og kan dekke
 // flere «poster»: valgte tilbudslinjer (innkjopId/linjeId) og løse

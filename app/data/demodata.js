@@ -74,7 +74,16 @@ export function lagDemodata() {
     s4: {
       organisasjonId: org, giverId: 'g4', tittel: 'Seminarhelg høsten 2026', frist: '2026-10-15', sendt: null,
       status: 'utkast', soktOverstyrt: null, momsProsent: null, revisjon: false,
-      linjer: { l1: { behovId: null, tittel: 'Instruktørhonorar', antall: 2, estPris: 6000, rekkefolge: 1 } },
+      // Bare utgifter, ingen innkjøp: instruktørene er plukket inn i Utgifter.
+      linjer: {
+        l1: { behovId: null, type: 'Honorar', tittel: 'Instruktørhonorar', antall: 2, estPris: 6000, rekkefolge: 1 },
+        l2: { behovId: null, type: 'Leie', tittel: 'Leie av seminarlokale', antall: 1, estPris: 8000, rekkefolge: 2 },
+        l3: { behovId: null, type: 'Reise', tittel: 'Buss tur/retur', antall: 1, estPris: 9500, rekkefolge: 3 },
+      },
+      utgifter: {
+        u1: { soknadLinjeId: 'l1', belop: 12500, dato: '2026-09-20', lagtInnAv: { epost: per[0], navn: per[1] }, rekkefolge: 1 },
+        u2: { beskrivelse: 'Kaffe og frukt til pausene', belop: 640, dato: '2026-09-21', lagtInnAv: { epost: per[0], navn: per[1] }, rekkefolge: 2 },
+      },
       dokumenter: {}, ...av(...per, 7),
     },
     // Avsluttet, med revisorer: Olav har godkjent, Rita (?demo=revisor) ikke.

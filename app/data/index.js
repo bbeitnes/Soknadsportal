@@ -7,7 +7,7 @@
 // hverandre på samme felt: siste lagring per felt vinner.
 import { lager, innlogging, SLETT } from './lager.js';
 import { ORGANISASJON_ID, MILJO } from '../config/app-config.js';
-import { linjeliste, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer, linjetype, anskaffetPerBehov, finansierteLinjer, revisornokkel, revisjonsavtrykk, revisorstatus, fakturakommentarer, kopistatus } from './beregning.js';
+import { linjeliste, linjekostnad, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer, linjetype, anskaffetPerBehov, finansierteLinjer, revisornokkel, revisjonsavtrykk, revisorstatus, fakturakommentarer, kopistatus } from './beregning.js';
 
 export { innlogging };
 
@@ -304,7 +304,7 @@ export function innkjopFor(soknadId) {
   return tilstand.innkjop.filter(i => i.soknadId === soknadId).sort((a, b) => (a.rekkefolge ?? 0) - (b.rekkefolge ?? 0));
 }
 
-// ——— Løse utgifter (ligger som kart på søknaden, som linjene) ———
+// ——— Utgifter (ligger som kart på søknaden, som linjene) ———
 
 export function leggTilUtgift(soknad, { beskrivelse, belop, dato }) {
   const id = nyId('u');
@@ -315,6 +315,26 @@ export function leggTilUtgift(soknad, { beskrivelse, belop, dato }) {
       rekkefolge: nesteUtgiftsrekkefolge(soknad),
     },
   }).then(() => id);
+}
+
+// Plukker frie søknadslinjer inn i Utgifter. Utgiften peker på linjen
+// (beskrivelse og type hentes derfra); beløpet starter på estimatet.
+export function leggLinjerIUtgifter(soknad, linjer) {
+  const felt = {};
+  let rekkefolge = nesteUtgiftsrekkefolge(soknad);
+  for (const l of linjer) {
+    felt[`utgifter.${nyId('u')}`] = {
+      soknadLinjeId: l.id, belop: linjekostnad(l), dato: null,
+      lagtInnAv: { epost: tilstand.meg.epost, navn: tilstand.meg.navn },
+      rekkefolge: rekkefolge++,
+    };
+  }
+  return Object.keys(felt).length ? oppdaterSoknad(soknad.id, felt) : Promise.resolve();
+}
+
+// Gjør en løs utgift om til en planlagt: den beholder beløp, dato og fakturaer.
+export function kobleUtgiftTilLinje(soknadId, utgiftId, linjeId) {
+  return oppdaterUtgift(soknadId, utgiftId, { soknadLinjeId: linjeId });
 }
 
 export function oppdaterUtgift(soknadId, utgiftId, felt) {

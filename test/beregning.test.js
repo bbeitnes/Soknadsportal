@@ -708,7 +708,7 @@ test('egne midler fordeles per post og summeres per kategori', async () => {
 
   const fakturaer = [{ lopenummer: 1, belop: 4000, dekker: { 'i1|l1': true } }];
   const f = fordelingPerKategori(poster, revisjonsoppsummering(fakturaer, poster).perPost, 8, ['Inventar']);
-  assert.deepEqual(f.grupper.map(g => g.navn), ['Inventar', 'Instrument', 'Løse utgifter']);
+  assert.deepEqual(f.grupper.map(g => g.navn), ['Inventar', 'Instrument', 'Andre utgifter']);
   const instrument = f.grupper[1];
   assert.equal(instrument.tilbudt, 3800);
   assert.equal(instrument.kostnad, 4000); // fakturert går foran tilbudt
@@ -825,7 +825,7 @@ test('grupperFakturaposter: typer som på forsiden, instrumenter i partiturrekke
     post('Fri linje', ''), { id: 'u', type: 'utgift', tittel: 'Porto', kategori: '', tilbudt: 50 }, post('Fløyte', 'Instrumenter'), post('Horn', 'Instrumenter'),
   ];
   const grupper = grupperFakturaposter(poster, ['Utstyr', 'Instrumenter']);
-  assert.deepEqual(grupper.map(g => g.navn), ['Utstyr', 'Instrumenter', 'Uten type', 'Løse utgifter']);
+  assert.deepEqual(grupper.map(g => g.navn), ['Utstyr', 'Instrumenter', 'Uten type', 'Andre utgifter']);
   assert.deepEqual(grupper[0].poster.map(p => p.navn), ['Bøylefett', 'Ventilolje']);
   assert.deepEqual(grupper[1].poster.map(p => p.navn), ['Fløyte', 'Klarinett', 'Altsax/Kornett/Horn', 'Kornett', 'Horn', 'Horn', 'Tuba', 'Agogo Bell']);
   // Typen «Instrument» (entall) gjelder også, uten manuell rekkefølge.
@@ -1037,4 +1037,59 @@ test('kopistatus: restore-testen er gul når den er over 35 dager gammel eller i
   assert.equal(med(36, true).restore.farge, 'gul');
   assert.equal(med(1, false).restore.farge, 'gul');
   assert.equal(med(36, false).farge, 'gronn');
+});
+
+// ——— Planlagte utgifter (kort 0006) ———
+
+const utgiftssoknad = (ekstra = {}) => soknad('s1', 'innvilget', {
+  a: { behovId: null, type: 'Honorar', tittel: 'Dirigent', antall: 2, estPris: 20000, rekkefolge: 1 },
+  b: { behovId: null, tittel: 'Leie av lokale', antall: 1, estPris: 8000, rekkefolge: 2 },
+  c: { behovId: 'b1', antall: 1, estPris: 5000, rekkefolge: 3 },
+  d: { behovId: null, tittel: 'Kom i tillegg', antall: 1, estPris: 900, rekkefolge: 4, etterSoknad: true },
+  e: { behovId: null, tittel: 'Noter', antall: 1, estPris: 3000, rekkefolge: 5 },
+}, { innvilget: 60000, ...ekstra });
+
+test('kanBliUtgift: bare frie, søkte linjer som verken er i innkjøp eller ført som utgift', async () => {
+  const { kanBliUtgift, ikkeFordelte, linjerMedUtgift } = await import('../app/data/beregning.js');
+  const iInnkjop = [{ linjer: { q: { soknadLinjeId: 'e' } } }];
+  assert.deepEqual(kanBliUtgift(utgiftssoknad(), []).map(l => l.id), ['a', 'b', 'e']);
+  assert.deepEqual(kanBliUtgift(utgiftssoknad(), iInnkjop).map(l => l.id), ['a', 'b']);
+  const s = utgiftssoknad({ utgifter: { u1: { soknadLinjeId: 'a', belop: 42500 }, u2: { beskrivelse: 'Løs', belop: 100 }, u3: { soknadLinjeId: 'finnesikke', belop: 1 } } });
+  assert.deepEqual(kanBliUtgift(s, iInnkjop).map(l => l.id), ['b']);
+  assert.deepEqual([...linjerMedUtgift(s)], ['a']);
+  // En linje følges opp ett sted: plukket som utgift er den ikke lenger «ikke fordelt».
+  assert.deepEqual(ikkeFordelte(s, iInnkjop).map(l => l.id), ['b', 'c', 'd']);
+});
+
+test('planlagt utgift får beskrivelse og type fra linjen, og står først i søknadens rekkefølge', async () => {
+  const { utgiftsliste, sumUtgifter, revisjonsposter, kategorigrupper } = await import('../app/data/beregning.js');
+  const s = utgiftssoknad({ utgifter: {
+    u1: { beskrivelse: 'Kaffe', belop: 640, rekkefolge: 1 },
+    u2: { soknadLinjeId: 'b', type: 'Leie', belop: 8000, rekkefolge: 2 },
+    u3: { soknadLinjeId: 'a', beskrivelse: 'Gammel tekst', type: 'Gammel', belop: 42500, dato: '2026-09-20', rekkefolge: 3 },
+  } });
+  assert.deepEqual(utgiftsliste(s).map(u => [u.id, u.beskrivelse, u.type || '', !!u.planlagt, u.sokt]), [
+    ['u3', 'Dirigent', 'Honorar', true, 40000], ['u2', 'Leie av lokale', 'Leie', true, 8000], ['u1', 'Kaffe', '', false, undefined],
+  ]);
+  assert.equal(sumUtgifter(s), 51140);
+  const poster = revisjonsposter(s, [], { tittelFor: () => '', levNavn: () => '' });
+  assert.deepEqual(poster.map(p => [p.id, p.tittel, p.under, p.kategori, p.tilbudt]), [
+    ['utgift/u3', 'Dirigent', 'Utgift fra søknaden · 20.09.2026', 'Honorar', 42500],
+    ['utgift/u2', 'Leie av lokale', 'Utgift fra søknaden', 'Leie', 8000],
+    ['utgift/u1', 'Kaffe', 'Løs utgift', '', 640],
+  ]);
+  assert.deepEqual(kategorigrupper(poster).map(g => [g.navn, g.poster.length]), [['Honorar', 1], ['Leie', 1], ['Andre utgifter', 1]]);
+  // Retter vi tittelen på linjen, følger utgiften med.
+  s.linjer.a.tittel = 'Dirigenthonorar';
+  assert.equal(utgiftsliste(s)[0].beskrivelse, 'Dirigenthonorar');
+});
+
+test('å koble en utgift til en søknadslinje endrer verken det søkte, potten eller avtrykket', async () => {
+  const { pott, revisjonsavtrykk } = await import('../app/data/beregning.js');
+  const los = utgiftssoknad({ utgifter: { u1: { beskrivelse: 'Dirigent vår og høst', belop: 42500, rekkefolge: 1 } } });
+  const koblet = utgiftssoknad({ utgifter: { u1: { beskrivelse: 'Dirigent vår og høst', belop: 42500, rekkefolge: 1, soknadLinjeId: 'a' } } });
+  const fakturaer = [{ id: 'f1', soknadId: 's1', lopenummer: 1, belop: 42500, dekker: { 'utgift|u1': true } }];
+  assert.equal(sumEstimert(koblet), sumEstimert(los));
+  assert.deepEqual(pott(koblet, []), pott(los, []));
+  assert.equal(revisjonsavtrykk(koblet, [], fakturaer), revisjonsavtrykk(los, [], fakturaer));
 });

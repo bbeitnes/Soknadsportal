@@ -185,12 +185,38 @@ export function giverbehov(soknad, egen = egenandel(soknad)) {
   return giverandel(Math.max(0, sumEstimert(soknad) - egen), momsProsent(soknad));
 }
 
-// ——— Løse utgifter og pott ———
+// ——— Utgifter og pott ———
+// En utgift er enten planlagt eller løs. Planlagt = den peker på en fri linje
+// i søknaden (`soknadLinjeId`): da hentes beskrivelse og type fra linjen
+// (lagres ikke på utgiften), `planlagt` er satt og `sokt` er estimatet vi
+// søkte om. Har linjen ingen type, gjelder utgiftens egen (`linjetype` er
+// linjens). Beløpet på utgiften er det faktiske. Planlagte står først, i
+// søknadens linjerekkefølge; de løse i den rekkefølgen de ble lagt inn.
 
 export function utgiftsliste(soknad) {
+  const plass = new Map(linjeliste(soknad).map((l, i) => [l.id, i]));
   return Object.entries(soknad?.utgifter || {})
-    .map(([id, u]) => ({ id, ...u }))
-    .sort((a, b) => (a.rekkefolge ?? 0) - (b.rekkefolge ?? 0));
+    .map(([id, u]) => {
+      const l = u.soknadLinjeId ? soknad.linjer?.[u.soknadLinjeId] : null;
+      return l ? { id, ...u, beskrivelse: l.tittel || '', type: l.type || u.type || null, linjetype: l.type || null, planlagt: true, sokt: linjekostnad(l) } : { id, ...u };
+    })
+    .sort((a, b) => (b.planlagt ? 1 : 0) - (a.planlagt ? 1 : 0)
+      || (a.planlagt ? plass.get(a.soknadLinjeId) - plass.get(b.soknadLinjeId) : 0)
+      || (a.rekkefolge ?? 0) - (b.rekkefolge ?? 0));
+}
+
+// Søknadslinjene som er ført som utgift (linje-id-er).
+export function linjerMedUtgift(soknad) {
+  return new Set(Object.values(soknad?.utgifter || {}).map(u => u.soknadLinjeId).filter(id => id && soknad.linjer?.[id]));
+}
+
+// Linjene som kan plukkes inn i Utgifter: frie linjer vi søkte om (ikke fra
+// Behov, ikke lagt til etter søknaden) som verken ligger i et innkjøp eller
+// alt er ført som utgift. En linje følges opp ett av stedene, aldri begge.
+export function kanBliUtgift(soknad, innkjopListe) {
+  const opptatt = linjerMedUtgift(soknad);
+  for (const i of innkjopListe) for (const l of innkjopslinjer(i)) if (l.soknadLinjeId) opptatt.add(l.soknadLinjeId);
+  return soktLinjer(soknad).filter(l => !l.behovId && !opptatt.has(l.id));
 }
 
 export function sumUtgifter(soknad) {
@@ -514,7 +540,8 @@ export function tolkRutenett(tekst) {
 export function ikkeFordelte(soknad, innkjopListe) {
   const fordelt = new Set();
   for (const i of innkjopListe) for (const l of innkjopslinjer(i)) if (l.soknadLinjeId) fordelt.add(l.soknadLinjeId);
-  return linjeliste(soknad).filter(l => !fordelt.has(l.id));
+  const utgift = linjerMedUtgift(soknad);
+  return linjeliste(soknad).filter(l => !fordelt.has(l.id) && !utgift.has(l.id));
 }
 
 export function nesteRekkefolgeI(kart) {
@@ -769,7 +796,7 @@ export function revisjonsposter(soknad, innkjopListe, { tittelFor, levNavn, beho
     }
   }
   for (const u of utgiftsliste(soknad)) {
-    poster.push({ id: `utgift/${u.id}`, type: 'utgift', utgiftId: u.id, tittel: u.beskrivelse || 'Uten beskrivelse', under: `${u.egeninnsats ? 'Egeninnsats' : 'Løs utgift'}${u.dato ? ` · ${u.dato.split('-').reverse().join('.')}` : ''}`, tilbudt: Number(u.belop) || 0, egne: utgiftEgne(u), egeninnsats: !!u.egeninnsats, kategori: (u.type || '').trim() });
+    poster.push({ id: `utgift/${u.id}`, type: 'utgift', utgiftId: u.id, tittel: u.beskrivelse || 'Uten beskrivelse', under: `${u.egeninnsats ? 'Egeninnsats' : u.planlagt ? 'Utgift fra søknaden' : 'Løs utgift'}${u.dato ? ` · ${u.dato.split('-').reverse().join('.')}` : ''}`, tilbudt: Number(u.belop) || 0, egne: utgiftEgne(u), egeninnsats: !!u.egeninnsats, kategori: (u.type || '').trim() });
   }
   return poster;
 }
@@ -787,14 +814,14 @@ export function sumEgneMidler(poster) {
 // trekkes fra før giverens andel regnes ut. `perPost` kommer fra
 // revisjonsoppsummering(). Gir { grupper: [{ navn, poster, tilbudt, fakturert,
 // kostnad, egne, giver, moms }], sum: { … } }.
-// Postene gruppert per kategori (type) i søknadens typerekkefølge. Løse
-// utgifter uten type står for seg til slutt.
+// Postene gruppert per kategori (type) i søknadens typerekkefølge. Utgifter
+// uten type står for seg til slutt («Andre utgifter»).
 export function kategorigrupper(poster, typeRekkefolge = []) {
   const utenType = p => p.type === 'utgift' && !p.kategori;
   const grupper = grupperPerType(poster.filter(p => !utenType(p)), p => p.kategori, typeRekkefolge)
     .map(g => ({ navn: g.type || 'Uten type', poster: g.elementer }));
   const utgifter = poster.filter(utenType);
-  if (utgifter.length) grupper.push({ navn: 'Løse utgifter', poster: utgifter });
+  if (utgifter.length) grupper.push({ navn: 'Andre utgifter', poster: utgifter });
   return grupper;
 }
 

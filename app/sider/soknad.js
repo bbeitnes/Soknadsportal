@@ -4,12 +4,12 @@
 import {
   tilstand, oppdaterSoknad, leggBehovISoknad, leggFlereBehovISoknad, leggFriLinjeISoknad, fjernLinje,
   lastOppDokument, slettDokument, dokumentUrl, slettSoknad, innkjopFor,
-  leggTilUtgift, oppdaterUtgift, fjernUtgift,
+  leggTilUtgift, oppdaterUtgift, fjernUtgift, leggLinjerIUtgifter, kobleUtgiftTilLinje,
   fellesTyperekkefolge, settLinjerekkefolge, settSoknadTyperekkefolge, anskaffet, erRevisor, settRevisor, revisorfelt,
 } from '../data/index.js';
 import {
   SOKNADSSTATUSER, statusNavn, linjeliste, linjekostnad, sumEstimert, soktBelop, soktForslag, velgbareBehov,
-  pott, giverandel, momsProsent, utgiftsliste, sumUtgifter, sumFakturert,
+  pott, giverandel, momsProsent, utgiftsliste, sumUtgifter, sumFakturert, kanBliUtgift, linjerMedUtgift,
   egenandelPlanlagt, egenandelSomAndel, giverbehov, erLast, erInnvilget,
   linjetype, grupperPerType, typeliste, flyttIListe, typerekkefolgeFor, soktLinjer, tilleggslinjer, etterRekkefolgeOgTittel,
 } from '../data/beregning.js';
@@ -23,7 +23,7 @@ import { revisjonFane } from './revisjon.js';
 
 const FANER = [['soknad', 'Søknad'], ['innkjop', 'Innkjøp'], ['utgifter', 'Utgifter'], ['revisjon', 'Revisjon']];
 
-const ui = { soknadId: null, panel: null, nyttPanel: false, velger: false, laster: 0, leggerTil: false };
+const ui = { soknadId: null, panel: null, kobleId: null, nyttPanel: false, velger: false, laster: 0, leggerTil: false };
 
 const giver = id => tilstand.givere.find(g => g.id === id);
 
@@ -170,6 +170,7 @@ function behovstabell(s) {
   const egen = egenandelPlanlagt(s), etterEgen = Math.max(0, sum - egen), etterEgenGiver = giverandel(etterEgen, prosent);
   const under = tekst => egen ? `<div class="undertekst" style="font-weight:400">${tekst}</div>` : '';
   const last = erLast(s);
+  const somUtgift = linjerMedUtgift(s);
   const rad = l => {
     const b = l.behovId ? behovMedId(l.behovId) : null;
     const kostnad = linjekostnad(l), fraGiver = giverandel(kostnad, prosent);
@@ -183,7 +184,7 @@ function behovstabell(s) {
         <td><div style="display:flex; align-items:center">${l.etterSoknad || last ? '<span class="dra" style="visibility:hidden">⠿</span>' : `<span class="dra" draggable="true" data-dra="linje:${l.id}" title="Dra for å endre rekkefølge, eller flytt til en annen type">⠿</span>`}<div style="min-width:0; flex:1">${l.behovId
           ? `<span class="fet">${escapeHtml(linjetittel(l))}</span>${b?.beskrivelse ? `<div class="celleunder">${escapeHtml(b.beskrivelse)}</div>` : ''}`
           : `<input class="celleinn tekst" ${feltAttr(n(l, 'tittel'), l.tittel)} placeholder="Beskriv linjen"${vern}>`}${l.etterSoknad
-          ? `<input class="celleinn tekst notat" title="${escapeHtml(l.notat || 'Hvorfor ble dette lagt til?')}" ${feltAttr(n(l, 'notat'), l.notat)} placeholder="Notat – f.eks. «i stedet for klarinett»">` : ''}</div></div></td>
+          ? `<input class="celleinn tekst notat" title="${escapeHtml(l.notat || 'Hvorfor ble dette lagt til?')}" ${feltAttr(n(l, 'notat'), l.notat)} placeholder="Notat – f.eks. «i stedet for klarinett»">` : ''}</div>${somUtgift.has(l.id) ? '<span class="merkelapp" style="border-color:var(--color-divider); margin-left:8px" title="Ført som utgift i Utgifter-fanen. Slett utgiften der før linjen kan fjernes.">Utgift</span>' : ''}</div></td>
         <td><input class="celleinn tekst" style="min-width:0; width:104px; font-weight:400" ${vern ? `placeholder="–"${vern}` : `list="typer" placeholder="${escapeHtml(arvet || 'Type')}" title="${arvet ? `Behovet har typen «${escapeHtml(arvet)}». Skriv en annen for denne søknaden, eller tøm feltet for å bruke behovets.` : 'Type for denne søknaden'}"`} ${feltAttr(n(l, 'type'), linjetype(l, tilstand.behov))}></td>
         <td class="tall"><input class="celleinn antall" inputmode="numeric" ${feltAttr(n(l, 'antall'), l.antall, 'tall')}${vern}></td>
         <td class="tall"><input class="celleinn" inputmode="numeric" ${feltAttr(n(l, 'estPris'), l.estPris, 'tall')}${vern}></td>
@@ -240,43 +241,98 @@ function innvilgetHint(s) {
 
 function utgiftsfane(s) {
   const liste = utgiftsliste(s);
+  const planlagte = liste.filter(u => u.planlagt), andre = liste.filter(u => !u.planlagt);
+  const ledige = kanBliUtgift(s, innkjopFor(s.id));
+  // Kolonnen «Søkt» og gruppene vises bare når noe er plukket fra søknaden.
+  const delt = planlagte.length > 0;
   const n = (u, f) => `soknader/${s.id}/utgifter.${u.id}.${f}`;
-  const rader = liste.map(u => `
+  const sum = utgifter => belop(utgifter.reduce((a, u) => a + (Number(u.belop) || 0), 0));
+  const rad = u => `
     <tr>
-      <td><input class="celleinn tekst" style="font-weight:400" ${feltAttr(n(u, 'beskrivelse'), u.beskrivelse, 'tekst', { paakrevd: true })}></td>
-      <td><input class="celleinn tekst" style="min-width:0; font-weight:400" list="utgiftstyper" placeholder="–" title="Valgfritt. Med type regnes utgiften inn i den kategorien i Revisjon og rapporten." ${feltAttr(n(u, 'type'), u.type)}></td>
+      ${u.planlagt
+        ? `<td title="Fra søknaden. Beskrivelse og type endres på linjen i Søknad-fanen."><span class="fet" style="padding-left:10px">${escapeHtml(u.beskrivelse || 'Uten tittel')}</span></td>
+      <td>${u.linjetype ? `<span style="padding-left:10px">${escapeHtml(u.linjetype)}</span>` : `<input class="celleinn tekst" style="min-width:0; font-weight:400" list="utgiftstyper" placeholder="–" title="Linjen i søknaden har ingen type. Med type regnes utgiften inn i den kategorien i Revisjon og rapporten." ${feltAttr(n(u, 'type'), u.type)}>`}</td>`
+        : `<td><input class="celleinn tekst" style="font-weight:400" ${feltAttr(n(u, 'beskrivelse'), u.beskrivelse, 'tekst', { paakrevd: true })}></td>
+      <td><input class="celleinn tekst" style="min-width:0; font-weight:400" list="utgiftstyper" placeholder="–" title="Valgfritt. Med type regnes utgiften inn i den kategorien i Revisjon og rapporten." ${feltAttr(n(u, 'type'), u.type)}></td>`}
       <td><input class="celleinn tekst" style="min-width:110px; font-weight:400" placeholder="dd.mm.åååå" ${feltAttr(n(u, 'dato'), u.dato, 'dato')}></td>
+      ${delt ? `<td class="tall dempet">${u.planlagt ? kr(u.sokt) : ''}</td>` : ''}
       <td class="tall"><input class="celleinn" style="width:110px; font-weight:600" inputmode="decimal" ${feltAttr(n(u, 'belop'), u.belop, 'belop')}></td>
       <td>${avkryss(!!u.egeninnsats, u.egeninnsats ? 'Ja' : 'Nei', 'egeninnsats', `data-id="${u.id}" title="Dugnad og annen egeninnsats: estimert verdi uten faktura. Hele beløpet regnes som egne midler."`)}</td>
       <td class="smal dempet">${escapeHtml(fornavn(u.lagtInnAv?.navn, u.lagtInnAv?.epost))}</td>
-      <td style="width:44px; padding-left:0; text-align:center"><button type="button" class="ikonknapp" data-handling="fjern-utgift" data-id="${u.id}" title="Slett utgiften">${IKON.fjern}</button></td>
-    </tr>`).join('');
+      <td style="width:150px; padding-left:0; text-align:right; white-space:nowrap">${!u.planlagt && ledige.length ? `<button type="button" class="knapp knapp-ramme knapp-liten" style="height:26px; font-size:12px; margin-right:6px" data-handling="koble-utgift" data-id="${u.id}" title="Utgiften gjelder noe som står i søknaden: koble den til linjen. Beløp, dato og fakturaer beholdes.">Koble til linje</button>` : ''}<button type="button" class="ikonknapp" data-handling="fjern-utgift" data-id="${u.id}" title="${u.planlagt ? 'Slett utgiften. Linjen blir stående i søknaden.' : 'Slett utgiften'}">${IKON.fjern}</button></td>
+    </tr>`;
+  const gruppe = (navn, utgifter, under) => `<tr class="gruppe"><td colspan="4">${navn}<span style="font-weight:400; letter-spacing:0; text-transform:none; font-size:12px; color:var(--color-neutral-600)"> · ${under}</span></td><td class="tall">${sum(utgifter)}</td><td colspan="3"></td></tr>`;
+  const antall = x => `${x.length} ${x.length === 1 ? 'utgift' : 'utgifter'}`;
   return `
     <div class="verktoyrad">
-      <div class="etikett">Løse utgifter</div>
-      <div class="hint">Trekkes fra potten. Kobles til faktura under Revisjon. Dugnad og annen egeninnsats uten faktura krysses av som egeninnsats – da er hele beløpet egne midler. Type er valgfritt.</div>
+      <div class="etikett">Utgifter</div>
+      <div class="hint">Trekkes fra potten. Kobles til faktura under Revisjon. Dugnad og annen egeninnsats uten faktura krysses av som egeninnsats – da er hele beløpet egne midler.</div>
+      ${ledige.length ? `<button type="button" class="knapp knapp-ramme" style="margin-left:auto; flex:0 0 auto" data-handling="fra-soknaden" title="Linjer i søknaden som verken ligger i et innkjøp eller er ført som utgift">+ Fra søknaden (${ledige.length})</button>` : ''}
     </div>
     <div class="tabellramme" data-rull="utgifter" style="flex:0 1 auto">
       <table class="liste">
-        <thead><tr><th>Beskrivelse</th><th style="width:150px">Type</th><th style="width:130px">Dato</th><th class="tall" style="width:140px">Beløp</th><th style="width:130px">Egeninnsats</th><th style="width:150px">Lagt inn av</th><th style="width:44px"></th></tr></thead>
+        <thead><tr><th>Beskrivelse</th><th style="width:150px">Type</th><th style="width:130px">Dato</th>${delt ? '<th class="tall" style="width:120px">Søkt</th>' : ''}<th class="tall" style="width:140px">Beløp</th><th style="width:130px">Egeninnsats</th><th style="width:130px">Lagt inn av</th><th style="width:150px"></th></tr></thead>
         <tbody>
-          ${rader}
+          ${delt ? gruppe('Fra søknaden', planlagte, antall(planlagte)) : ''}
+          ${planlagte.map(rad).join('')}
+          ${delt ? gruppe('Andre utgifter', andre, `${antall(andre)} · det som kom i tillegg`) : ''}
+          ${andre.map(rad).join('')}
           <tr class="ny-utgift">
             <td><input class="celleinn tekst ny" id="ny-utgift-beskrivelse" placeholder="Ny utgift – beskrivelse"></td>
             <td></td>
             <td><input class="celleinn tekst ny" id="ny-utgift-dato" placeholder="dd.mm.åååå"></td>
+            ${delt ? '<td></td>' : ''}
             <td class="tall"><input class="celleinn ny" id="ny-utgift-belop" inputmode="decimal" placeholder="0,00" style="width:110px"></td>
             <td colspan="3" class="undertekst">Lagres når beskrivelse og beløp er fylt ut</td>
           </tr>
         </tbody>
         <tfoot><tr>
-          <td colspan="3" class="dempet">Sum løse utgifter</td>
+          <td colspan="3" class="dempet">Sum utgifter</td>
+          ${delt ? `<td class="tall dempet">${kr(planlagte.reduce((a, u) => a + u.sokt, 0))}</td>` : ''}
           <td class="tall sum">${belop(sumUtgifter(s))}</td>
-          <td colspan="3" class="dempet">${liste.length} ${liste.length === 1 ? 'utgift' : 'utgifter'}</td>
+          <td colspan="3" class="dempet">${antall(liste)}</td>
         </tr></tfoot>
       </table>
       <datalist id="utgiftstyper">${typeliste(tilstand.behov, tilstand.soknader, tilstand.innkjop).map(t => `<option value="${escapeHtml(t)}">`).join('')}</datalist>
     </div>`;
+}
+
+// Linjene som kan føres som utgift, som valg i et sidepanel. Brukes både når
+// linjer plukkes inn («+ Fra søknaden») og når en løs utgift kobles til en linje.
+function linjevalg(s, knapp, handling) {
+  return kanBliUtgift(s, innkjopFor(s.id)).map(l => `
+        <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--color-neutral-200)">
+          <div style="flex:1; min-width:0">
+            <div class="fet">${escapeHtml(l.tittel || 'Uten tittel')}</div>
+            <div class="dempet">${l.type ? `${escapeHtml(l.type)} · ` : ''}søkt ${kr(linjekostnad(l))}</div>
+          </div>
+          <button type="button" class="knapp knapp-primar knapp-liten" data-handling="${handling}" data-linje="${l.id}">${knapp}</button>
+        </div>`).join('');
+}
+
+function fraSoknadenPanel(s) {
+  const antall = kanBliUtgift(s, innkjopFor(s.id)).length;
+  return sidepanel(`
+    <div class="panelhode">
+      <div><h2>Fra søknaden</h2><div class="ingress" style="margin-top:4px">Linjer vi har søkt om som ikke ligger i et innkjøp. Linjen blir en utgift med det søkte som beløp – rett det når fakturaen kommer. Det vi søkte om endres ikke.</div></div>
+      ${lukkeknapp()}
+    </div>
+    ${antall > 1 ? `<button type="button" class="knapp knapp-primar" style="align-self:flex-start" data-handling="plukk-alle">Legg til alle ${antall}</button>` : ''}
+    <div style="display:flex; flex-direction:column; gap:6px">
+      ${linjevalg(s, 'Legg til', 'plukk-linje') || '<div class="dempet">Alle frie linjer i søknaden er ført som utgift eller ligger i et innkjøp.</div>'}
+    </div>
+    <div class="hint">Bare frie linjer vises. Behov fra behovslisten følges opp i Innkjøp.</div>`, { nytt: ui.nyttPanel });
+}
+
+function koblePanel(s, u) {
+  return sidepanel(`
+    <div class="panelhode">
+      <div><h2>Koble til linje</h2><div class="ingress" style="margin-top:4px">«${escapeHtml(u.beskrivelse || 'Uten beskrivelse')}», ${belop(u.belop)}. Velg linjen i søknaden utgiften gjelder. Utgiften beholder beløp, dato og fakturaer, men får beskrivelse og type fra linjen.</div></div>
+      ${lukkeknapp()}
+    </div>
+    <div style="display:flex; flex-direction:column; gap:6px">
+      ${linjevalg(s, 'Koble', 'koble-linje') || '<div class="dempet">Ingen ledige linjer i søknaden.</div>'}
+    </div>`, { nytt: ui.nyttPanel });
 }
 
 // Den nederste raden er alltid en tom ny utgift. Den lagres når man forlater
@@ -463,12 +519,15 @@ export const soknadSide = {
     if (!s) return `<div class="laster">Fant ikke søknaden. <a href="#/soknader" style="margin-left:6px">Til alle søknader</a></div>`;
     if (erRevisor()) return `${revisortopp(s)}<main class="innhold" style="padding-top:12px">${revisjonFane.tegn(s)}</main>`;
     const aktivFane = FANER.some(([f]) => f === fane) ? fane : 'soknad';
+    const kobles = ui.panel === 'koble' ? utgiftsliste(s).find(u => u.id === ui.kobleId && !u.planlagt) : null;
     const html = `
       ${topp(s, aktivFane)}
       <main class="innhold" style="padding-top:12px">
         ${aktivFane === 'soknad' ? soknadsfane(s) : aktivFane === 'utgifter' ? utgiftsfane(s) : aktivFane === 'innkjop' ? innkjopFane.tegn(s) : revisjonFane.tegn(s)}
       </main>
-      ${ui.panel === 'fra-listen' ? fraListenPanel(s) : ''}`;
+      ${ui.panel === 'fra-listen' ? fraListenPanel(s) : ''}
+      ${aktivFane === 'utgifter' && ui.panel === 'fra-soknaden' ? fraSoknadenPanel(s) : ''}
+      ${aktivFane === 'utgifter' && ui.panel === 'koble' && kobles ? koblePanel(s, kobles) : ''}`;
     ui.nyttPanel = false;
     return html;
   },
@@ -578,7 +637,30 @@ export const soknadSide = {
         if (linjeId) { fokuser(`soknader/${s.id}/linjer.${linjeId}.tittel`); tegn(); }
         break;
       }
-      case 'fjern-linje': if (!erLast(s) || s.linjer?.[linje]?.etterSoknad) lagre(() => fjernLinje(s.id, linje)); break;
+      case 'fjern-linje':
+        if (linjerMedUtgift(s).has(linje)) { visMelding('Linjen er ført som utgift. Slett utgiften i Utgifter-fanen først.'); break; }
+        if (!erLast(s) || s.linjer?.[linje]?.etterSoknad) lagre(() => fjernLinje(s.id, linje));
+        break;
+      case 'fra-soknaden': ui.panel = 'fra-soknaden'; ui.nyttPanel = true; tegn(); break;
+      case 'plukk-linje':
+      case 'plukk-alle': {
+        const valg = kanBliUtgift(s, innkjopFor(s.id)).filter(l => handling === 'plukk-alle' || l.id === linje);
+        // Et dobbeltklikk skal ikke plukke linjen to ganger.
+        if (ui.leggerTil || !valg.length) break;
+        ui.leggerTil = true;
+        if (valg.length === kanBliUtgift(s, innkjopFor(s.id)).length) ui.panel = null;
+        await lagre(() => leggLinjerIUtgifter(s, valg));
+        ui.leggerTil = false;
+        break;
+      }
+      case 'koble-utgift': ui.panel = 'koble'; ui.kobleId = el.dataset.id; ui.nyttPanel = true; tegn(); break;
+      case 'koble-linje': {
+        const u = s.utgifter?.[ui.kobleId];
+        if (!u || u.soknadLinjeId || !kanBliUtgift(s, innkjopFor(s.id)).some(l => l.id === linje)) break;
+        ui.panel = null;
+        lagre(() => kobleUtgiftTilLinje(s.id, ui.kobleId, linje));
+        break;
+      }
       case 'fjern-utgift': lagre(() => fjernUtgift(s.id, el.dataset.id)); break;
       case 'egeninnsats': lagre(() => oppdaterUtgift(s.id, el.dataset.id, { egeninnsats: !s.utgifter?.[el.dataset.id]?.egeninnsats })); break;
       case 'slett-soknad': {

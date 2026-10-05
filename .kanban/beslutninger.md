@@ -165,3 +165,9 @@ Kopijobben har en nøkkel som bare kan lese, og restore-testen en tjenestekonto 
 Kopijobben og restore-testen legger `sikkerhetskopi-status.json` i portalens mappe på webhotellet, og portalen henter den fra sin egen adresse (kort 0005). Slik får portalen en statuslampe uten at en jobb får skriverett til prod (B-25) og uten at portalen spør et eksternt system (B-19). Filen er åpen for alle på nettet.
 **Snur når:** Status må skjermes – da trengs en annen kanal, og B-25 må tas opp på nytt.
 **Konsekvens for nye kort:** Statusfilen inneholder aldri data fra portalen: bare tidspunkt, antall og bestått/ikke bestått. Ingen navn, beløp, e-postadresser eller filstier. Farge og alder regnes ut i portalen, ikke i filen.
+
+## B-27 · En søknadslinje følges opp enten i Innkjøp eller som utgift – aldri begge
+**Bestemt** 2026-10-05.
+En fri linje i søknaden kan plukkes inn i Utgifter og få faktura koblet til uten innkjøp (kort 0006). Ligger samme linje både i et innkjøp og som utgift, belastes potten to ganger, og «Ikke fordelt» slutter å være en huskeliste over det som gjenstår. Derfor er linjen tatt hånd om når den ligger ett av stedene, og den må fjernes der før den kan føres det andre.
+**Snur når:** En linje faktisk må deles mellom tilbudsinnkjøp og direkte utgift – da må delingen bære hvert sitt beløp, som delte innkjøpslinjer (B-13).
+**Konsekvens for nye kort:** Alt som lister «ledige» søknadslinjer (for innkjøp eller utgifter) må utelukke linjer som ligger det andre stedet. Bare frie linjer kan føres som utgift; skal behovslinjer det, må «Finansiert» og «Anskaffet» også kunne komme fra en utgift.

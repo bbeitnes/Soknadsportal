@@ -1,7 +1,7 @@
 ---
 id: 0013
 tittel: Fakturaen tar over for estimatet i Disponert og Gjenstår
-status: testes
+status: ferdig
 opprettet: 2026-10-05
 ---
 
@@ -28,18 +28,18 @@ sier «giver 47 873,00» selv om bare 40 000,00 er innvilget.
 
 Eksempel: innvilget 40 000,00, egenandel 12 322,00 (ramme 52 322,00).
 
-- [ ] Gitt en løs utgift på 10 000,00 uten faktura når jeg ser topplinjen så teller den 10 000,00 i «Disponert»
-- [ ] Gitt samme utgift med en faktura på 8 500,00 koblet til når jeg ser topplinjen så teller den 8 500,00, og «Gjenstår» er 1 500,00 høyere enn før fakturaen
-- [ ] Gitt en valgt innkjøpslinje med tilbudt 22 320,00 og en faktura på 23 000,00 når jeg ser topplinjen så teller den 23 000,00
-- [ ] Gitt en post med faktura når jeg åpner fakturaen i Revisjon så står krysset «Flere fakturaer kommer» ved posten under «Gjelder», og når jeg krysser av så teller posten estimatet igjen, og postlisten viser merket «Venter på flere» på den
-- [ ] Gitt en post med krysset satt når jeg fjerner krysset så teller posten det fakturerte med en gang
-- [ ] Gitt en faktura som ikke er koblet til noen post når jeg ser topplinjen så teller den ikke i «Disponert» (men i «Fakturert»), og Revisjon sier fra om den som i dag
-- [ ] Gitt en søknad med poster med og uten faktura når jeg sammenligner «Disponert» i topplinjen, kostnaden i sluttoppgjøret per type i Revisjon og «Disponert (fakturert og planlagt)» på forsiden i PDF-rapporten så er de tre tallene like
-- [ ] Gitt en revisor som har godkjent når krysset settes eller fjernes på en post så står godkjenningen som «godkjent»
-- [ ] Gitt at disponert overstiger rammen med 7 873,00 når jeg ser topplinjen så heter kolonnen «Overforbruk» og viser 7 873,00 i rødt, og linjen under sier «giver 40 000,00» og «over rammen 7 873,00 – må dekkes selv»
-- [ ] Gitt at disponert er innenfor rammen når jeg ser topplinjen så heter kolonnen «Gjenstår» som i dag
-- [ ] Gitt en post med egeninnsats når jeg ser topplinjen så teller den estimatet som i dag
-- [ ] Gitt `?demo` når jeg åpner demodataene så finnes det en post der fakturaen avviker fra estimatet og en post med krysset satt
+- [x] Gitt en løs utgift på 10 000,00 uten faktura når jeg ser topplinjen så teller den 10 000,00 i «Disponert»
+- [x] Gitt samme utgift med en faktura på 8 500,00 koblet til når jeg ser topplinjen så teller den 8 500,00, og «Gjenstår» er 1 500,00 høyere enn før fakturaen
+- [x] Gitt en valgt innkjøpslinje med tilbudt 22 320,00 og en faktura på 23 000,00 når jeg ser topplinjen så teller den 23 000,00
+- [x] Gitt en post med faktura når jeg åpner fakturaen i Revisjon så står krysset «Flere fakturaer kommer» ved posten under «Gjelder», og når jeg krysser av så teller posten estimatet igjen, og postlisten viser merket «Venter på flere» på den
+- [x] Gitt en post med krysset satt når jeg fjerner krysset så teller posten det fakturerte med en gang
+- [x] Gitt en faktura som ikke er koblet til noen post når jeg ser topplinjen så teller den ikke i «Disponert» (men i «Fakturert»), og Revisjon sier fra om den som i dag
+- [x] Gitt en søknad med poster med og uten faktura når jeg sammenligner «Disponert» i topplinjen, kostnaden i sluttoppgjøret per type i Revisjon og «Disponert (fakturert og planlagt)» på forsiden i PDF-rapporten så er de tre tallene like
+- [x] Gitt en revisor som har godkjent når krysset settes eller fjernes på en post så står godkjenningen som «godkjent»
+- [x] Gitt at disponert overstiger rammen med 7 873,00 når jeg ser topplinjen så heter kolonnen «Overforbruk» og viser 7 873,00 i rødt, og linjen under sier «giver 40 000,00» og «over rammen 7 873,00 – må dekkes selv»
+- [x] Gitt at disponert er innenfor rammen når jeg ser topplinjen så heter kolonnen «Gjenstår» som i dag
+- [x] Gitt en post med egeninnsats når jeg ser topplinjen så teller den estimatet som i dag
+- [x] Gitt `?demo` når jeg åpner demodataene så finnes det en post der fakturaen avviker fra estimatet og en post med krysset satt
 
 ## Avgrensning
 

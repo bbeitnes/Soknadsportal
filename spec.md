@@ -39,8 +39,11 @@ ikke er beskrevet her. Spør før du legger til noe.
 ## Datamodell (konseptuelt)
 
 ### Giver
-Navn, kontaktinfo/notat og innstillingen "Trekk ut momskompensasjon"
+Navn, nettadresse til søknadsportalen, kontaktperson (navn, e-post, telefon –
+alle frivillige), notat og innstillingen "Trekk ut momskompensasjon"
 (av/på + standardprosent). Kan endres av alle brukere (B-29).
+Leverandørregisteret har de samme kontaktfeltene (nettside i stedet for
+søknadsportal).
 
 ### Behov (behovslisten)
 Lever UTENFOR søknadene. Felt: tittel, beskrivelse, antall, estimert

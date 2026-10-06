@@ -9,7 +9,7 @@ const MARG = 48;
 
 const linjerAv = tekst => String(tekst || '').split('\n').map(l => l.trim()).filter(Boolean);
 
-// org: innstillingsdokumentet. leverandor: { navn, kontakt }.
+// org: innstillingsdokumentet. leverandor: { navn, kontaktperson, epost, telefon, notat }.
 // b: resultatet av bestilling() i data/beregning.js.
 export async function lagBestilling({ org, leverandor, b, merket }) {
   const { PDFDocument, StandardFonts, rgb } = await hentPdfLib();
@@ -73,7 +73,7 @@ export async function lagBestilling({ org, leverandor, b, merket }) {
   }
   blokker(
     { etikett: 'FRA', fetForst: true, linjer: [org.orgNavn || 'Kontaktinfo mangler – legges inn under Innstillinger', org.orgNr && `Org.nr. ${org.orgNr}`, ...linjerAv(org.adresse), org.kontaktperson && `Kontakt: ${org.kontaktperson}`, [org.telefon, org.epost].filter(Boolean).join(' · ')].filter(Boolean) },
-    { etikett: 'TIL', fetForst: true, linjer: [leverandor.navn || 'Leverandør', ...linjerAv(leverandor.kontakt)] },
+    { etikett: 'TIL', fetForst: true, linjer: [leverandor.navn || 'Leverandør', leverandor.kontaktperson, [leverandor.epost, leverandor.telefon].filter(Boolean).join(' · '), ...linjerAv(leverandor.notat ?? leverandor.kontakt)].filter(Boolean) },
   );
   const levering = linjerAv(org.leveringsadresse || org.adresse), faktura = linjerAv(org.fakturainfo);
   if (levering.length || faktura.length) {

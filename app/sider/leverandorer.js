@@ -6,7 +6,7 @@ import { innkjopMedLeverandor, erTomPost } from '../data/beregning.js';
 import { escapeHtml, tidspunkt, fornavn } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
 import { lagre, ferdigLagret } from '../ui/lagring.js';
-import { tegn, fokuser, sidepanel, lukkeknapp, nesteknapp } from '../ui/visning.js';
+import { tegn, fokuser, sidepanel, lukkeknapp, nesteknapp, kontaktfelt, kontaktcelle } from '../ui/visning.js';
 import { innstillingsmeny } from './innstillinger.js';
 
 const ui = { panel: null, nyttPanel: false };
@@ -26,7 +26,8 @@ export function leverandorpanel(lev, nytt = false, neste = false) {
       <div><div class="etikett">Leverandør</div><input class="tittelfelt" placeholder="Navn" ${feltAttr(nokkel('navn'), lev.navn)}></div>
       ${lukkeknapp()}
     </div>
-    <label class="felt"><span class="etikett">Kontaktinfo og notat</span>${tekstomrade(nokkel('kontakt'), lev.kontakt, 'class="inndata" rows="4" placeholder="Kontaktperson, e-post, telefon, kundenummer …"')}</label>
+    ${kontaktfelt(nokkel, lev)}
+    <label class="felt"><span class="etikett">Notat</span>${tekstomrade(nokkel('kontakt'), lev.kontakt, 'class="inndata" rows="4" placeholder="Kundenummer, andre kontakter …"')}</label>
     <div class="felt"><span class="etikett">Brukt i innkjøp</span>
       <div class="valgliste">
         ${brukt.map(i => {
@@ -68,7 +69,7 @@ export const leverandorerSide = {
               ${liste.map(l => `
                 <tr class="klikkbar ${l.id === ui.panel ? 'valgt' : ''}" data-handling="apne" data-id="${l.id}">
                   <td class="fet">${escapeHtml(l.navn || 'Uten navn')}</td>
-                  <td class="dempet" style="max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${escapeHtml((l.kontakt || '–').split('\n')[0])}</td>
+                  <td class="dempet" style="max-width:420px; overflow:hidden">${kontaktcelle(l)}</td>
                   <td class="tall">${innkjopMedLeverandor(l.id, tilstand.innkjop).length}</td>
                 </tr>`).join('') || '<tr class="tom-rad"><td colspan="3">Ingen leverandører enda.</td></tr>'}
             </tbody>

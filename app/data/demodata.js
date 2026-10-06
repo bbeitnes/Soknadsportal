@@ -21,7 +21,7 @@ export function lagDemodata() {
   };
 
   const givere = {
-    g1: { organisasjonId: org, navn: 'Sparebankstiftelsen Nord', kontakt: 'Søknadsportal på nett. Frister 15. mars og 15. september.\nKontakt: Nina Hauge, nina@sbnord.no', momsTrekk: true, momsProsent: 8, ...av(...kari, 40),
+    g1: { organisasjonId: org, navn: 'Sparebankstiftelsen Nord', kontakt: 'Frister 15. mars og 15. september. Krever revisjonsrapport.', nettadresse: 'soknad.sbnord.no', kontaktperson: 'Nina Hauge', epost: 'nina@sbnord.no', telefon: '77 60 10 20', momsTrekk: true, momsProsent: 8, ...av(...kari, 40),
       frister: { f1: { dato: '2026-03-15', tekst: 'Ordinær tildeling', arlig: true }, f2: { dato: '2026-09-15', tekst: 'Ordinær tildeling', arlig: true } } },
     g2: { organisasjonId: org, navn: 'Kulturrådet', kontakt: 'Instrumentfondet. Frist 1. juni.', momsTrekk: false, momsProsent: 8, ...av(...kari, 40),
       frister: { f1: { dato: '2026-06-01', tekst: 'Instrumentfondet', arlig: true }, f2: { dato: datoOm(20), tekst: 'Ekstra utlysning: talentmidler', arlig: false } } },
@@ -121,7 +121,7 @@ export function lagDemodata() {
   };
 
   const leverandorer = {
-    mh: { organisasjonId: org, navn: 'Musikkhuset AS', kontakt: 'Ola Berg\nola@musikkhuset.no · 22 33 44 55', ...av(...kari, 30) },
+    mh: { organisasjonId: org, navn: 'Musikkhuset AS', kontakt: 'Kundenr. 4471. Spør etter korpsrabatt.', nettadresse: 'https://www.musikkhuset.no', kontaktperson: 'Ola Berg', epost: 'ola@musikkhuset.no', telefon: '22 33 44 55', ...av(...kari, 30) },
     nb: { organisasjonId: org, navn: 'Nordic Brass', kontakt: 'Anne Lie\nanne@nordicbrass.no', ...av(...kari, 30) },
     to: { organisasjonId: org, navn: 'Tono Instrumenter', kontakt: 'post@tono.no · 55 12 34 56', ...av(...per, 25) },
     us: { organisasjonId: org, navn: 'Uniformsenteret', kontakt: 'ordre@uniformsenteret.no', ...av(...per, 90) },

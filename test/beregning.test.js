@@ -1128,6 +1128,48 @@ test('erTomPost: urørt post slik «+ Ny …» lager den, og ikke når noe er fy
   assert.equal(erTomPost('leverandorer', { id: 'l', navn: '', kontakt: 'Kari' }), false);
   assert.equal(erTomPost('givere', { id: 'g', navn: '', kontakt: '', momsTrekk: false, momsProsent: 8 }), true);
   assert.equal(erTomPost('givere', { id: 'g', navn: '', kontakt: '', momsTrekk: true, momsProsent: 8 }), false);
+
+  // Kontaktfeltene (kort 0014): bare ett av dem utfylt teller som rørt.
+  assert.equal(erTomPost('leverandorer', { id: 'l', navn: '', kontakt: '', nettadresse: 'musikkhuset.no' }), false);
+  assert.equal(erTomPost('leverandorer', { id: 'l', navn: '', kontakt: '', kontaktperson: 'Ola' }), false);
+  assert.equal(erTomPost('leverandorer', { id: 'l', navn: '', kontakt: '', epost: '  ' }), true);
+  assert.equal(erTomPost('givere', { id: 'g', navn: '', kontakt: '', momsTrekk: false, momsProsent: 8, telefon: '77 60 10 20' }), false);
+  assert.equal(erTomPost('givere', { id: 'g', navn: '', kontakt: '', momsTrekk: false, momsProsent: 8, epost: 'nina@sbnord.no' }), false);
+});
+
+test('kontaktinfo på giver og leverandør (kort 0014): linjer, kort tekst og lenke', async () => {
+  const { kontaktinfo, kontaktlinjer, kontaktkort, kontaktsammendrag, notatlinje, leverandorKontaktinfo } = await import('../app/data/beregning.js');
+  const { nettlenke } = await import('../app/ui/format.js');
+  const mh = { id: 'mh', navn: 'Musikkhuset', kontakt: 'Kundenr. 4471\nSpør etter rabatt', nettadresse: ' musikkhuset.no ', kontaktperson: 'Ola Berg', epost: 'ola@musikkhuset.no', telefon: '' };
+  const gammel = { id: 'nb', navn: 'Nordic Brass', kontakt: 'Anne Lie\nanne@nordicbrass.no' };
+
+  // Eldre dokumenter mangler feltene – alltid strenger.
+  assert.deepEqual(kontaktinfo(gammel), { kontaktperson: '', epost: '', telefon: '', nettadresse: '' });
+  assert.deepEqual(kontaktinfo(mh), { kontaktperson: 'Ola Berg', epost: 'ola@musikkhuset.no', telefon: '', nettadresse: 'musikkhuset.no' });
+
+  assert.deepEqual(kontaktlinjer(mh), ['Ola Berg', 'ola@musikkhuset.no', 'musikkhuset.no']);
+  assert.deepEqual(kontaktlinjer(mh, { medNett: false }), ['Ola Berg', 'ola@musikkhuset.no']);
+  assert.deepEqual(kontaktlinjer(gammel), []);
+
+  // Listene og velgeren: navn · telefon · e-post, ellers første linje av notatet.
+  assert.equal(kontaktsammendrag(mh), 'Ola Berg · ola@musikkhuset.no');
+  assert.equal(kontaktsammendrag({ ...mh, telefon: '22 33 44 55' }), 'Ola Berg · 22 33 44 55 · ola@musikkhuset.no');
+  assert.equal(kontaktsammendrag(gammel), '');
+  assert.equal(notatlinje(gammel), 'Anne Lie');
+  assert.equal(kontaktkort(mh), 'Ola Berg · ola@musikkhuset.no');
+  assert.equal(kontaktkort(gammel), 'Anne Lie');
+  assert.equal(kontaktkort({ kontakt: '' }), '');
+
+  // Innkjøp: registerleverandør får feltene, fri leverandør bare notatet.
+  const register = [mh, gammel];
+  assert.deepEqual(leverandorKontaktinfo({ leverandorId: 'mh', frakt: 0 }, register), { kontaktperson: 'Ola Berg', epost: 'ola@musikkhuset.no', telefon: '', nettadresse: 'musikkhuset.no', notat: 'Kundenr. 4471\nSpør etter rabatt' });
+  assert.deepEqual(leverandorKontaktinfo({ navn: 'Fri', kontakt: 'post@fri.no', kontaktperson: 'Skal ikke brukes' }, register), { kontaktperson: '', epost: '', telefon: '', nettadresse: '', notat: 'post@fri.no' });
+
+  // Lenken får https:// når protokollen mangler; det lagrede feltet røres ikke.
+  assert.equal(nettlenke('musikkhuset.no'), 'https://musikkhuset.no');
+  assert.equal(nettlenke(' http://soknad.sbnord.no/ '), 'http://soknad.sbnord.no/');
+  assert.equal(nettlenke(''), '');
+  assert.equal(nettlenke(null), '');
 });
 
 test('nesteFrist: egen frist, utledet fra søknadsfristen for utkast, ingen for lukkede (kort 0010)', async () => {

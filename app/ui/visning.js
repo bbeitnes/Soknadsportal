@@ -1,6 +1,8 @@
 // Bindeledd mellom sidene og appskallet (app.js), så sidene kan be om ny
 // tegning eller fokus uten å importere app.js (det ville gitt en sirkel).
-import { datoFelt } from './format.js';
+import { datoFelt, escapeHtml, nettlenke } from './format.js';
+import { feltAttr } from './felt.js';
+import { kontaktsammendrag, notatlinje } from '../data/beregning.js';
 
 let skall = { tegn() {}, fokuser() {} };
 
@@ -49,4 +51,32 @@ export function nesteknapp(tekst) {
 
 export function lukkeknapp(handling = 'lukk-panel') {
   return `<button type="button" class="ikonknapp" data-handling="${handling}" title="Lukk (Esc)">${IKON.lukk}</button>`;
+}
+
+// De frivillige kontaktfeltene på en giver eller leverandør (kort 0014):
+// nettadresse, kontaktperson, e-post og telefon. `nokkel(felt)` gir
+// data-felt-nøkkelen. Nettadresse og e-post får en liten lenke ved siden av
+// etiketten; lenkene virker også for leseren.
+export function kontaktfelt(nokkel, post, { nettEtikett = 'Nettside' } = {}) {
+  const lenke = (href, tekst) => href ? `<a class="undertekst" href="${escapeHtml(href)}" target="_blank" rel="noopener" style="text-transform:none; letter-spacing:0; font-weight:600">${tekst}</a>` : '';
+  const etikett = (tekst, l = '') => `<span class="etikett" style="display:flex; justify-content:space-between; gap:8px">${tekst}${l}</span>`;
+  const felt = (id, tekst, plass, l = '') => `<label class="felt">${etikett(tekst, l)}<input class="inndata" placeholder="${plass}" ${feltAttr(nokkel(id), post[id])}></label>`;
+  const epost = String(post.epost || '').trim();
+  return `
+    ${felt('nettadresse', nettEtikett, 'https://…', lenke(nettlenke(post.nettadresse), 'Åpne ↗'))}
+    ${felt('kontaktperson', 'Kontaktperson', 'Navn')}
+    <div class="to-kol">
+      ${felt('epost', 'E-post', 'navn@eksempel.no', lenke(epost && `mailto:${epost}`, 'Skriv e-post'))}
+      ${felt('telefon', 'Telefon', '')}
+    </div>`;
+}
+
+// Innholdet i kolonnen «Kontakt» i giver- og leverandørlisten: kontaktpersonen
+// (navn · telefon · e-post) og første linje av notatet under, når det er
+// utfylt. Begge på én linje hver, avkortet med «…».
+export function kontaktcelle(post) {
+  const linje = (tekst, klasse = '') => `<div class="${klasse}" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${escapeHtml(tekst)}</div>`;
+  const sammendrag = kontaktsammendrag(post), notat = notatlinje(post);
+  if (!sammendrag && !notat) return linje('–');
+  return (sammendrag ? linje(sammendrag) : '') + (notat ? linje(notat, sammendrag ? 'undertekst' : '') : '');
 }

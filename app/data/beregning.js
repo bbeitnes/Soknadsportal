@@ -851,6 +851,45 @@ export function leverandorKontakt(lev, register) {
   return (r ? r.kontakt : lev?.kontakt) || '';
 }
 
+// Kontaktinfoen til en leverandør i et innkjøp (kort 0014): de strukturerte
+// feltene fra registeret og notatet. En fri leverandør (uten leverandorId)
+// har bare fritekstfeltet, så de andre er tomme.
+export function leverandorKontaktinfo(lev, register) {
+  const r = lev?.leverandorId ? register.find(x => x.id === lev.leverandorId) : null;
+  return { ...kontaktinfo(r), notat: leverandorKontakt(lev, register) };
+}
+
+// De strukturerte kontaktfeltene på en giver eller leverandør, alltid som
+// strenger (eldre dokumenter mangler dem).
+export function kontaktinfo(post) {
+  const s = v => (typeof v === 'string' ? v.trim() : '');
+  return { kontaktperson: s(post?.kontaktperson), epost: s(post?.epost), telefon: s(post?.telefon), nettadresse: s(post?.nettadresse) };
+}
+
+// Kontaktinfoen som linjer til visning: kontaktperson, e-post, telefon og
+// nettadressen (hvis `medNett`). Tomme felt hoppes over.
+export function kontaktlinjer(post, { medNett = true } = {}) {
+  const k = kontaktinfo(post);
+  return [k.kontaktperson, k.epost, k.telefon, medNett ? k.nettadresse : ''].filter(Boolean);
+}
+
+// Kontaktpersonen på én linje: «Ola Berg · 22 33 44 55 · ola@musikkhuset.no».
+export function kontaktsammendrag(post) {
+  const k = kontaktinfo(post);
+  return [k.kontaktperson, k.telefon, k.epost].filter(Boolean).join(' · ');
+}
+
+// Kort tekst om en giver eller leverandør i en liste: kontaktpersonen
+// (navn · telefon · e-post), ellers første linje av notatet.
+export function kontaktkort(post) {
+  return kontaktsammendrag(post) || notatlinje(post);
+}
+
+// Første linje av notatet (det gamle fritekstfeltet `kontakt`).
+export function notatlinje(post) {
+  return String(post?.kontakt || '').split('\n')[0].trim();
+}
+
 // Innkjøp der en registerleverandør er brukt.
 export function innkjopMedLeverandor(leverandorId, innkjopListe) {
   return innkjopListe.filter(i => leverandorer(i).some(l => l.leverandorId === leverandorId));
@@ -869,8 +908,8 @@ export function leverandorIRegister(navn, register) {
 const URORT = {
   fakturaer: { leverandor: '', fakturanr: '', dato: null, belop: null, fil: null, dekker: {}, merknad: '' },
   behov: { type: '', tittel: '', beskrivelse: '', antall: 1, estPris: 0, statusOverstyring: null },
-  leverandorer: { navn: '', kontakt: '' },
-  givere: { navn: '', kontakt: '', momsTrekk: false },
+  leverandorer: { navn: '', kontakt: '', nettadresse: '', kontaktperson: '', epost: '', telefon: '' },
+  givere: { navn: '', kontakt: '', momsTrekk: false, nettadresse: '', kontaktperson: '', epost: '', telefon: '' },
 };
 
 export function erTomPost(samling, post) {

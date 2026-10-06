@@ -106,6 +106,14 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   inn; 29.02 → 28.02 uten skuddår, `arligDato()`). `aarshjul(givere, soknader, iDag)` gir månedene med
   giverfrister ('passert' / 'naer' / 'senere') og søknadenes `nesteFrist()`; ingenting lagres.
   Frist og søknad kobles ikke. Revisor og mobil har ikke siden.
+- Kontaktinfo på givere og leverandører (kort 0014): flate, frivillige felt `nettadresse`, `kontaktperson`,
+  `epost`, `telefon` (samme navn som organisasjonen i `innstillinger`), tegnet med `kontaktfelt()` i
+  `ui/visning.js` (lenker «Åpne ↗» / «Skriv e-post» ved etiketten; `nettlenke()` legger på `https://` bare i
+  href). Det gamle `kontakt`-feltet er fritekstnotatet («Notat») og består. `kontaktinfo()` / `kontaktlinjer()` /
+  `kontaktkort()` i `beregning.js` leser feltene (eldre dokumenter mangler dem = tomme); Innkjøp viser dem i
+  leverandørpanelets lesevisning og i velgeren (`kontaktkort()`), listene har kolonnen «Kontakt» = navn · telefon ·
+  e-post med notatets første linje under (`kontaktcelle()`), og bestillings-PDF-en i «TIL»
+  (`leverandorKontaktinfo()`). Frie leverandører i et innkjøp har bare fritekst. Én kontaktperson per post.
 - Giverpanelet (`giverpanel()` + `giverklikk()` i `sider/givere.js`) brukes både i Innstillinger → Givere
   og i Årshjul (klikk på en giverfrist). «+ Søknad til denne fristen» lager et utkast med giveren,
   `nesteForekomst()` som frist og tittelen «‹tekst› ‹år›». Alle brukere kan opprette og endre givere;

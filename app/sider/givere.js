@@ -5,7 +5,7 @@ import { statusNavn, erTomPost, fristliste, nesteForekomst } from '../data/bereg
 import { escapeHtml, kr, datoFelt, iDag } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
 import { lagre, ferdigLagret, visMelding } from '../ui/lagring.js';
-import { tegn, fokuser, gaaTil, avkryss, sidepanel, lukkeknapp, nesteknapp, IKON } from '../ui/visning.js';
+import { tegn, fokuser, gaaTil, avkryss, sidepanel, lukkeknapp, nesteknapp, kontaktfelt, kontaktcelle, IKON } from '../ui/visning.js';
 import { innstillingsmeny } from './innstillinger.js';
 
 const ui = { seksjon: 'givere', panel: null, nyttPanel: false, invitasjon: { epost: '', rolle: 'bruker' }, kopiert: null, sender: null, sendt: null };
@@ -55,8 +55,9 @@ export function giverpanel(g, { nytt = false, neste = false } = {}) {
       </div>
       ${lukkeknapp()}
     </div>
-    <label class="felt"><span class="etikett">Kontaktinfo og notat</span>
-      ${tekstomrade(nokkel('kontakt'), g.kontakt, 'class="inndata" rows="4" placeholder="Kontaktperson, e-post, telefon …"')}
+    ${kontaktfelt(nokkel, g, { nettEtikett: 'Søknadsportal (nettadresse)' })}
+    <label class="felt"><span class="etikett">Notat</span>
+      ${tekstomrade(nokkel('kontakt'), g.kontakt, 'class="inndata" rows="4" placeholder="Krav til søknaden, andre kontakter …"')}
     </label>
     <div class="felt"><span class="etikett">Søknadsfrister</span>
       ${frister.map(f => fristrad(g, f)).join('') || '<div class="undertekst">Ingen frister enda. De vises i Årshjul.</div>'}
@@ -220,7 +221,7 @@ export const givereSide = {
               ${givere.map(g => `
                 <tr class="klikkbar ${g.id === ui.panel ? 'valgt' : ''}" data-handling="apne" data-id="${g.id}">
                   <td class="fet">${escapeHtml(g.navn || 'Uten navn')}</td>
-                  <td class="dempet" style="max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${escapeHtml((g.kontakt || '–').split('\n')[0])}</td>
+                  <td class="dempet" style="max-width:320px; overflow:hidden">${kontaktcelle(g)}</td>
                   <td class="smal dempet">${escapeHtml(fristliste(g).filter(f => f.dato).map(f => f.arlig ? datoFelt(f.dato).slice(0, 5) : datoFelt(f.dato)).join(', ') || '–')}</td>
                   <td class="smal"><span class="merkelapp ${g.momsTrekk ? 'm-pa' : 'm-av'}">${escapeHtml(momsTekst(g))}</span></td>
                   <td class="tall">${tilstand.soknader.filter(s => s.giverId === g.id).length}</td>

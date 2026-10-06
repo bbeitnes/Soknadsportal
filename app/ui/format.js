@@ -111,3 +111,11 @@ export function fornavn(navn, epost) {
   if (navn && navn.trim()) return navn.trim().split(/\s+/)[0];
   return (epost || '').split('@')[0] || 'ukjent';
 }
+
+// Adressen som lenke: «musikkhuset.no» blir «https://musikkhuset.no». Det
+// lagrede feltet røres ikke; dette er bare for href.
+export function nettlenke(adresse) {
+  const a = String(adresse || '').trim();
+  if (!a) return '';
+  return /^[a-z][a-z0-9+.-]*:/i.test(a) ? a : `https://${a}`;
+}

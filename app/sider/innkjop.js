@@ -15,7 +15,7 @@ import {
 } from '../data/index.js';
 import {
   INNKJOPSSTATUSER, innkjopsstatusNavn, innkjopsberegning, billigstPerLinje, tolkRutenett,
-  ikkeFordelte, vedleggsliste, momsProsent, giverandel, leverandorNavn, leverandorKontakt, leverandorIRegister,
+  ikkeFordelte, vedleggsliste, momsProsent, giverandel, leverandorNavn, leverandorKontaktinfo, kontaktlinjer, kontaktkort, leverandorIRegister,
   grupperInnkjopslinjer, grupperPerType, linjetype, typeliste, typerekkefolgeFor, tolkPris, velgbareBehov,
   tolkTilbudslinjer, tilbudsprisTekst, foreslaKobling, bestilling,
 } from '../data/beregning.js';
@@ -193,6 +193,7 @@ function matrise(s, i) {
 }
 
 function leverandorPanel(s, i, lev) {
+  const kontaktinfo = leverandorKontaktinfo(lev, tilstand.leverandorer);
   const b = innkjopsberegning(i);
   const n = f => `innkjop/${i.id}/leverandorer.${lev.id}.${f}`;
   const vedlegg = vedleggsliste(lev);
@@ -206,7 +207,7 @@ function leverandorPanel(s, i, lev) {
     </div>
     <div class="hint">Frakt ${kr(lev.frakt)} kr · alt hos én: ${kr(t.total)} kr${t.mangler ? ` (mangler ${t.mangler} ${t.mangler === 1 ? 'pris' : 'priser'})` : ''}</div>
     ${lev.leverandorId
-      ? `<div class="felt"><span class="etikett">Kontakt</span><div style="white-space:pre-line; font-size:14px">${escapeHtml(leverandorKontakt(lev, tilstand.leverandorer) || '–')}</div><a href="#/leverandorer" class="undertekst">Endres i leverandørregisteret →</a></div>`
+      ? `<div class="felt"><span class="etikett">Kontakt</span><div style="white-space:pre-line; font-size:14px">${escapeHtml([...kontaktlinjer(kontaktinfo), kontaktinfo.notat].filter(Boolean).join('\n') || '–')}</div><a href="#/leverandorer" class="undertekst">Endres i leverandørregisteret →</a></div>`
       : `<label class="felt"><span class="etikett">Kontakt</span>${tekstomrade(n('kontakt'), lev.kontakt, 'class="inndata" rows="3" placeholder="Kontaktperson, e-post, telefon"')}</label>`}
     <div class="felt"><span class="etikett">Vedlegg (tilbudsdokumenter)</span>
       <div class="valgliste">
@@ -504,7 +505,7 @@ function velgLeverandorPanel(i) {
     </div>
     <input class="inndata" id="lev-sok" value="${escapeHtml(ui.sok)}" placeholder="Søk eller skriv nytt navn" autocomplete="off">
     <div class="valgliste" data-rull="lev-liste" style="max-height:50vh; overflow:auto">
-      ${liste.map(l => `<button type="button" data-handling="velg-leverandor" data-id="${l.id}" data-navn="${escapeHtml(l.navn || '')}"><span class="fyll" style="font-weight:600">${escapeHtml(l.navn || 'Uten navn')}</span><span class="undertekst smal">${escapeHtml((l.kontakt || '').split('\n')[0])}</span></button>`).join('')}
+      ${liste.map(l => `<button type="button" data-handling="velg-leverandor" data-id="${l.id}" data-navn="${escapeHtml(l.navn || '')}"><span class="fyll" style="font-weight:600">${escapeHtml(l.navn || 'Uten navn')}</span><span class="undertekst smal">${escapeHtml(kontaktkort(l))}</span></button>`).join('')}
       <div class="tomt" id="lev-tom" ${liste.length ? 'hidden' : ''}>${sok ? 'Ingen treff i registeret.' : 'Alle leverandørene i registeret er alt med.'}</div>
     </div>
     <button type="button" class="knapp knapp-primar" style="align-self:flex-start" data-handling="ny-leverandor" ${sok && !eksakt ? '' : 'hidden'}>+ Opprett «${escapeHtml(ui.sok.trim())}» og legg til</button>`, { nytt: ui.nyttPanel });
@@ -683,7 +684,7 @@ export const innkjopFane = {
         try {
           await lagBestilling({
             org: organisasjon(), merket: i.navn || '',
-            leverandor: { navn: navn(lev), kontakt: leverandorKontakt(lev, tilstand.leverandorer) },
+            leverandor: { navn: navn(lev), ...leverandorKontaktinfo(lev, tilstand.leverandorer) },
             b: bestillingFor(s, i, sid),
           });
         } catch (err) { console.error(err); visMelding('Kunne ikke lage bestillingen: ' + (err.message || err)); }

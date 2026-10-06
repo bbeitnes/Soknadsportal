@@ -3,11 +3,11 @@
 import {
   tilstand, innkjopFor, fakturaerFor, oppdaterSoknad, opprettFaktura, oppdaterFaktura, slettFaktura,
   opprettLeverandor, slettLeverandor,
-  settDekker, lastOppFakturafil, dokumentUrl, fellesTyperekkefolge,
-  erRevisor, revisorerFor, minRevisorsti, godkjennRevisjon, trekkGodkjenning, kommentarerFor,
+  settDekker, settVenterFlere, lastOppFakturafil, dokumentUrl, fellesTyperekkefolge,
+  erRevisor, revisorerFor, minRevisorsti, godkjennRevisjon, trekkGodkjenning, kommentarerFor, pottFor
 } from '../data/index.js';
 import {
-  revisjonsposter, fakturaavvik, fakturaDekker, revisjonsoppsummering, pott, sumFakturert,
+  revisjonsposter, fakturaavvik, fakturaDekker, revisjonsoppsummering, sumFakturert,
   leverandorNavn, leverandorIRegister, erTomPost, posttittel, linjerUtenValg, fordelingPerKategori, grupperFakturaposter, sumEgneMidler, typerekkefolgeFor,
 } from '../data/beregning.js';
 import { escapeHtml, kr, belop, datoFelt, datoKl, tidspunkt, fornavn } from '../ui/format.js';
@@ -128,7 +128,9 @@ function fakturaPanel(s, f, poster) {
         ${poster.filter(p => !p.egeninnsats || dekker.has(p.id)).map(p => {
           const pa = dekker.has(p.id);
           const annen = andre.find(x => fakturaDekker(x).includes(p.id));
-          return `<button type="button" data-handling="dekker" data-post="${escapeHtml(p.id)}" aria-pressed="${pa}" style="${annen && !pa ? 'color:var(--color-neutral-500)' : ''}"><span class="boks ${pa ? 'pa' : ''}" style="width:16px; height:16px">${IKON.hak}</span><span class="fyll">${escapeHtml(posttittel(p))}${annen ? ` <span class="undertekst">(faktura ${annen.lopenummer})</span>` : ''}</span><span class="smal" style="font-variant-numeric:tabular-nums">${belop(p.tilbudt)}</span></button>`;
+          // Delfaktura: krysset ligger i en egen rad rett under posten.
+          const venter = pa && !p.egeninnsats ? `<div style="padding:0 10px 6px 36px; border-top:0; margin-top:-1px"><button type="button" class="avkryss" data-handling="venter-flere" data-post="${escapeHtml(p.id)}" aria-pressed="${!!p.venterFlere}" style="min-height:22px; font-size:12px; gap:8px; color:var(--color-neutral-700)" title="Delfaktura: posten teller estimatet i Disponert til krysset fjernes"><span class="boks ${p.venterFlere ? 'pa' : ''}" style="width:14px; height:14px">${IKON.hak}</span>Flere fakturaer kommer</button></div>` : '';
+          return `<button type="button" data-handling="dekker" data-post="${escapeHtml(p.id)}" aria-pressed="${pa}" style="${annen && !pa ? 'color:var(--color-neutral-500)' : ''}"><span class="boks ${pa ? 'pa' : ''}" style="width:16px; height:16px">${IKON.hak}</span><span class="fyll">${escapeHtml(posttittel(p))}${annen ? ` <span class="undertekst">(faktura ${annen.lopenummer})</span>` : ''}</span><span class="smal" style="font-variant-numeric:tabular-nums">${belop(p.tilbudt)}</span></button>` + venter;
         }).join('') || '<div class="tomt">Ingen valgte tilbudslinjer eller utgifter enda.</div>'}
       </div>
       <span class="undertekst">En faktura kan dekke flere linjer. Sjekk av det den gjelder.</span>
@@ -178,7 +180,7 @@ function fakturaPanelLes(s, f, poster) {
     <div>
       <div style="display:flex; justify-content:space-between; align-items:baseline"><span class="etikett">Gjelder</span><span class="hint">${a.koblet && !a.alene ? 'Flere fakturaer på samme linje – avviket står per linje under «Hva potten er brukt på»' : `Tilbudt ${belop(a.tilbudt)} · avvik <span class="fet ${a.avvik ? 'aksent' : ''}">${a.koblet ? (a.avvik ? avvikTekst(a.avvik) : '0') : '–'}</span>`}</span></div>
       <div class="valgliste" style="margin-top:8px">
-        ${dekket.map(p => `<div style="cursor:default"><span class="fyll">${escapeHtml(posttittel(p))}</span><span class="smal" style="font-variant-numeric:tabular-nums">${belop(p.tilbudt)}</span></div>`).join('') || '<div class="tomt">Ikke koblet til noe.</div>'}
+        ${dekket.map(p => `<div style="cursor:default"><span class="fyll">${escapeHtml(posttittel(p))}${p.venterFlere ? '<div class="undertekst">Flere fakturaer kommer</div>' : ''}</span><span class="smal" style="font-variant-numeric:tabular-nums">${belop(p.tilbudt)}</span></div>`).join('') || '<div class="tomt">Ikke koblet til noe.</div>'}
       </div>
     </div>
     ${(f.merknad || '').trim() ? felt('Merknad', escapeHtml(f.merknad).replace(/\n/g, '<br>')) : ''}
@@ -223,7 +225,7 @@ export const revisjonFane = {
     const fakturaer = fakturaerFor(s.id);
     const poster = posterFor(s);
     const o = revisjonsoppsummering(fakturaer, poster);
-    const p = pott(s, innkjopFor(s.id));
+    const p = pottFor(s);
     const valgt = fakturaer.find(f => f.id === ui.panel);
     if (ui.panel && !valgt) ui.panel = null;
     const leverandor = valgt && !les ? tilstand.leverandorer.find(l => l.id === ui.leverandor) : null;
@@ -237,7 +239,7 @@ export const revisjonFane = {
     const grupper = visEgne ? fordelingFor(s, poster, o.perPost, p.prosent).grupper : [{ poster }];
     const postrad = x => {
       const { nr, fakturert, avvik } = o.perPost[x.id];
-      return `<tr><td>${escapeHtml(x.tittel)}<div class="celleunder">${escapeHtml(x.under)}</div>${x.etterSoknad ? `<div class="celleunder" style="color:var(--color-text)" title="${escapeHtml(x.notat)}">Lagt til etter søknaden${x.notat ? `: ${escapeHtml(x.notat)}` : ''}</div>` : ''}${x.alternativ ? `<div class="celleunder aksent" style="font-weight:600" title="Leverandøren tilbød et annet produkt enn det vi ba om">Alternativt produkt: ${escapeHtml(x.alternativ)}</div>` : ''}</td><td class="tall">${belop(x.tilbudt)}</td><td class="tall fet">${fakturert == null ? '–' : belop(fakturert)}</td><td class="tall fet smal aksent">${avvik ? avvikTekst(avvik) : ''}</td>${visEgne ? `<td class="tall">${x.egeninnsats || les ? `<span style="padding-right:10px" ${x.egeninnsats ? 'title="Egeninnsats: hele beløpet er egne midler"' : ''}>${x.egne ? belop(x.egne) : '–'}</span>` : `<input class="celleinn" inputmode="decimal" placeholder="–" title="Egne midler brukt på denne posten" ${feltAttr(egneFelt(s, x), x.egne || null, 'belop')}>`}</td>` : ''}<td class="smal">${x.egeninnsats && !nr.length ? '<span class="merkelapp" style="border-color:var(--color-divider)" title="Estimert verdi uten faktura. Endres i Utgifter-fanen.">Egeninnsats</span>' : `<span class="merkelapp ${nr.length ? 'm-pa' : 'm-varsel'}">${nr.length ? `Faktura ${nr.join(', ')}` : 'Mangler faktura'}</span>`}</td></tr>`;
+      return `<tr><td>${escapeHtml(x.tittel)}<div class="celleunder">${escapeHtml(x.under)}</div>${x.etterSoknad ? `<div class="celleunder" style="color:var(--color-text)" title="${escapeHtml(x.notat)}">Lagt til etter søknaden${x.notat ? `: ${escapeHtml(x.notat)}` : ''}</div>` : ''}${x.alternativ ? `<div class="celleunder aksent" style="font-weight:600" title="Leverandøren tilbød et annet produkt enn det vi ba om">Alternativt produkt: ${escapeHtml(x.alternativ)}</div>` : ''}${x.venterFlere ? '<div class="celleunder" style="color:var(--color-text)" title="Flere fakturaer kommer – posten teller estimatet i Disponert til krysset i fakturapanelet fjernes">Venter på flere fakturaer</div>' : ''}</td><td class="tall">${belop(x.tilbudt)}</td><td class="tall fet">${fakturert == null ? '–' : belop(fakturert)}</td><td class="tall fet smal aksent">${avvik ? avvikTekst(avvik) : ''}</td>${visEgne ? `<td class="tall">${x.egeninnsats || les ? `<span style="padding-right:10px" ${x.egeninnsats ? 'title="Egeninnsats: hele beløpet er egne midler"' : ''}>${x.egne ? belop(x.egne) : '–'}</span>` : `<input class="celleinn" inputmode="decimal" placeholder="–" title="Egne midler brukt på denne posten" ${feltAttr(egneFelt(s, x), x.egne || null, 'belop')}>`}</td>` : ''}<td class="smal">${x.egeninnsats && !nr.length ? '<span class="merkelapp" style="border-color:var(--color-divider)" title="Estimert verdi uten faktura. Endres i Utgifter-fanen.">Egeninnsats</span>' : `<span class="merkelapp ${nr.length ? 'm-pa' : 'm-varsel'}">${nr.length ? `Faktura ${nr.join(', ')}` : 'Mangler faktura'}</span>`}</td></tr>`;
     };
     const html = `
       <div class="verktoyrad">
@@ -333,6 +335,7 @@ export const revisjonFane = {
         if (ui.leverandor) lukkLeverandor(f); else ui.panel = null;
         tegn(); return true;
       case 'dekker': if (f) lagre(() => settDekker(f, el.dataset.post, el.getAttribute('aria-pressed') !== 'true')); return true;
+      case 'venter-flere': { const post = posterFor(s).find(x => x.id === el.dataset.post); if (post) lagre(() => settVenterFlere(s, post, el.getAttribute('aria-pressed') !== 'true')); return true; }
       case 'apne-fil': {
         if (!f?.fil) return true;
         const vindu = window.open('', '_blank');

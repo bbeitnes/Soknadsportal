@@ -7,7 +7,7 @@
 // hverandre på samme felt: siste lagring per felt vinner.
 import { lager as lageret, innlogging, SLETT } from './lager.js';
 import { ORGANISASJON_ID, MILJO } from '../config/app-config.js';
-import { linjeliste, linjekostnad, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer, linjetype, anskaffetPerBehov, finansierteLinjer, revisornokkel, revisjonsavtrykk, revisorstatus, fakturakommentarer, kopistatus } from './beregning.js';
+import { pott, linjeliste, linjekostnad, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer, linjetype, anskaffetPerBehov, finansierteLinjer, revisornokkel, revisjonsavtrykk, revisorstatus, fakturakommentarer, kopistatus } from './beregning.js';
 
 export { innlogging };
 
@@ -329,6 +329,12 @@ export async function slettSoknad(soknad) {
   }
 }
 
+// Potten for en søknad, med innkjøp og fakturaer (postene teller det
+// fakturerte når de har faktura, B-31). Sidene bruker denne, ikke pott() direkte.
+export function pottFor(soknad) {
+  return pott(soknad, innkjopFor(soknad.id), fakturaerFor(soknad.id));
+}
+
 export function innkjopFor(soknadId) {
   return tilstand.innkjop.filter(i => i.soknadId === soknadId).sort((a, b) => (a.rekkefolge ?? 0) - (b.rekkefolge ?? 0));
 }
@@ -634,6 +640,13 @@ export async function slettFaktura(faktura) {
 // Firestore-feltsti. I `dekker` lagres de derfor med «|» i stedet.
 export const dekkerNokkel = postId => postId.replaceAll('/', '|');
 export const dekkerPostId = nokkel => nokkel.replaceAll('|', '/');
+
+// «Flere fakturaer kommer» på en post (B-31): estimatet gjelder til krysset fjernes.
+export function settVenterFlere(soknad, post, pa) {
+  const verdi = pa ? true : SLETT;
+  if (post.type === 'utgift') return oppdaterSoknad(soknad.id, { [`utgifter.${post.utgiftId}.venterFlere`]: verdi });
+  return oppdaterInnkjop(post.innkjopId, { [`linjer.${post.linjeId}.venterFlere`]: verdi });
+}
 
 export function settDekker(faktura, postId, pa) {
   return oppdaterFaktura(faktura.id, { [`dekker.${dekkerNokkel(postId)}`]: pa ? true : SLETT });

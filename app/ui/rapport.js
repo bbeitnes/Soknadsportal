@@ -9,8 +9,8 @@
 //   3. Alle fakturaene i rekkefølge, med løpenummer stamplet i hjørnet.
 //      Bilder blir egne sider; PDF-er kopieres inn side for side. Store
 //      bilder (også inne i PDF-bilag) krympes først, se bildekrymp.js.
-import { tilstand, innkjopFor, fakturaerFor, filBytes, revisorerFor } from '../data/index.js';
-import { pott, fakturaDekker, giverandelOre, posttittel, revisjonsoppsummering, sumEgneMidler, momsPerAr } from '../data/beregning.js';
+import { tilstand, innkjopFor, fakturaerFor, filBytes, revisorerFor, pottFor } from '../data/index.js';
+import { fakturaDekker, giverandelOre, posttittel, revisjonsoppsummering, sumEgneMidler, momsPerAr } from '../data/beregning.js';
 import { posterFor, fordelingFor, fakturaposterFor } from '../sider/revisjon.js';
 import { belop, datoFelt, datoKl } from './format.js';
 import { krympBilde, krympBilderIPdf } from './bildekrymp.js';
@@ -48,7 +48,7 @@ export async function lagRevisjonsrapport(s) {
   const giver = tilstand.givere.find(g => g.id === s.giverId);
   const fakturaer = fakturaerFor(s.id);
   const poster = posterFor(s);
-  const p = pott(s, innkjopFor(s.id));
+  const p = pottFor(s);
   const fakturert = fakturaer.reduce((sum, f) => sum + (Number(f.belop) || 0), 0);
   // Egne midler etter samme regel som potten: egenandelen på søknaden hvis den
   // er satt, ellers det som er lagt på postene. De brukes først og holdes
@@ -103,7 +103,7 @@ export async function lagRevisjonsrapport(s) {
     linje(p.egenandel > 0 ? (p.egenandel === p.egenandelPlanlagt ? 'Egenandel' : `Egenandel (i søknaden ${belop(p.egenandelPlanlagt)})`) : 'Egne midler', belop(p.egne));
     linje('Ramme (innvilget + egne midler)', p.ramme == null ? '–' : belop(p.ramme));
   }
-  linje('Disponert (tilbud og utgifter)', belop(p.disponertFull));
+  linje('Disponert (fakturert og planlagt)', belop(p.disponertFull));
   linje('Brukt (fakturert)', belop(fakturert), sumEgeninnsats ? font : fet);
   if (sumEgeninnsats) {
     linje('Egeninnsats uten faktura (estimert)', belop(sumEgeninnsats));

@@ -5,11 +5,11 @@ import {
   tilstand, oppdaterSoknad, leggBehovISoknad, leggFlereBehovISoknad, leggFriLinjeISoknad, fjernLinje,
   lastOppDokument, slettDokument, dokumentUrl, slettSoknad, innkjopFor,
   leggTilUtgift, oppdaterUtgift, fjernUtgift, leggLinjerIUtgifter, kobleUtgiftTilLinje,
-  fellesTyperekkefolge, settLinjerekkefolge, settSoknadTyperekkefolge, anskaffet, erRevisor, settRevisor, revisorfelt,
+  fellesTyperekkefolge, settLinjerekkefolge, settSoknadTyperekkefolge, anskaffet, erRevisor, settRevisor, revisorfelt, pottFor
 } from '../data/index.js';
 import {
   SOKNADSSTATUSER, statusNavn, linjeliste, linjekostnad, sumEstimert, soktBelop, soktForslag, velgbareBehov,
-  pott, giverandel, momsProsent, utgiftsliste, sumUtgifter, sumFakturert, kanBliUtgift, linjerMedUtgift,
+  giverandel, momsProsent, utgiftsliste, sumUtgifter, sumFakturert, kanBliUtgift, linjerMedUtgift,
   egenandelPlanlagt, egenandelSomAndel, giverbehov, erLast, erInnvilget,
   linjetype, grupperPerType, typeliste, flyttIListe, typerekkefolgeFor, soktLinjer, tilleggslinjer, etterRekkefolgeOgTittel, nesteFrist,
 } from '../data/beregning.js';
@@ -89,14 +89,17 @@ function topp(s, fane) {
 // Med momskompensasjon eller egne midler viser linjen under regnestykket: hva
 // vi betaler, og hvem som dekker det.
 function pottlinje(s) {
-  const p = pott(s, innkjopFor(s.id));
+  const p = pottFor(s);
   const strek = '–';
   const negativ = p.gjenstar != null && p.gjenstar < 0;
   const egne = p.egne > 0, lovet = p.egenandel > 0;
   const tall = n => `<span style="color:var(--color-text); font-variant-numeric:tabular-nums">${kr(n)}</span>`;
+  // Over rammen: giveren dekker aldri mer enn innvilget – resten må vi dekke selv.
+  const over = negativ ? -p.gjenstar : 0;
   const deler = [
     egne ? `egne midler ${tall(p.egenBrukt)}` : '',
-    p.harMoms || egne ? `giver${p.harMoms ? ` ${p.giverProsent} %${egne ? ' av resten' : ''}` : ''} ${tall(p.disponert)}` : '',
+    p.harMoms || egne || over ? `giver${p.harMoms ? ` ${p.giverProsent} %${egne ? ' av resten' : ''}` : ''} ${tall(p.disponert - over)}` : '',
+    over ? `<span class="aksent">over rammen ${tall(over)} – må dekkes selv</span>` : '',
     p.harMoms ? `momskompensasjon ${p.prosent} % ${tall(p.moms)}, som forventes mottatt neste år` : '',
   ].filter(Boolean).join(' + ');
   // Egenandelen bestemmer rammen. Ligger det et annet beløp på varene, sier vi fra.
@@ -110,9 +113,9 @@ function pottlinje(s) {
         <div><div class="etikett">Innvilget</div><div class="tall">${p.innvilget == null ? strek : kr(p.innvilget)}</div></div>
         ${egne ? `<div title="${lovet ? 'Egenandelen på søknaden' : 'Egne midler lagt på varer i Innkjøp'}"><div class="etikett">${lovet ? 'Egenandel' : 'Egne midler'}</div><div class="tall">${kr(p.egne)}</div></div>
         <div title="Innvilget + ${lovet ? 'egenandel' : 'egne midler'}"><div class="etikett">Ramme</div><div class="tall">${p.ramme == null ? strek : kr(p.ramme)}</div></div>` : ''}
-        <div title="${egne ? 'Brukt av rammen: egne midler + det som belaster giveren' : 'Det som belaster giveren'}"><div class="etikett">${egne ? 'Disponert' : p.harMoms ? 'Disponert (giverandel)' : 'Disponert'}</div><div class="tall">${kr(egne ? p.disponertRamme : p.disponert)}</div></div>
+        <div title="${egne ? 'Brukt av rammen: egne midler + det som belaster giveren. Poster med faktura teller det fakturerte, resten estimatet.' : 'Det som belaster giveren. Poster med faktura teller det fakturerte, resten estimatet.'}"><div class="etikett">${egne ? 'Disponert' : p.harMoms ? 'Disponert (giverandel)' : 'Disponert'}</div><div class="tall">${kr(egne ? p.disponertRamme : p.disponert)}</div></div>
         <div><div class="etikett">Fakturert</div><div class="tall">${kr(sumFakturert(tilstand.fakturaer, s.id))}</div></div>
-        <div ${egne ? 'title="Ramme − disponert"' : ''}><div class="etikett">Gjenstår</div><div class="tall ${negativ ? 'aksent' : ''}">${p.gjenstar == null ? strek : kr(p.gjenstar)}</div></div>
+        <div title="${negativ ? 'Disponert ut over rammen – må dekkes selv' : egne ? 'Ramme − disponert' : ''}"><div class="etikett">${negativ ? 'Overforbruk' : 'Gjenstår'}</div><div class="tall ${negativ ? 'aksent' : ''}">${p.gjenstar == null ? strek : kr(Math.abs(p.gjenstar))}</div></div>
       </div>
       ${deler ? `<div class="hint" style="margin-top:8px">Vi betaler ${kr(p.disponertFull)}: ${deler}.${plassert}</div>` : ''}
     </div>`;
@@ -229,7 +232,7 @@ function behovstabell(s) {
 // Hint under «Innvilget beløp»: er estimatet (giverandelen, etter
 // egenandelen som gjelder nå) over eller under?
 function innvilgetHint(s) {
-  const p = pott(s, innkjopFor(s.id));
+  const p = pottFor(s);
   if (p.innvilget == null) return 'Fylles inn når svaret kommer';
   const estimat = giverbehov(s);
   const hva = (p.harMoms ? 'Estimatet (giverandel)' : 'Estimatet') + (p.egenandel > 0 ? ' etter egenandel' : '');
@@ -401,7 +404,7 @@ function soknadsfane(s) {
   const n = f => `soknader/${s.id}/${f}`;
   const forslag = soktForslag(s);
   const overstyrt = s.soktOverstyrt != null;
-  const p = pott(s, innkjopFor(s.id));
+  const p = pottFor(s);
   const last = erLast(s);
   const tilInnkjop = 'Søknaden er låst. Endret behov legges til under Innkjøp.';
   const givere = [...tilstand.givere].sort((a, b) => (a.navn || '').localeCompare(b.navn || '', 'nb'));

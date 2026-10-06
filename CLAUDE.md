@@ -119,11 +119,20 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
 - Egne midler på varen: `egneMidler` (beløp med øre) på innkjøpslinjen
   (`innkjop.<id>.linjer.<lid>.egneMidler`, settes i tilbudspanelet for den valgte prisen) eller på en
   løs utgift (settes i Revisjon). Teller bare når linjen har valgt pris (`innkjopsberegning().egne`).
-- `pott()`: `egne` = egenandelen hvis den er satt, ellers summen på varene (`fordelt`). Er
-  egenandelen satt, viser beløpene på varene bare hvor den går (avvik varsles i topplinjen).
-  `ramme` = innvilget + egne; `disponert` = det som belaster giveren; `disponertRamme` = brukt av
-  rammen; `gjenstar` = ramme − disponertRamme. `fordelingPerKategori()` gir sluttoppgjøret per type
-  (kostnad, egne midler, fra giver, momskomp.) til Revisjon og PDF-rapporten.
+- `pott(soknad, innkjop, fakturaer)`: `egne` = egenandelen hvis den er satt, ellers summen på varene
+  (`fordelt`). Er egenandelen satt, viser beløpene på varene bare hvor den går (avvik varsles i
+  topplinjen). `ramme` = innvilget + egne; `disponert` = det som belaster giveren; `disponertRamme` =
+  brukt av rammen; `gjenstar` = ramme − disponertRamme. Sidene kaller `pottFor(s)` i `data/index.js`.
+  `fordelingPerKategori()` gir sluttoppgjøret per type (kostnad, egne midler, fra giver, momskomp.)
+  til Revisjon og PDF-rapporten.
+- Fakturert erstatter estimatet post for post (B-31, kort 0013): `postkostnad(post, perPost)` gir det
+  fakturerte når posten har faktura, ellers tilbudt/estimat – brukt både i `pott()` og
+  `fordelingPerKategori()`, så topplinjen, Revisjon og rapporten regner likt. Unntak: krysset «Flere
+  fakturaer kommer» (`venterFlere` på innkjøpslinjen eller utgiften, settes i fakturapanelet under
+  «Gjelder», `settVenterFlere()`) lar estimatet gjelde; postlisten viser «Venter på flere fakturaer».
+  Frakt teller til første faktura fra leverandøren er koblet. Ukoblede fakturaer teller ikke i
+  Disponert. Ikke i avtrykket. Er `gjenstar` negativ, viser topplinjen «Overforbruk», og linjen under
+  gir giveren maks innvilget og resten som «over rammen – må dekkes selv».
 - Planlagte utgifter (B-27): en fri linje i søknaden kan plukkes inn i Utgifter («+ Fra søknaden»,
   `leggLinjerIUtgifter()`), og en løs utgift kan kobles til en linje (`kobleUtgiftTilLinje()`). Utgiften
   får `utgifter.<uid>.soknadLinjeId`; «planlagt» lagres ikke. `utgiftsliste()` henter da beskrivelse og

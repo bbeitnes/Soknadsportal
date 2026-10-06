@@ -57,7 +57,7 @@ export function lagDemodata() {
       },
       utgifter: {
         u1: { beskrivelse: 'Frakt av notestativ fra lager', belop: 1200, dato: '2026-05-12', lagtInnAv: { epost: kari[0], navn: kari[1] }, rekkefolge: 1 },
-        u2: { beskrivelse: 'Rekvisita til øvingslokalet', belop: 1850, dato: '2026-05-20', lagtInnAv: { epost: per[0], navn: per[1] }, rekkefolge: 2 },
+        u2: { beskrivelse: 'Rekvisita til øvingslokalet', belop: 1850, dato: '2026-05-20', venterFlere: true, lagtInnAv: { epost: per[0], navn: per[1] }, rekkefolge: 2 },
         u3: { beskrivelse: 'Parkering ved henting av instrumenter', belop: 800, dato: '2026-06-02', lagtInnAv: { epost: kari[0], navn: kari[1] }, rekkefolge: 3 },
       },
       dokumenter: {
@@ -166,8 +166,8 @@ export function lagDemodata() {
   };
 
   const fakturaer = {
-    f1: { organisasjonId: org, soknadId: 's1', lopenummer: 1, leverandor: 'Nordic Brass', fakturanr: '2026-118', dato: '2026-05-12', belop: 30600, fil: null, dekker: { 'i1|k1': true }, lagtInnAv: { epost: kari[0], navn: kari[1] }, tid: dagerSiden(20), ...av(...kari, 20) },
-    f2: { organisasjonId: org, soknadId: 's1', lopenummer: 2, leverandor: 'Clas Ohlson', fakturanr: 'Kvittering', dato: '2026-05-20', belop: 1850, fil: null, dekker: { 'utgift|u2': true }, lagtInnAv: { epost: per[0], navn: per[1] }, tid: dagerSiden(12), ...av(...per, 12) },
+    f1: { organisasjonId: org, soknadId: 's1', lopenummer: 1, leverandor: 'Nordic Brass', fakturanr: '2026-118', dato: '2026-05-12', belop: 29900, fil: null, dekker: { 'i1|k1': true }, lagtInnAv: { epost: kari[0], navn: kari[1] }, tid: dagerSiden(20), ...av(...kari, 20) },
+    f2: { organisasjonId: org, soknadId: 's1', lopenummer: 2, leverandor: 'Clas Ohlson', fakturanr: 'Kvittering', dato: '2026-05-20', belop: 1000, fil: null, dekker: { 'utgift|u2': true }, merknad: 'Delfaktura – resten kommer i juni', lagtInnAv: { epost: per[0], navn: per[1] }, tid: dagerSiden(12), ...av(...per, 12) },
     f3: { organisasjonId: org, soknadId: 's1', lopenummer: 3, leverandor: 'Tono Instrumenter', fakturanr: '88123', dato: '2026-05-28', belop: 5900, fil: null, dekker: {}, lagtInnAv: { epost: kari[0], navn: kari[1] }, tid: dagerSiden(4), ...av(...kari, 4) },
   };
 

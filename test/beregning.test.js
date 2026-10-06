@@ -1288,3 +1288,55 @@ test('momsPerAr: øreresten legges på siste rad så radene summerer til totalen
   assert.deepEqual(rader.map(r => r.moms), [33.33, 33.33, 33.34]);
   assert.equal(Math.round(rader.reduce((s, r) => s + r.moms, 0) * 100), 10000);
 });
+
+// ——— Fakturert erstatter estimatet post for post (B-31, kort 0013) ———
+test('pott: en post teller det fakturerte når den har faktura, ellers estimatet', async () => {
+  const { pott } = await import('../app/data/beregning.js');
+  const s = { id: 's', status: 'innvilget', innvilget: 40000, egenandel: 12322, linjer: {}, utgifter: { u1: { belop: 10000 }, u2: { belop: 5000 } } };
+  const for_ = pott(s, [], []);
+  assert.equal(for_.disponertFull, 15000);
+  assert.equal(for_.gjenstar, 52322 - 15000);
+  // Faktura lavere enn estimatet: «Gjenstår» øker med 1 500
+  const lavere = pott(s, [], [{ id: 'f1', soknadId: 's', belop: 8500, dekker: { 'utgift|u1': true } }]);
+  assert.equal(lavere.disponertFull, 13500);
+  assert.equal(lavere.gjenstar, for_.gjenstar + 1500);
+  // Høyere enn estimatet teller også
+  assert.equal(pott(s, [], [{ id: 'f1', soknadId: 's', belop: 11000, dekker: { 'utgift|u1': true } }]).disponertFull, 16000);
+  // «Flere fakturaer kommer»: estimatet gjelder
+  const venter = { ...s, utgifter: { ...s.utgifter, u1: { belop: 10000, venterFlere: true } } };
+  assert.equal(pott(venter, [], [{ id: 'f1', soknadId: 's', belop: 4000, dekker: { 'utgift|u1': true } }]).disponertFull, 15000);
+  // Ukoblet faktura teller ikke
+  assert.equal(pott(s, [], [{ id: 'f9', soknadId: 's', belop: 999, dekker: {} }]).disponertFull, 15000);
+  // Egeninnsats har ingen faktura og teller estimatet
+  const dugnad = { ...s, utgifter: { u1: { belop: 3000, egeninnsats: true } } };
+  assert.equal(pott(dugnad, [], []).disponertFull, 3000);
+});
+
+test('pott: innkjøpslinje med faktura teller fakturert, og frakten teller til første faktura fra leverandøren', async () => {
+  const { pott, fordelingPerKategori, revisjonsposter, revisjonsoppsummering } = await import('../app/data/beregning.js');
+  const s = { id: 's', status: 'innvilget', innvilget: 100000, linjer: {} };
+  const i = { id: 'i1', linjer: { l1: { antall: 2, rekkefolge: 1 }, l2: { antall: 1, rekkefolge: 2 } }, leverandorer: { a: { frakt: 500 } }, priser: { l1: { a: { raa: '11160' } }, l2: { a: { raa: '5000' } } }, valgt: { l1: 'a', l2: 'a' } };
+  assert.equal(pott(s, [i], []).disponertFull, 22320 + 5000 + 500);
+  const f = [{ id: 'f1', soknadId: 's', belop: 23000, dekker: { 'i1|l1': true } }];
+  const p = pott(s, [i], f);
+  assert.equal(p.disponertFull, 23000 + 5000); // frakten ligger i fakturaen
+  // Sluttoppgjøret per type regner likt (uten frakt, som før)
+  const poster = revisjonsposter(s, [i], { tittelFor: () => 'x', levNavn: () => 'A' });
+  const kostnad = fordelingPerKategori(poster, revisjonsoppsummering(f, poster).perPost, null).sum.kostnad;
+  assert.equal(kostnad, 28000);
+  // Med krysset satt teller linjen tilbudt igjen – både i potten og i oppgjøret
+  const venter = { ...i, linjer: { ...i.linjer, l1: { ...i.linjer.l1, venterFlere: true } } };
+  assert.equal(pott(s, [venter], f).disponertFull, 22320 + 5000);
+  const poster2 = revisjonsposter(s, [venter], { tittelFor: () => 'x', levNavn: () => 'A' });
+  assert.equal(fordelingPerKategori(poster2, revisjonsoppsummering(f, poster2).perPost, null).sum.kostnad, 27320);
+});
+
+test('postkostnad tåler begge formene på perPost', async () => {
+  const { postkostnad } = await import('../app/data/beregning.js');
+  const post = { id: 'p', tilbudt: 100 };
+  assert.equal(postkostnad(post, {}), 100);
+  assert.equal(postkostnad(post, { p: 80 }), 80);
+  assert.equal(postkostnad(post, { p: { fakturert: 80 } }), 80);
+  assert.equal(postkostnad(post, { p: { fakturert: null } }), 100);
+  assert.equal(postkostnad({ ...post, venterFlere: true }, { p: 80 }), 100);
+});

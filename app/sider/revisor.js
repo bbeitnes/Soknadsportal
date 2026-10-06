@@ -1,8 +1,8 @@
 // Revisorens startside: søknadene hen er satt som revisor for. Reglene i
 // Firestore slipper ikke revisoren til andre søknader, så listen er alt som
 // er lastet. Klikk åpner revisjonen av søknaden (sider/soknad.js).
-import { tilstand, innkjopFor, revisorerFor } from '../data/index.js';
-import { statusNavn, pott, sumFakturert } from '../data/beregning.js';
+import { tilstand, innkjopFor, revisorerFor, pottFor } from '../data/index.js';
+import { statusNavn, sumFakturert } from '../data/beregning.js';
 import { escapeHtml, kr, datoKl } from '../ui/format.js';
 import { gaaTil } from '../ui/visning.js';
 
@@ -16,7 +16,7 @@ export function godkjenningsmerke(r) {
 }
 
 function rad(s) {
-  const p = pott(s, innkjopFor(s.id));
+  const p = pottFor(s);
   const min = revisorerFor(s).find(r => r.epost === tilstand.meg.epost);
   return `
     <tr class="klikkbar" data-handling="apne" data-id="${s.id}">

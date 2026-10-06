@@ -247,21 +247,35 @@ export function fordelteEgneMidler(soknad, innkjopListe = []) {
 }
 
 // Potten: rammen (innvilget + egne midler), hva som er disponert av den
-// (valgt i alle innkjøp + løse utgifter) og hva som gjenstår.
+// (valgt i alle innkjøp + løse utgifter) og hva som gjenstår. Postene teller
+// det fakturerte når de har faktura (postkostnad(), B-31); frakt hos en
+// leverandør teller til den første fakturaen derfra er koblet – da ligger
+// frakten i fakturaen. Fakturaer som ikke er koblet til noen post teller ikke.
 //   egne            egenandelen på søknaden hvis den er satt, ellers summen
 //                   av egne midler på varene (`fordelt`)
 //   ramme           innvilget + egne
-//   disponertFull   det vi faktisk betaler
+//   disponertFull   det vi regner med å betale: fakturert + planlagt
 //   egenBrukt       egne midler brukt (de brukes først)
 //   disponert       det som belaster giveren: giverens andel av resten
 //   disponertRamme  egenBrukt + disponert – det som er brukt av rammen
 //   moms            resten, som dekkes av momskompensasjonen neste år
 //   gjenstar        ramme − disponertRamme
-export function pott(soknad, innkjopListe = []) {
+export function pott(soknad, innkjopListe = [], fakturaer = []) {
   const prosent = momsProsent(soknad);
   const innvilget = soknad?.innvilget ?? null;
-  const innkjop = innkjopListe.reduce((sum, i) => sum + sumInnkjop(i), 0);
-  const disponertFull = sumUtgifter(soknad) + innkjop;
+  const poster = revisjonsposter(soknad, innkjopListe, { tittelFor: () => '', levNavn: () => '' });
+  const perPost = fakturertPerPost(fakturaer, poster);
+  let innkjop = 0;
+  for (const i of innkjopListe) {
+    const b = innkjopsberegning(i);
+    const mine = poster.filter(p => p.type === 'linje' && p.innkjopId === i.id);
+    const fakturerte = new Set(mine.filter(p => p.id in perPost).map(p => b.perLinje[p.linjeId].valgtSid));
+    innkjop += mine.reduce((sum, p) => sum + postkostnad(p, perPost), 0);
+    for (const lev of leverandorer(i)) if (b.brukt.has(lev.id) && !fakturerte.has(lev.id)) innkjop += Number(lev.frakt) || 0;
+  }
+  innkjop = ore(innkjop);
+  const utgifter = ore(poster.filter(p => p.type === 'utgift').reduce((sum, p) => sum + postkostnad(p, perPost), 0));
+  const disponertFull = ore(utgifter + innkjop);
   const lovet = egenandel(soknad), fordelt = fordelteEgneMidler(soknad, innkjopListe);
   const egne = lovet > 0 ? lovet : fordelt;
   const egenBrukt = Math.min(egne, Math.max(0, disponertFull));
@@ -280,7 +294,7 @@ export function pott(soknad, innkjopListe = []) {
     ramme: innvilget == null ? null : innvilget + egne,
     disponertFull,
     innkjop,
-    utgifter: sumUtgifter(soknad),
+    utgifter,
     disponert,
     disponertRamme: egenBrukt + disponert,
     moms: disponertFull - egenBrukt - disponert,
@@ -911,14 +925,25 @@ export function revisjonsposter(soknad, innkjopListe, { tittelFor, levNavn, beho
         alternativ: (i.priser?.[l.id]?.[v.valgtSid]?.alternativ || '').trim(),
         etterSoknad: !!sl?.etterSoknad, notat: (sl?.notat || '').trim(),
         kategori: innkjopslinjetype(l, soknad, behovliste),
-        tilbudt: ore(v.sum), egne: v.egne,
+        tilbudt: ore(v.sum), egne: v.egne, venterFlere: !!l.venterFlere,
       });
     }
   }
   for (const u of utgiftsliste(soknad)) {
-    poster.push({ id: `utgift/${u.id}`, type: 'utgift', utgiftId: u.id, tittel: u.beskrivelse || 'Uten beskrivelse', under: `${u.egeninnsats ? 'Egeninnsats' : u.planlagt ? 'Utgift fra søknaden' : 'Løs utgift'}${u.dato ? ` · ${u.dato.split('-').reverse().join('.')}` : ''}`, tilbudt: Number(u.belop) || 0, egne: utgiftEgne(u), egeninnsats: !!u.egeninnsats, kategori: (u.type || '').trim() });
+    poster.push({ id: `utgift/${u.id}`, type: 'utgift', utgiftId: u.id, tittel: u.beskrivelse || 'Uten beskrivelse', under: `${u.egeninnsats ? 'Egeninnsats' : u.planlagt ? 'Utgift fra søknaden' : 'Løs utgift'}${u.dato ? ` · ${u.dato.split('-').reverse().join('.')}` : ''}`, tilbudt: Number(u.belop) || 0, egne: utgiftEgne(u), egeninnsats: !!u.egeninnsats, kategori: (u.type || '').trim(), venterFlere: !!u.venterFlere });
   }
   return poster;
+}
+
+// Hva en post teller med (B-31): det fakturerte så snart posten har faktura,
+// ellers estimatet / tilbudt pris. Unntak: er posten merket «Flere fakturaer
+// kommer» (`venterFlere`), gjelder estimatet til krysset fjernes. `perPost`
+// er fra revisjonsoppsummering() ({ fakturert }) eller fakturertPerPost()
+// (beløp); mangler posten der, har den ingen faktura.
+export function postkostnad(post, perPost) {
+  const f = perPost?.[post.id];
+  const fakturert = f != null && typeof f === 'object' ? f.fakturert : f;
+  return fakturert == null || post.venterFlere ? post.tilbudt : fakturert;
 }
 
 // Egne midler som er fordelt på postene.
@@ -930,7 +955,7 @@ export function sumEgneMidler(poster) {
 // Tilbudslinjene grupperes på typen de har i søknaden (i søknadens
 // rekkefølge). Løse utgifter som er merket med en type går inn i den typen;
 // de andre er en egen gruppe til slutt. `kostnad` er
-// fakturert beløp der posten har faktura, ellers tilbudt pris. Egne midler
+// postkostnad(): fakturert der posten har faktura, ellers tilbudt. Egne midler
 // trekkes fra før giverens andel regnes ut. `perPost` kommer fra
 // revisjonsoppsummering(). Gir { grupper: [{ navn, poster, tilbudt, fakturert,
 // kostnad, egne, giver, moms }], sum: { … } }.
@@ -995,7 +1020,7 @@ export function fordelingPerKategori(poster, perPost, prosent, typeRekkefolge = 
   const ut = kategorigrupper(poster, typeRekkefolge).map(g => {
     const tilbudt = ore(g.poster.reduce((s, p) => s + p.tilbudt, 0));
     const fakturert = ore(g.poster.reduce((s, p) => s + (perPost[p.id]?.fakturert ?? 0), 0));
-    const kostnad = ore(g.poster.reduce((s, p) => s + (perPost[p.id]?.fakturert ?? p.tilbudt), 0));
+    const kostnad = ore(g.poster.reduce((s, p) => s + postkostnad(p, perPost), 0));
     const egne = sumEgneMidler(g.poster);
     const giver = giverandelOre(kostnad - egne, prosent);
     return { ...g, tilbudt, fakturert, kostnad, egne, giver, moms: ore(kostnad - egne - giver) };

@@ -1,8 +1,8 @@
 // Kvittering fra mobil: velg søknad → ta bilde → beløp → ferdig. Laget for
 // telefon, men virker også på PC. Kvitteringen blir en faktura med
 // løpenummer under Revisjon, «ikke koblet» til den kobles på PC.
-import { tilstand, innkjopFor, opprettKvittering } from '../data/index.js';
-import { pott, erInnvilget } from '../data/beregning.js';
+import { tilstand, innkjopFor, opprettKvittering, pottFor } from '../data/index.js';
+import { erInnvilget } from '../data/beregning.js';
 import { escapeHtml, kr, belop, tolkBelop, tidspunkt, fornavn } from '../ui/format.js';
 import { lagre, visMelding } from '../ui/lagring.js';
 import { tegn, gaaTil } from '../ui/visning.js';
@@ -29,7 +29,7 @@ function stegVelg() {
   return `${hode('Ny kvittering')}
     <div class="kv-hint">Hvilken søknad gjelder den?</div>
     <div class="kv-liste">
-      ${liste.map(s => { const p = pott(s, innkjopFor(s.id)); return `
+      ${liste.map(s => { const p = pottFor(s); return `
         <button type="button" data-handling="velg" data-id="${s.id}">
           <span style="flex:1; min-width:0"><span class="kv-tittel">${escapeHtml(s.tittel || 'Uten tittel')}</span><span class="kv-under">${escapeHtml(giverNavn(s))} · gjenstår ${p.gjenstar == null ? '–' : kr(p.gjenstar)}</span></span>${PIL}
         </button>`; }).join('') || '<div class="kv-hint">Ingen innvilgede søknader.</div>'}

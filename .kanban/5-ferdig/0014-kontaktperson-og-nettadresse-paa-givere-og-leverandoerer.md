@@ -1,7 +1,7 @@
 ---
 id: 0014
 tittel: Kontaktperson og nettadresse på givere og leverandører
-status: testes
+status: ferdig
 opprettet: 2026-10-06
 ---
 

@@ -209,6 +209,7 @@ function leverandorPanel(s, i, lev) {
     ${lev.leverandorId
       ? `<div class="felt"><span class="etikett">Kontakt</span><div style="white-space:pre-line; font-size:14px">${escapeHtml([...kontaktlinjer(kontaktinfo), kontaktinfo.notat].filter(Boolean).join('\n') || '–')}</div><a href="#/leverandorer" class="undertekst">Endres i leverandørregisteret →</a></div>`
       : `<label class="felt"><span class="etikett">Kontakt</span>${tekstomrade(n('kontakt'), lev.kontakt, 'class="inndata" rows="3" placeholder="Kontaktperson, e-post, telefon"')}</label>`}
+    <label class="felt"><span class="etikett">Leveringsadresse</span>${tekstomrade(n('leveringsadresse'), lev.leveringsadresse, 'class="inndata" rows="3"')}<span class="undertekst">Mottaker og adresse, én linje per rad. Tom = leveringsadressen under Innstillinger.</span></label>
     <div class="felt"><span class="etikett">Vedlegg (tilbudsdokumenter)</span>
       <div class="valgliste">
         ${vedlegg.map(v => `<div style="cursor:default">${IKON.fil}<button type="button" class="fyll" style="border:0; background:transparent; padding:0; text-align:left; cursor:pointer; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap" data-handling="apne-vedlegg" data-sid="${lev.id}" data-vid="${v.id}" title="Åpne">${escapeHtml(v.navn)}</button><span class="undertekst smal">${escapeHtml(fornavn(v.lastetOppAv?.navn, v.lastetOppAv?.epost))} · ${tidspunkt(v.tid)}</span><button type="button" class="ikonknapp" style="width:24px; height:24px" data-handling="slett-vedlegg" data-sid="${lev.id}" data-vid="${v.id}" title="Slett vedlegget">${IKON.fjern}</button></div>`).join('')}
@@ -329,7 +330,7 @@ function bestillingsfelt(s, i, lev) {
   if (!b.linjer.length) return `<div class="felt"><span class="etikett">Bestilling</span><span class="undertekst">Velg priser hos leverandøren i matrisen, så kan bestillingen lastes ned her.</span></div>`;
   return `<div class="felt"><span class="etikett">Bestilling</span>
     <button type="button" class="knapp knapp-ramme" style="align-self:flex-start" data-handling="bestilling" data-sid="${lev.id}" ${ui.lagerBestilling ? 'disabled' : ''}>${ui.lagerBestilling ? 'Lager bestilling …' : 'Last ned bestilling (PDF)'}</button>
-    <span class="undertekst">${b.linjer.length} ${b.linjer.length === 1 ? 'linje' : 'linjer'} valgt hos ${escapeHtml(navn(lev) || 'leverandøren')} · ${kr(b.total)} kr${b.frakt ? ' inkl. frakt' : ''}.${organisasjon().orgNavn ? '' : ' Kontaktinfoen deres mangler – <a href="#/innstillinger">legg den inn under Innstillinger</a>.'}</span>
+    <span class="undertekst">${b.linjer.length} ${b.linjer.length === 1 ? 'linje' : 'linjer'} valgt hos ${escapeHtml(navn(lev) || 'leverandøren')} · ${kr(b.total)} kr${b.frakt ? ' inkl. frakt' : ''}.${b.leveringsadresse ? ' Leveres til egen adresse.' : ''}${organisasjon().orgNavn ? '' : ' Kontaktinfoen deres mangler – <a href="#/innstillinger">legg den inn under Innstillinger</a>.'}</span>
   </div>`;
 }
 

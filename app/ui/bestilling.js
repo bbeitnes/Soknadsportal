@@ -75,10 +75,13 @@ export async function lagBestilling({ org, leverandor, b, merket }) {
     { etikett: 'FRA', fetForst: true, linjer: [org.orgNavn || 'Kontaktinfo mangler – legges inn under Innstillinger', org.orgNr && `Org.nr. ${org.orgNr}`, ...linjerAv(org.adresse), org.kontaktperson && `Kontakt: ${org.kontaktperson}`, [org.telefon, org.epost].filter(Boolean).join(' · ')].filter(Boolean) },
     { etikett: 'TIL', fetForst: true, linjer: [leverandor.navn || 'Leverandør', leverandor.kontaktperson, [leverandor.epost, leverandor.telefon].filter(Boolean).join(' · '), ...linjerAv(leverandor.notat ?? leverandor.kontakt)].filter(Boolean) },
   );
-  const levering = linjerAv(org.leveringsadresse || org.adresse), faktura = linjerAv(org.fakturainfo);
+  // Egen adresse på bestillingen er hele blokken (mottakeren kan være en annen enn organisasjonen);
+  // ellers organisasjonsnavnet og den faste leveringsadressen, eventuelt postadressen.
+  const levering = b.leveringsadresse ? linjerAv(b.leveringsadresse) : [org.orgNavn, ...linjerAv(org.leveringsadresse || org.adresse)].filter(Boolean);
+  const faktura = linjerAv(org.fakturainfo);
   if (levering.length || faktura.length) {
     blokker(
-      levering.length ? { etikett: 'LEVERES TIL', linjer: [org.orgNavn, ...levering].filter(Boolean) } : null,
+      levering.length ? { etikett: 'LEVERES TIL', linjer: levering } : null,
       faktura.length ? { etikett: 'FAKTURA SENDES TIL', linjer: faktura } : null,
     );
   }

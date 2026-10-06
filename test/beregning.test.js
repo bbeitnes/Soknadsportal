@@ -513,7 +513,7 @@ test('bestilling: linjene som er valgt hos én leverandør', async () => {
   assert.equal(tolkPris('1000').rabatt, '');
   const i = {
     linjer: { a: { antall: 4, rekkefolge: 1 }, b: { antall: 2, rekkefolge: 2 }, c: { antall: 1, rekkefolge: 3 } },
-    leverandorer: { x: { frakt: 500, vedlegg: { v1: { navn: 'Tilbud.pdf', tid: 1 } } }, y: { frakt: 100 }, z: { frakt: 900 } },
+    leverandorer: { x: { frakt: 500, vedlegg: { v1: { navn: 'Tilbud.pdf', tid: 1 } } }, y: { frakt: 100, leveringsadresse: ' Kari Nordmann\nStorgata 1 ' }, z: { frakt: 900 } },
     priser: {
       a: { x: { raa: '1000 -10%', tekst: '100 Acme kornett' } },
       b: { x: { raa: '200', alternativ: 'Acme B2' }, y: { raa: '150' } },
@@ -530,6 +530,8 @@ test('bestilling: linjene som er valgt hos én leverandør', async () => {
   assert.deepEqual([x.sum, x.frakt, x.total, x.dokumenter], [3645, 500, 4145, ['Tilbud.pdf']]);
   const y = bestilling(i, 'y', valg);
   assert.deepEqual([y.linjer.map(l => l.vare), y.total, y.dokumenter], [['Linje b'], 400, []]);
+  // Egen leveringsadresse følger bestillingen (kort 0015); tom streng når leverandøren ikke har noen.
+  assert.deepEqual([x.leveringsadresse, y.leveringsadresse], ['', 'Kari Nordmann\nStorgata 1']);
   // Ingenting valgt hos leverandøren: tom bestilling, og frakten teller ikke.
   assert.deepEqual([bestilling(i, 'z', valg).linjer.length, bestilling(i, 'z', valg).total], [0, 0]);
 });

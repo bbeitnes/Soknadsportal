@@ -1,7 +1,7 @@
 ---
 id: 0015
 tittel: Egen leveringsadresse per bestilling
-status: neste
+status: testes
 opprettet: 2026-10-06
 ---
 

@@ -85,6 +85,10 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   oppretter ingen ny hvis posten er urørt (`erTomPost()`, verdiene må følge `opprett…()` i `data/index.js`).
 - Bestilling: `bestilling()` (beregning) gir linjene som er valgt hos én leverandør; `ui/bestilling.js`
   lager PDF-en med pdf-lib. Knappen ligger i leverandørpanelet i Innkjøp. Portalen sender den ikke.
+  Egen leveringsadresse per bestilling (kort 0015): `innkjop.<id>.leverandorer.<sid>.leveringsadresse`
+  (tekstområde under «Kontakt» i panelet, alltid synlig, også frie leverandører). Utfylt er den hele
+  «LEVERES TIL»-blokken i PDF-en (ingen organisasjonsnavn automatisk); tom = fast leveringsadresse fra
+  Innstillinger, ellers postadressen. Ikke i Revisjon, rapporten eller avtrykket.
 - En vare fordeles på flere leverandører ved å dele innkjøpslinjen (`delInnkjopslinje()`): to linjer
   med samme `soknadLinjeId`, hver med sitt antall og sin valgte leverandør. `valgt[lid]` er fortsatt
   én leverandør per linje. Priser fra «Les priser» gjelder alle delene av en delt linje.

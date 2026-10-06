@@ -141,7 +141,7 @@ export function lagDemodata() {
       },
       leverandorer: {
         mh: { leverandorId: 'mh', frakt: 1500, rekkefolge: 1, vedlegg: { v1: { navn: 'Tilbud 2026-0412.pdf', sti: 'demo/v1', tid: dagerSiden(20), lastetOppAv: { epost: kari[0], navn: kari[1] } } } },
-        nb: { leverandorId: 'nb', frakt: 0, rekkefolge: 2, vedlegg: { v2: { navn: 'Tilbud messing.pdf', sti: 'demo/v2', tid: dagerSiden(18), lastetOppAv: { epost: kari[0], navn: kari[1] } }, v3: { navn: 'Tilbud trommer.pdf', sti: 'demo/v3', tid: dagerSiden(17), lastetOppAv: { epost: kari[0], navn: kari[1] } } } },
+        nb: { leverandorId: 'nb', frakt: 0, rekkefolge: 2, leveringsadresse: 'Skiens Skolemusikk v/ dirigent Kari Nordmann\nStorgata 12\n3717 Skien', vedlegg: { v2: { navn: 'Tilbud messing.pdf', sti: 'demo/v2', tid: dagerSiden(18), lastetOppAv: { epost: kari[0], navn: kari[1] } }, v3: { navn: 'Tilbud trommer.pdf', sti: 'demo/v3', tid: dagerSiden(17), lastetOppAv: { epost: kari[0], navn: kari[1] } } } },
         to: { leverandorId: 'to', frakt: 2400, rekkefolge: 3, vedlegg: {} },
       },
       priser: {

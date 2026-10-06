@@ -682,7 +682,9 @@ export function bestilling(innkjop, sid, { tittelFor, rekkefolge = [] }) {
     });
   const sum = linjer.reduce((s, l) => s + l.sum, 0);
   const frakt = linjer.length ? Number(lev.frakt) || 0 : 0;
-  return { linjer, sum, frakt, total: sum + frakt, dokumenter: [...dokumenter] };
+  // Egen leveringsadresse for denne bestillingen (kort 0015); tom = organisasjonens faste.
+  const leveringsadresse = String(lev.leveringsadresse || '').trim();
+  return { linjer, sum, frakt, total: sum + frakt, dokumenter: [...dokumenter], leveringsadresse };
 }
 
 // ——— Lese priser fra et tilbud ———

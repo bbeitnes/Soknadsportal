@@ -1,7 +1,7 @@
 ---
 id: 0016
 tittel: Søknadsvelgeren viser bare aktive søknader
-status: testes
+status: ferdig
 opprettet: 2026-10-07
 ---
 

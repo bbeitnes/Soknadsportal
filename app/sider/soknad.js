@@ -11,7 +11,7 @@ import {
   SOKNADSSTATUSER, statusNavn, linjeliste, linjekostnad, sumEstimert, soktBelop, soktForslag, velgbareBehov,
   giverandel, momsProsent, utgiftsliste, sumUtgifter, sumFakturert, kanBliUtgift, linjerMedUtgift,
   egenandelPlanlagt, egenandelSomAndel, giverbehov, erLast, erInnvilget,
-  linjetype, grupperPerType, typeliste, flyttIListe, typerekkefolgeFor, soktLinjer, tilleggslinjer, etterRekkefolgeOgTittel, nesteFrist,
+  linjetype, grupperPerType, typeliste, flyttIListe, typerekkefolgeFor, soktLinjer, tilleggslinjer, etterRekkefolgeOgTittel, nesteFrist, velgbareSoknader,
 } from '../data/beregning.js';
 import { escapeHtml, kr, belop, heltall, datoFelt, tidspunkt, fornavn, tolkBelop, tolkDato, iDag } from '../ui/format.js';
 import { feltAttr } from '../ui/felt.js';
@@ -44,8 +44,9 @@ function sistEndret(s) {
 
 // ——— Fast topp ———
 
+// Bare aktive søknader, sortert som søknadslisten; den vi står i er alltid med (kort 0016).
 function velger(s) {
-  const andre = [...tilstand.soknader].sort((a, b) => (b.frist || '9999').localeCompare(a.frist || '9999'));
+  const andre = velgbareSoknader(tilstand.soknader, s.id, iDag());
   return `
     <div class="velgerliste" style="position:absolute; top:100%; left:0; margin-top:6px; width:420px; max-width:90vw; background:var(--color-neutral-100); border:2px solid var(--color-divider); box-shadow:var(--shadow-lg); z-index:30; display:flex; flex-direction:column; max-height:60vh; overflow:auto">
       ${andre.map(a => `<button type="button" data-handling="bytt" data-id="${a.id}" style="display:flex; align-items:center; gap:12px; padding:10px 14px; border:0; border-bottom:1px solid var(--color-neutral-300); background:${a.id === s.id ? 'var(--color-surface)' : 'transparent'}; cursor:pointer; text-align:left">

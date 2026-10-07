@@ -1216,6 +1216,27 @@ test('sorterSoknader: neste frist øverst (nærmeste først), resten som før (k
     ['forfalt', 'utkast', 'jan', 'nyUtenFrist', 'lukket', 'nyere', 'gammel']);
 });
 
+test('velgbareSoknader: bare aktive pluss den man står i, sortert som listen (kort 0016)', async () => {
+  const { velgbareSoknader } = await import('../app/data/beregning.js');
+  const soknader = [
+    { id: 'gammel', status: 'sendt', frist: '2025-06-01' },
+    { id: 'avslatt', status: 'avslatt', frist: '2026-04-01' },
+    { id: 'forfalt', status: 'innvilget', frist: '2026-02-01', nesteFrist: '2026-10-01' },
+    { id: 'lukket', status: 'avsluttet', frist: '2026-09-01' },
+    { id: 'utkast', status: 'utkast', frist: '2026-10-20' },
+    { id: 'nyere', status: 'sendt', frist: '2026-06-01' },
+  ];
+  // Fra en aktiv søknad: ingen lukkede.
+  assert.deepEqual(velgbareSoknader(soknader, 'nyere', '2026-10-05').map(s => s.id),
+    ['forfalt', 'utkast', 'nyere', 'gammel']);
+  // Fra en avsluttet søknad: den er med, de andre lukkede ikke.
+  assert.deepEqual(velgbareSoknader(soknader, 'lukket', '2026-10-05').map(s => s.id),
+    ['forfalt', 'utkast', 'lukket', 'nyere', 'gammel']);
+  // Ingen aktive: bare den man står i.
+  const bareLukkede = soknader.filter(s => ['avslatt', 'lukket'].includes(s.id));
+  assert.deepEqual(velgbareSoknader(bareLukkede, 'avslatt', '2026-10-05').map(s => s.id), ['avslatt']);
+});
+
 test('iDag gir lokal dato som ÅÅÅÅ-MM-DD', async () => {
   const { iDag } = await import('../app/ui/format.js');
   assert.equal(iDag(new Date(2026, 0, 5, 23, 30)), '2026-01-05');

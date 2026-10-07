@@ -428,6 +428,13 @@ export function sorterSoknader(soknader, iDag) {
   ].map(x => x.s);
 }
 
+// Søknadsvelgeren ved tittelen (kort 0016): bare aktive søknader, i samme
+// rekkefølge som søknadslisten. Den søknaden brukeren står i er alltid med,
+// også når den er avsluttet eller avslått, så listen aldri mangler den valgte.
+export function velgbareSoknader(soknader, gjeldendeId, iDag) {
+  return sorterSoknader(soknader.filter(s => SOKNADSFILTRE.aktive(s) || s.id === gjeldendeId), iDag);
+}
+
 // ——— Årshjul (kort 0009) ———
 // Fristene ligger på giveren: `givere.<id>.frister.<fid>` = { dato, tekst, arlig }.
 // En årlig frist gjentas på samme dag hvert år; året i datoen er bare året

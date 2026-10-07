@@ -1,6 +1,8 @@
 // Bestilling til én leverandør som PDF (pdf-lib, som revisjonsrapporten):
 // hvem vi er, hvem den går til, linjene som er valgt hos leverandøren med
-// antall, pris og rabatt, frakt og total. Lastes ned; sendes av brukeren selv.
+// antall, pris og rabatt, frakt og total. `lagBestilling()` gir filen; siden
+// lagrer den på innkjøpet (B-32) og laster den ned med `lastNed()`. Sendes
+// av brukeren selv.
 import { hentPdfLib, trygg } from './rapport.js';
 import { belop } from './format.js';
 
@@ -10,7 +12,7 @@ const MARG = 48;
 const linjerAv = tekst => String(tekst || '').split('\n').map(l => l.trim()).filter(Boolean);
 
 // org: innstillingsdokumentet. leverandor: { navn, kontaktperson, epost, telefon, notat }.
-// b: resultatet av bestilling() i data/beregning.js.
+// b: resultatet av bestilling() i data/beregning.js. Gir { blob, navn }.
 export async function lagBestilling({ org, leverandor, b, merket }) {
   const { PDFDocument, StandardFonts, rgb } = await hentPdfLib();
   const doc = await PDFDocument.create();
@@ -122,10 +124,15 @@ export async function lagBestilling({ org, leverandor, b, merket }) {
 
   doc.setTitle(`Bestilling – ${leverandor.navn || 'leverandør'}`);
   const blob = new Blob([await doc.save()], { type: 'application/pdf' });
+  const navn = `Bestilling ${(leverandor.navn || 'leverandor').replace(/[\\/:*?"<>|]/g, '-')} ${new Date().toISOString().slice(0, 10)}.pdf`;
+  return { blob, navn };
+}
+
+export function lastNed(blob, navn) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `Bestilling ${(leverandor.navn || 'leverandor').replace(/[\\/:*?"<>|]/g, '-')} ${new Date().toISOString().slice(0, 10)}.pdf`;
+  a.download = navn;
   document.body.appendChild(a);
   a.click();
   a.remove();

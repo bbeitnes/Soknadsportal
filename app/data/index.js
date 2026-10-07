@@ -7,7 +7,7 @@
 // hverandre på samme felt: siste lagring per felt vinner.
 import { lager as lageret, innlogging, SLETT } from './lager.js';
 import { ORGANISASJON_ID, MILJO } from '../config/app-config.js';
-import { pott, linjeliste, linjekostnad, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer, linjetype, anskaffetPerBehov, finansierteLinjer, revisornokkel, revisjonsavtrykk, revisorstatus, fakturakommentarer, kopistatus } from './beregning.js';
+import { pott, linjeliste, linjekostnad, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer, linjetype, anskaffetPerBehov, finansierteLinjer, revisornokkel, revisjonsavtrykk, revisorstatus, fakturakommentarer, kopistatus, utenBestilte, bestilteLinjer, bestillingerHos, bestillingsliste, harBestillinger } from './beregning.js';
 
 export { innlogging };
 
@@ -320,8 +320,11 @@ export function fjernLinje(soknadId, linjeId) {
 }
 
 // Sletter søknaden, innkjøpene dens og filene de eier. Kan ikke angres.
+// Har et innkjøp bestillinger, må de slettes først (B-32).
 export async function slettSoknad(soknad) {
-  for (const i of tilstand.innkjop.filter(x => x.soknadId === soknad.id)) await slettInnkjop(i);
+  const innkjopene = tilstand.innkjop.filter(x => x.soknadId === soknad.id);
+  if (innkjopene.some(harBestillinger)) throw new Error('Søknaden har bestillinger – slett dem først');
+  for (const i of innkjopene) await slettInnkjop(i);
   for (const f of tilstand.fakturaer.filter(x => x.soknadId === soknad.id)) await slettFaktura(f);
   await lager.slett('soknader', soknad.id);
   for (const d of Object.values(soknad.dokumenter || {})) {
@@ -414,15 +417,58 @@ export function opprettInnkjop(soknad) {
   });
 }
 
+// Det som er låst på bestilte linjer (B-32) tas ut av skrivingen, så alle
+// veier inn – felt for felt, innliming, «Velg alt», «Les priser» – hopper
+// over dem. Er ingenting igjen, skrives ingenting.
 export function oppdaterInnkjop(id, felt) {
-  return lager.oppdater('innkjop', id, { ...felt, ...signatur() });
+  const innkjop = tilstand.innkjop.find(i => i.id === id);
+  const lov = innkjop ? utenBestilte(innkjop, felt) : felt;
+  if (!Object.keys(lov).length) return Promise.resolve();
+  return lager.oppdater('innkjop', id, { ...lov, ...signatur() });
 }
 
 export async function slettInnkjop(innkjop) {
+  if (harBestillinger(innkjop)) throw new Error('Innkjøpet har bestillinger – slett dem først');
   await lager.slett('innkjop', innkjop.id);
   for (const s of leverandorer(innkjop)) for (const v of vedleggsliste(s)) {
     await lager.slettFil(v.sti).catch(err => console.error('Kunne ikke slette fil', v.sti, err));
   }
+}
+
+// ——— Bestillinger (B-32) ———
+// PDF-en lagres først; feiler det, blir ingenting bestilt. `linjeIder` er
+// linjene PDF-en inneholdt. Gir bestillingens id.
+export async function opprettBestilling(innkjop, sid, { blob, navn, linjeIder }) {
+  const id = nyId('b');
+  const trygtNavn = navn.replace(/[^\w.\-æøåÆØÅ ]/g, '_');
+  const sti = await lager.lastOpp(`innkjop/${innkjop.id}/bestillinger/${id}-${trygtNavn}`, new File([blob], navn, { type: 'application/pdf' }));
+  await oppdaterInnkjop(innkjop.id, {
+    [`bestillinger.${id}`]: {
+      sid, navn, sti, tid: Date.now(), av: { epost: tilstand.meg.epost, navn: tilstand.meg.navn },
+      linjer: Object.fromEntries(linjeIder.map(lid => [lid, true])),
+    },
+  });
+  return id;
+}
+
+// Sletter bestillingen og filen. Linjene i den blir åpne for endring.
+export async function slettBestilling(innkjop, bid) {
+  const b = innkjop.bestillinger?.[bid];
+  if (!b) return;
+  await oppdaterInnkjop(innkjop.id, { [`bestillinger.${bid}`]: SLETT });
+  if (b.sti) await lager.slettFil(b.sti).catch(err => console.error('Kunne ikke slette fil', b.sti, err));
+}
+
+// Tar én linje ut av bestillingen den står i. PDF-en består som
+// dokumentasjon på det som faktisk ble sendt.
+export function apneBestiltLinje(innkjop, lid) {
+  const b = bestilteLinjer(innkjop).get(lid);
+  if (!b) return Promise.resolve();
+  return oppdaterInnkjop(innkjop.id, { [`bestillinger.${b.id}.linjer.${lid}`]: SLETT });
+}
+
+export function bestillingUrl(bestilling) {
+  return lager.filUrl(bestilling.sti);
 }
 
 // Linje fra søknaden. Antallet i innkjøpet starter som antallet i søknaden,
@@ -466,7 +512,7 @@ export function leggFriLinjeIInnkjop(innkjop) {
 export function delInnkjopslinje(innkjop, linjeId) {
   const l = innkjop.linjer?.[linjeId];
   const antall = Number(l?.antall) || 0;
-  if (!l || antall < 2) return Promise.resolve(null);
+  if (!l || antall < 2 || bestilteLinjer(innkjop).has(linjeId)) return Promise.resolve(null);
   const id = nyId('l');
   const felt = {
     [`linjer.${linjeId}.antall`]: antall - 1,
@@ -506,6 +552,7 @@ export function slettLeverandor(id) {
 }
 
 export async function fjernLeverandor(innkjop, sid) {
+  if (bestillingerHos(innkjop, sid).length) throw new Error('Leverandøren har bestillinger – slett dem først');
   const felt = { [`leverandorer.${sid}`]: SLETT };
   for (const l of innkjopslinjer(innkjop)) {
     if (innkjop.priser?.[l.id]?.[sid]) felt[`priser.${l.id}.${sid}`] = SLETT;
@@ -584,8 +631,11 @@ export async function lastOppVedlegg(innkjop, sid, fil, linjeId = null) {
 export function settTilbudspriser(innkjop, sid, vedleggId, rader) {
   const felt = {};
   let rekkefolge = nesteRekkefolgeI(innkjop.linjer);
+  const bestilt = bestilteLinjer(innkjop);
   rader.forEach((r, nr) => {
     let linjeId = r.linjeId;
+    // Bestilte linjer står urørt (B-32); prisen fra tilbudet er alt sendt.
+    if (linjeId && bestilt.has(linjeId) && innkjop.valgt?.[linjeId] === sid) return;
     if (r.ny) {
       // Linjen finnes bare fordi vi tar imot dette tilbudet, så prisen velges med én gang.
       linjeId = nyId('l') + nr;

@@ -12,6 +12,7 @@ import {
   giverandel, momsProsent, utgiftsliste, sumUtgifter, sumFakturert, kanBliUtgift, linjerMedUtgift,
   egenandelPlanlagt, egenandelSomAndel, giverbehov, erLast, erInnvilget,
   linjetype, grupperPerType, typeliste, flyttIListe, typerekkefolgeFor, soktLinjer, tilleggslinjer, etterRekkefolgeOgTittel, nesteFrist, velgbareSoknader,
+  bestilteSoknadslinjer, harBestillinger,
 } from '../data/beregning.js';
 import { escapeHtml, kr, belop, heltall, datoFelt, tidspunkt, fornavn, tolkBelop, tolkDato, iDag } from '../ui/format.js';
 import { feltAttr } from '../ui/felt.js';
@@ -176,6 +177,8 @@ function behovstabell(s) {
   const under = tekst => egen ? `<div class="undertekst" style="font-weight:400">${tekst}</div>` : '';
   const last = erLast(s);
   const somUtgift = linjerMedUtgift(s);
+  // Linjer som er bestilt i et innkjøp kan ikke fjernes fra søknaden (B-32).
+  const bestilt = bestilteSoknadslinjer(innkjopFor(s.id));
   const rad = l => {
     const b = l.behovId ? behovMedId(l.behovId) : null;
     const kostnad = linjekostnad(l), fraGiver = giverandel(kostnad, prosent);
@@ -189,13 +192,13 @@ function behovstabell(s) {
         <td><div style="display:flex; align-items:center">${l.etterSoknad || last ? '<span class="dra" style="visibility:hidden">⠿</span>' : `<span class="dra" draggable="true" data-dra="linje:${l.id}" title="Dra for å endre rekkefølge, eller flytt til en annen type">⠿</span>`}<div style="min-width:0; flex:1">${l.behovId
           ? `<span class="fet">${escapeHtml(linjetittel(l))}</span>${b?.beskrivelse ? `<div class="celleunder">${escapeHtml(b.beskrivelse)}</div>` : ''}`
           : `<input class="celleinn tekst" ${feltAttr(n(l, 'tittel'), l.tittel)} placeholder="Beskriv linjen"${vern}>`}${l.etterSoknad
-          ? `<input class="celleinn tekst notat" title="${escapeHtml(l.notat || 'Hvorfor ble dette lagt til?')}" ${feltAttr(n(l, 'notat'), l.notat)} placeholder="Notat – f.eks. «i stedet for klarinett»">` : ''}</div>${somUtgift.has(l.id) ? '<span class="merkelapp" style="border-color:var(--color-divider); margin-left:8px" title="Ført som utgift i Utgifter-fanen. Slett utgiften der før linjen kan fjernes.">Utgift</span>' : ''}</div></td>
+          ? `<input class="celleinn tekst notat" title="${escapeHtml(l.notat || 'Hvorfor ble dette lagt til?')}" ${feltAttr(n(l, 'notat'), l.notat)} placeholder="Notat – f.eks. «i stedet for klarinett»">` : ''}</div>${somUtgift.has(l.id) ? '<span class="merkelapp" style="border-color:var(--color-divider); margin-left:8px" title="Ført som utgift i Utgifter-fanen. Slett utgiften der før linjen kan fjernes.">Utgift</span>' : ''}${bestilt.has(l.id) ? `<span class="merkelapp" style="border-color:var(--color-divider); margin-left:8px; display:inline-flex; align-items:center; gap:4px" title="Bestilt i Innkjøp. Åpne linjen der før den kan fjernes.">${IKON.las} Bestilt</span>` : ''}</div></td>
         <td><input class="celleinn tekst" style="min-width:0; width:104px; font-weight:400" ${vern ? `placeholder="–"${vern}` : `list="typer" placeholder="${escapeHtml(arvet || 'Type')}" title="${arvet ? `Behovet har typen «${escapeHtml(arvet)}». Skriv en annen for denne søknaden, eller tøm feltet for å bruke behovets.` : 'Type for denne søknaden'}"`} ${feltAttr(n(l, 'type'), linjetype(l, tilstand.behov))}></td>
         <td class="tall"><input class="celleinn antall" inputmode="numeric" ${feltAttr(n(l, 'antall'), l.antall, 'tall')}${vern}></td>
         <td class="tall"><input class="celleinn" inputmode="numeric" ${feltAttr(n(l, 'estPris'), l.estPris, 'tall')}${vern}></td>
         <td class="tall fet">${kr(kostnad)}</td>
         ${moms ? `<td class="tall">${kr(fraGiver)}</td><td class="tall dempet">${kr(kostnad - fraGiver)}</td>` : ''}
-        <td style="width:40px; padding-left:0">${vern ? '' : `<button type="button" class="ikonknapp" data-handling="fjern-linje" data-linje="${l.id}" title="Fjern fra søknaden">${IKON.fjern}</button>`}</td>
+        <td style="width:40px; padding-left:0">${vern || bestilt.has(l.id) ? '' : `<button type="button" class="ikonknapp" data-handling="fjern-linje" data-linje="${l.id}" title="Fjern fra søknaden">${IKON.fjern}</button>`}</td>
       </tr>`;
   };
   // Gruppert på type med delsum per gruppe (giverens kategorier).
@@ -461,7 +464,9 @@ function soknadsfane(s) {
         ${avkryss(!!s.revisjon, 'Revisjon på denne søknaden', 'revisjon')}
         ${s.revisjon ? revisorvalg(s) : ''}
         ${dokumenter(s)}
-        <div style="display:flex; justify-content:flex-end; flex:0 0 auto"><button type="button" class="knapp knapp-fare" data-handling="slett-soknad">Slett søknad</button></div>
+        <div style="display:flex; justify-content:flex-end; flex:0 0 auto">${innkjopFor(s.id).some(harBestillinger)
+          ? '<span class="undertekst" title="Søknaden kan ikke slettes så lenge et innkjøp har bestillinger. Slett dem i Innkjøp først.">Har bestillinger – slett dem i Innkjøp først</span>'
+          : '<button type="button" class="knapp knapp-fare" data-handling="slett-soknad">Slett søknad</button>'}</div>
       </div>
     </div>`;
 }
@@ -648,6 +653,7 @@ export const soknadSide = {
       }
       case 'fjern-linje':
         if (linjerMedUtgift(s).has(linje)) { visMelding('Linjen er ført som utgift. Slett utgiften i Utgifter-fanen først.'); break; }
+        if (bestilteSoknadslinjer(innkjopFor(s.id)).has(linje)) { visMelding('Linjen er bestilt i Innkjøp. Åpne den der først.'); break; }
         if (!erLast(s) || s.linjer?.[linje]?.etterSoknad) lagre(() => fjernLinje(s.id, linje));
         break;
       case 'fra-soknaden': ui.panel = 'fra-soknaden'; ui.nyttPanel = true; tegn(); break;

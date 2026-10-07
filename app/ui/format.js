@@ -99,6 +99,13 @@ export function tidspunkt(ms, naa = Date.now()) {
   return t.getFullYear() === n.getFullYear() ? tekst : `${tekst} ${t.getFullYear()}`;
 }
 
+// Bare datoen: «03.10.2026». For bestillinger og annet som har skjedd.
+export function dato(ms) {
+  if (!ms) return '';
+  const t = new Date(ms), to = n => String(n).padStart(2, '0');
+  return `${to(t.getDate())}.${to(t.getMonth() + 1)}.${t.getFullYear()}`;
+}
+
 // Nøyaktig tidspunkt, for godkjenninger: «03.10.2026 kl. 14.32».
 export function datoKl(ms) {
   if (!ms) return '';

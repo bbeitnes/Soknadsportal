@@ -12,19 +12,21 @@ import {
   lastOppVedlegg, slettVedlegg, dokumentUrl, opprettLeverandor,
   leggSoknadslinjerIInnkjop, fellesTyperekkefolge, leggBehovISoknadOgInnkjop, anskaffet,
   filBytes, settTilbudspriser, organisasjon,
+  opprettBestilling, slettBestilling, apneBestiltLinje, bestillingUrl,
 } from '../data/index.js';
 import {
   INNKJOPSSTATUSER, innkjopsstatusNavn, innkjopsberegning, billigstPerLinje, tolkRutenett,
   ikkeFordelte, vedleggsliste, momsProsent, giverandel, leverandorNavn, leverandorKontaktinfo, kontaktlinjer, kontaktkort, leverandorIRegister,
   grupperInnkjopslinjer, grupperPerType, linjetype, typeliste, typerekkefolgeFor, tolkPris, velgbareBehov,
   tolkTilbudslinjer, tilbudsprisTekst, foreslaKobling, bestilling,
+  bestilteLinjer, bestillingerHos, harBestillinger,
 } from '../data/beregning.js';
-import { escapeHtml, kr, tidspunkt, fornavn } from '../ui/format.js';
+import { escapeHtml, kr, tidspunkt, fornavn, dato } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
 import { lagre, visMelding } from '../ui/lagring.js';
 import { tegn, fokuser, sidepanel, lukkeknapp, IKON } from '../ui/visning.js';
 import { lesPdfLinjer } from '../ui/pdftekst.js';
-import { lagBestilling } from '../ui/bestilling.js';
+import { lagBestilling, lastNed } from '../ui/bestilling.js';
 import { leverandorpanel } from './leverandorer.js';
 
 const ui = { aktiv: {}, panel: null, nyttPanel: false, redigerer: null, sok: '', limTekst: false, lesing: null, lagerBestilling: false };
@@ -35,6 +37,11 @@ const MER = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"
 const KLIPS = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>';
 const DEL = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3"/><path d="m15 9 6-6"/></svg>';
 const HAK = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+
+// Bestilte linjer (B-32): det som sto i bestillingen er låst til linjen
+// åpnes fra tilbudspanelet (•••) eller bestillingen slettes.
+const bestiltTittel = b => `Bestilt ${dato(b.tid)} – åpne linjen fra ••• for å endre`;
+const laasAttr = b => b ? ` readonly title="${escapeHtml(bestiltTittel(b))}"` : '';
 
 function aktivtInnkjop(s) {
   const liste = innkjopFor(s.id);
@@ -87,9 +94,12 @@ function chips(s, liste, aktiv, ikkeFordelt) {
     </div>`;
 }
 
-function celle(s, i, b, l, lev) {
+function celle(s, i, b, l, lev, best = null) {
   const p = b.celle[l.id][lev.id];
   const valgt = b.perLinje[l.id].valgtSid === lev.id;
+  // Bestilt linje: valget og prisen hos den valgte er låst, og en annen
+  // leverandør kan ikke velges. En tom celle kan fortsatt få pris.
+  const laast = !!best && (valgt || !!p);
   const redigerer = ui.redigerer === `${l.id}|${lev.id}`;
   const raa = i.priser?.[l.id]?.[lev.id]?.raa || '';
   const vedlegg = vedleggsliste(lev);
@@ -106,8 +116,8 @@ function celle(s, i, b, l, lev) {
     ? `<button type="button" class="m-klips" data-handling="vedlegg-celle" data-lid="${l.id}" data-sid="${lev.id}" title="${vedlegg.length === 1 ? 'Åpne tilbudsdokumentet' : 'Velg vedlegg og side'}">${KLIPS}</button>` : '';
   const mer = p && !redigerer
     ? `<button type="button" class="m-mer" data-handling="tilbud-celle" data-lid="${l.id}" data-sid="${lev.id}" title="Om tilbudet: alternativt produkt og tilbudsdokument">${MER}</button>` : '';
-  return `<td class="m-td"><div class="m-celle ${valgt ? 'valgt' : ''} ${redigerer ? 'redigerer' : ''}" ${redigerer ? '' : 'tabindex="0"'} data-handling="celle" data-dobbelt data-lid="${l.id}" data-sid="${lev.id}">
-    ${valgt ? `<span class="m-hak">${HAK}</span>` : ''}${innhold}${mer}${klips}</div></td>`;
+  return `<td class="m-td"><div class="m-celle ${valgt ? 'valgt' : ''} ${redigerer ? 'redigerer' : ''} ${laast ? 'laast' : ''}" ${redigerer ? '' : 'tabindex="0"'} ${laast ? `title="${escapeHtml(bestiltTittel(best))}"` : 'data-handling="celle" data-dobbelt'} data-lid="${l.id}" data-sid="${lev.id}">
+    ${valgt ? `<span class="m-hak">${laast ? IKON.las : HAK}</span>` : ''}${innhold}${mer}${klips}</div></td>`;
 }
 
 function matrise(s, i) {
@@ -119,26 +129,29 @@ function matrise(s, i) {
   // En linje kan deles i to (samme linje i søknaden) når antallet skal
   // fordeles på flere leverandører. Da merkes begge «delt».
   const delt = new Set(b.linjer.map(l => l.soknadLinjeId).filter((id, n, alle) => id && alle.indexOf(id) !== n));
-  const rad = l => { const sl = l.soknadLinjeId ? s.linjer?.[l.soknadLinjeId] : null; return `
+  const bestilt = bestilteLinjer(i);
+  const rad = l => { const sl = l.soknadLinjeId ? s.linjer?.[l.soknadLinjeId] : null; const best = bestilt.get(l.id) || null; return `
     <tr>
       <td class="m-linje"><div class="m-rad">
         <div class="m-navn">
           ${l.soknadLinjeId
             ? `<div class="fet">${escapeHtml(linjetittel(s, l) || 'Uten tittel')}</div>${under(linjebeskrivelse(s, l))}`
-            : `<div style="display:flex; flex-wrap:wrap; gap:2px 6px"><input class="celleinn tekst" style="flex:1 1 200px; width:auto; min-width:0" placeholder="Beskriv linjen" ${feltAttr(n(`linjer.${l.id}.tittel`), l.tittel)}><input class="celleinn tekst" style="flex:0 0 104px; width:104px; min-width:0; font-weight:400" list="innkjopstyper" placeholder="Type" title="Type for denne linjen. Linjen grupperes med typen her og i revisjonen." ${feltAttr(n(`linjer.${l.id}.type`), l.type)}></div>`}
+            : `<div style="display:flex; flex-wrap:wrap; gap:2px 6px"><input class="celleinn tekst" style="flex:1 1 200px; width:auto; min-width:0" placeholder="Beskriv linjen" ${feltAttr(n(`linjer.${l.id}.tittel`), l.tittel)}${laasAttr(best)}><input class="celleinn tekst" style="flex:0 0 104px; width:104px; min-width:0; font-weight:400" list="innkjopstyper" placeholder="Type" title="Type for denne linjen. Linjen grupperes med typen her og i revisjonen." ${feltAttr(n(`linjer.${l.id}.type`), l.type)}></div>`}
           ${sl?.etterSoknad ? `<input class="celleinn tekst notat" style="width:100%" placeholder="Notat – f.eks. «i stedet for klarinett»" ${feltAttr(`soknader/${s.id}/linjer.${l.soknadLinjeId}.notat`, sl.notat)}>` : ''}
         </div>
         <div class="m-antall">
           <div>
-            <input class="celleinn antall" style="width:48px; text-align:center" inputmode="numeric" ${feltAttr(n(`linjer.${l.id}.antall`), l.antall, 'tall')}>
+            <input class="celleinn antall" style="width:48px; text-align:center" inputmode="numeric" ${feltAttr(n(`linjer.${l.id}.antall`), l.antall, 'tall')}${laasAttr(best)}>
             <span>stk</span>
-            ${Number(l.antall) >= 2 ? `<button type="button" class="ikonknapp m-fjern" data-handling="del-linje" data-lid="${l.id}" title="Del linjen i to, så antallet kan fordeles på flere leverandører">${DEL}</button>` : '<span class="m-plass"></span>'}
-            <button type="button" class="ikonknapp m-fjern" data-handling="fjern-linje" data-lid="${l.id}" title="Fjern linjen fra innkjøpet">${IKON.fjern}</button>
+            ${best ? `<span class="m-laas" title="${escapeHtml(bestiltTittel(best))}">${IKON.las}</span><span class="m-plass"></span>`
+              : `${Number(l.antall) >= 2 ? `<button type="button" class="ikonknapp m-fjern" data-handling="del-linje" data-lid="${l.id}" title="Del linjen i to, så antallet kan fordeles på flere leverandører">${DEL}</button>` : '<span class="m-plass"></span>'}
+            <button type="button" class="ikonknapp m-fjern" data-handling="fjern-linje" data-lid="${l.id}" title="Fjern linjen fra innkjøpet">${IKON.fjern}</button>`}
           </div>
+          ${best ? `<div class="undertekst" title="${escapeHtml(bestiltTittel(best))}">bestilt ${dato(best.tid)}</div>` : ''}
           ${sl?.etterSoknad ? '<div class="undertekst aksent" style="font-weight:600" title="Lagt til etter søknaden">etter søknaden</div>' : soktAntall(s, l) != null ? `<div class="undertekst">søkt ${soktAntall(s, l)}${delt.has(l.soknadLinjeId) ? ' · <span title="Linjen er delt, så antallet kan fordeles på flere leverandører">delt</span>' : ''}</div>` : !l.soknadLinjeId ? '<div class="undertekst" title="Ligger bare i innkjøpet, ikke i søknaden">fri linje</div>' : ''}
         </div>
       </div></td>
-      ${b.leverandorer.map(lev => celle(s, i, b, l, lev)).join('')}
+      ${b.leverandorer.map(lev => celle(s, i, b, l, lev, best)).join('')}
       <td class="m-valgt ${b.perLinje[l.id].sum == null ? 'dempet' : ''}">${b.perLinje[l.id].sum == null ? '—' : kr(b.perLinje[l.id].sum)}${b.perLinje[l.id].egne ? `<button type="button" class="m-egne" data-handling="tilbud-celle" data-lid="${l.id}" data-sid="${b.perLinje[l.id].valgtSid}" title="Egne midler på denne varen. Klikk for å endre.">egne ${kr(b.perLinje[l.id].egne)}</button>` : ''}</td>
     </tr>`; };
   // Gruppert som i søknaden. Har ingen linjer type, vises ingen overskrift.
@@ -151,7 +164,7 @@ function matrise(s, i) {
   const tomt = !b.linjer.length
     ? `<tr><td class="m-linje dempet" style="padding:24px 24px">Ingen linjer enda. Bruk «behov ikke fordelt» eller «+ Fri linje».</td>${b.leverandorer.map(() => '<td></td>').join('')}<td class="m-valgt"></td></tr>` : '';
   return `
-    <div class="hint bare-skriv" style="flex:0 0 auto">Klikk en pris for å velge, dobbeltklikk for å endre (<code>1200 -15%</code> eller <code>1200 -180</code>). <span style="letter-spacing:1px">•••</span> i cellen: alternativt produkt, tilbudsdokument og egne midler. Be leverandøren om pris per linje – vi sammenligner netto stykkpris. Lim inn fra regneark for å fylle flere celler. Skal en vare fordeles på flere leverandører, del linjen med pilene ved antallet.</div>
+    <div class="hint bare-skriv" style="flex:0 0 auto">Klikk en pris for å velge, dobbeltklikk for å endre (<code>1200 -15%</code> eller <code>1200 -180</code>). <span style="letter-spacing:1px">•••</span> i cellen: alternativt produkt, tilbudsdokument og egne midler. Be leverandøren om pris per linje – vi sammenligner netto stykkpris. Lim inn fra regneark for å fylle flere celler. Skal en vare fordeles på flere leverandører, del linjen med pilene ved antallet. Linjer som står i en bestilling er låst – åpne dem fra <span style="letter-spacing:1px">•••</span> eller slett bestillingen i leverandørpanelet.</div>
     <div class="tabellramme" data-rull="matrise">
       <table class="matrise">
         <thead><tr>
@@ -222,7 +235,9 @@ function leverandorPanel(s, i, lev) {
     </div>
     <button type="button" class="knapp knapp-primar" style="align-self:flex-start" data-handling="velg-alt" data-sid="${lev.id}">Velg alt fra ${escapeHtml(navn(lev) || 'denne')}</button>
     ${bestillingsfelt(s, i, lev)}
-    <div class="panelbunn"><span></span><button type="button" class="knapp knapp-fare" data-handling="slett-leverandor" data-sid="${lev.id}">Fjern fra innkjøpet</button></div>`, { nytt: ui.nyttPanel });
+    <div class="panelbunn"><span></span>${bestillingerHos(i, lev.id).length
+      ? '<span title="Leverandøren kan ikke fjernes så lenge den har bestillinger.">Har bestillinger – slett dem først</span>'
+      : `<button type="button" class="knapp knapp-fare" data-handling="slett-leverandor" data-sid="${lev.id}">Fjern fra innkjøpet</button>`}</div>`, { nytt: ui.nyttPanel });
 }
 
 function innkjopPanel(s, i) {
@@ -237,7 +252,9 @@ function innkjopPanel(s, i) {
       <span class="undertekst">Innhenter tilbud → valgt → fakturert.</span>
     </div>
     <div class="hint">${innkjopsberegning(i).linjer.length} linjer · ${innkjopsberegning(i).leverandorer.length} leverandører</div>
-    <div class="panelbunn"><span>${i.endretAv ? `Sist endret av ${escapeHtml(fornavn(i.endretAv.navn, i.endretAv.epost))}, ${tidspunkt(i.endretTid)}` : ''}</span><button type="button" class="knapp knapp-fare" data-handling="slett-innkjop">Slett innkjøp</button></div>`, { nytt: ui.nyttPanel });
+    <div class="panelbunn"><span>${i.endretAv ? `Sist endret av ${escapeHtml(fornavn(i.endretAv.navn, i.endretAv.epost))}, ${tidspunkt(i.endretTid)}` : ''}</span>${harBestillinger(i)
+      ? '<span title="Innkjøpet kan ikke slettes så lenge det har bestillinger. Slett dem i leverandørpanelene først.">Har bestillinger – slett dem først</span>'
+      : '<button type="button" class="knapp knapp-fare" data-handling="slett-innkjop">Slett innkjøp</button>'}</div>`, { nytt: ui.nyttPanel });
 }
 
 function ikkeFordeltPanel(s, i, liste) {
@@ -286,19 +303,26 @@ function tilbudPanel(s, i, lid, sid) {
   // Egne midler hører til varen, og settes der prisen er valgt.
   const valgt = !!p && i.valgt?.[lid] === sid;
   const egne = Number(l.egneMidler) || 0;
+  // Står linjen i en bestilling hos denne leverandøren, er prisen låst (B-32).
+  const best = bestilteLinjer(i).get(lid);
+  const laast = best && i.valgt?.[lid] === sid ? best : null;
   return sidepanel(`
     <div class="panelhode">
       <div><div class="etikett">Tilbud fra ${escapeHtml(navn(lev) || 'leverandøren')}</div><h2>${escapeHtml(linjetittel(s, l) || 'Uten tittel')}</h2>${beskrivelse ? `<div class="ingress" style="margin-top:4px">${escapeHtml(beskrivelse)}</div>` : ''}</div>
       ${lukkeknapp()}
     </div>
     ${p ? `<div class="hint">${kr(p.netto)} per stk${p.liste !== p.netto ? ` (${escapeHtml(p.under)})` : ''} · ${antall} stk = ${kr(antall * p.netto)}</div>` : ''}
+    ${laast ? `<div class="felt" style="padding:10px 14px; background:var(--color-neutral-200)"><span class="etikett" style="display:inline-flex; align-items:center; gap:6px">${IKON.las} Bestilt</span>
+      <div style="font-size:14px">Står i bestillingen fra ${dato(laast.tid)} (${escapeHtml(fornavn(laast.av?.navn, laast.av?.epost))}). Antall, valgt leverandør og pris er låst.</div>
+      <button type="button" class="knapp knapp-ramme knapp-liten" style="align-self:flex-start" data-handling="apne-linje" data-lid="${lid}" title="Tar linjen ut av bestillingen, så den kan endres. Bestillings-PDF-en består.">Åpne linjen for endring</button>
+    </div>` : ''}
     ${pris.tekst ? `<div class="felt"><span class="etikett">I tilbudet står det</span><div style="font-size:14px">${escapeHtml(pris.tekst)}</div></div>` : ''}
     ${valgt ? `<label class="felt" style="max-width:260px"><span class="etikett">Egne midler</span>
       <input class="inndata tall" inputmode="decimal" placeholder="0,00" ${feltAttr(`innkjop/${i.id}/linjer.${lid}.egneMidler`, egne || null, 'belop')}>
       <span class="undertekst">${egne ? `Søknaden belastes med ${kr(antall * p.netto - egne)}.` : 'Det vi dekker selv av denne varen. Resten belastes søknaden.'}</span>
     </label>` : ''}
     <label class="felt"><span class="etikett">Alternativt produkt</span>
-      <input class="inndata" placeholder="F.eks. merke og modell" ${feltAttr(n('alternativ'), pris.alternativ)}>
+      <input class="inndata" placeholder="F.eks. merke og modell" ${feltAttr(n('alternativ'), pris.alternativ)}${laasAttr(laast)}>
       <span class="undertekst">Fylles ut når leverandøren tilbyr noe annet enn det vi ba om. Vises i matrisen og i revisjonen.</span>
     </label>
     <div class="felt"><span class="etikett">Tilbudsdokument</span>
@@ -325,13 +349,25 @@ function bestillingFor(s, i, sid) {
   });
 }
 
+// Lagrede bestillinger (B-32) listes med «Åpne» (PDF-en som ble sendt) og
+// «Slett»; under ligger nedlastingen av det som ikke er bestilt enda.
 function bestillingsfelt(s, i, lev) {
   const b = bestillingFor(s, i, lev.id);
-  if (!b.linjer.length) return `<div class="felt"><span class="etikett">Bestilling</span><span class="undertekst">Velg priser hos leverandøren i matrisen, så kan bestillingen lastes ned her.</span></div>`;
-  return `<div class="felt"><span class="etikett">Bestilling</span>
-    <button type="button" class="knapp knapp-ramme" style="align-self:flex-start" data-handling="bestilling" data-sid="${lev.id}" ${ui.lagerBestilling ? 'disabled' : ''}>${ui.lagerBestilling ? 'Lager bestilling …' : 'Last ned bestilling (PDF)'}</button>
-    <span class="undertekst">${b.linjer.length} ${b.linjer.length === 1 ? 'linje' : 'linjer'} valgt hos ${escapeHtml(navn(lev) || 'leverandøren')} · ${kr(b.total)} kr${b.frakt ? ' inkl. frakt' : ''}.${b.leveringsadresse ? ' Leveres til egen adresse.' : ''}${organisasjon().orgNavn ? '' : ' Kontaktinfoen deres mangler – <a href="#/innstillinger">legg den inn under Innstillinger</a>.'}</span>
-  </div>`;
+  const lagrede = bestillingerHos(i, lev.id);
+  const linjetall = n => `${n} ${n === 1 ? 'linje' : 'linjer'}`;
+  const liste = lagrede.length ? `<div class="valgliste">
+      ${lagrede.map(x => `<div style="cursor:default">${IKON.fil}<button type="button" class="fyll" style="border:0; background:transparent; padding:0; text-align:left; cursor:pointer; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap" data-handling="apne-bestilling" data-bid="${x.id}" title="Åpne bestillingen slik den ble sendt">Bestilling ${dato(x.tid)}</button><span class="undertekst smal">${linjetall(Object.keys(x.linjer || {}).length)} · ${escapeHtml(fornavn(x.av?.navn, x.av?.epost))}</span><button type="button" class="ikonknapp" style="width:24px; height:24px" data-handling="slett-bestilling" data-bid="${x.id}" title="Slett bestillingen. Linjene i den blir åpne for endring.">${IKON.fjern}</button></div>`).join('')}
+    </div>` : '';
+  let handling;
+  if (b.linjer.length) {
+    handling = `<button type="button" class="knapp knapp-ramme" style="align-self:flex-start" data-handling="bestilling" data-sid="${lev.id}" ${ui.lagerBestilling ? 'disabled' : ''}>${ui.lagerBestilling ? 'Lager bestilling …' : 'Last ned bestilling (PDF)'}</button>
+    <span class="undertekst">${b.bestilte ? `${b.bestilte} bestilt · ${b.linjer.length} ikke bestilt` : `${linjetall(b.linjer.length)} valgt hos ${escapeHtml(navn(lev) || 'leverandøren')}`} · ${kr(b.total)} kr${b.frakt ? ' inkl. frakt' : ''}.${b.leveringsadresse ? ' Leveres til egen adresse.' : ''} PDF-en lagres her og låser linjene.${organisasjon().orgNavn ? '' : ' Kontaktinfoen deres mangler – <a href="#/innstillinger">legg den inn under Innstillinger</a>.'}</span>`;
+  } else if (b.bestilte) {
+    handling = `<span class="undertekst">${b.bestilte === 1 ? 'Linjen' : `Alle ${b.bestilte} linjer`} hos ${escapeHtml(navn(lev) || 'leverandøren')} er bestilt.</span>`;
+  } else {
+    handling = '<span class="undertekst">Velg priser hos leverandøren i matrisen, så kan bestillingen lastes ned her.</span>';
+  }
+  return `<div class="felt"><span class="etikett">${lagrede.length ? 'Bestillinger' : 'Bestilling'}</span>${liste}${handling}</div>`;
 }
 
 // ——— Les priser fra tilbudet ———
@@ -656,7 +692,8 @@ export const innkjopFane = {
         if (!i) return true;
         const b = innkjopsberegning(i);
         const valgt = { ...(i.valgt || {}) };
-        for (const l of b.linjer) if (b.celle[l.id][sid]) valgt[l.id] = sid;
+        const bestilt = bestilteLinjer(i);
+        for (const l of b.linjer) if (b.celle[l.id][sid] && !bestilt.has(l.id)) valgt[l.id] = sid;
         lagre(() => settValgt(i, valgt));
         return true;
       }
@@ -666,6 +703,7 @@ export const innkjopFane = {
         const nokkel = `${lid}|${sid}`;
         if (ui.redigerer === nokkel) return true;
         if (!innkjopsberegning(i).celle[lid]?.[sid]) { ui.redigerer = nokkel; tegn(); }
+        else if (bestilteLinjer(i).has(lid)) return true; // bestilt: valget er låst
         else lagre(() => velgPris(i, lid, sid));
         return true;
       }
@@ -679,17 +717,43 @@ export const innkjopFane = {
       case 'tilbud-celle': apne('tilbud'); return true;
       case 'les-priser': if (i) lesPriser(s, i, sid, el.dataset.vid); return true;
       case 'bestilling': {
+        // PDF-en lagres på innkjøpet før den lastes ned (B-32). Feiler
+        // lagringen, blir ingenting bestilt og ingenting lastet ned.
         const lev = i?.leverandorer?.[sid];
         if (!lev || ui.lagerBestilling) return true;
         ui.lagerBestilling = true; tegn();
         try {
-          await lagBestilling({
+          const b = bestillingFor(s, i, sid);
+          if (!b.linjer.length) throw new Error('ingenting å bestille');
+          const { blob, navn: filnavn } = await lagBestilling({
             org: organisasjon(), merket: i.navn || '',
             leverandor: { navn: navn(lev), ...leverandorKontaktinfo(lev, tilstand.leverandorer) },
-            b: bestillingFor(s, i, sid),
+            b,
           });
+          const ok = await lagre(() => opprettBestilling(i, sid, { blob, navn: filnavn, linjeIder: b.linjer.map(l => l.id) }));
+          if (ok) lastNed(blob, filnavn);
         } catch (err) { console.error(err); visMelding('Kunne ikke lage bestillingen: ' + (err.message || err)); }
         ui.lagerBestilling = false; tegn();
+        return true;
+      }
+      case 'apne-bestilling': {
+        const b = i?.bestillinger?.[el.dataset.bid];
+        if (!b) return true;
+        const vindu = window.open('', '_blank');
+        try { const url = await bestillingUrl(b); if (vindu) vindu.location = url; }
+        catch (err) { console.error(err); vindu?.close(); alert('Kunne ikke åpne bestillingen.'); }
+        return true;
+      }
+      case 'slett-bestilling': {
+        const b = i?.bestillinger?.[el.dataset.bid];
+        const lev = b && i.leverandorer?.[b.sid];
+        if (b && confirm(`Slette bestillingen til ${navn(lev) || 'leverandøren'} fra ${dato(b.tid)}?\n\nLinjene i den blir åpne for endring igjen, og PDF-en slettes.`)) lagre(() => slettBestilling(i, el.dataset.bid));
+        return true;
+      }
+      case 'apne-linje': {
+        const b = i && bestilteLinjer(i).get(lid);
+        const lev = b && i.leverandorer?.[b.sid];
+        if (b && confirm(`Linjen står i bestillingen til ${navn(lev) || 'leverandøren'} fra ${dato(b.tid)}.\n\nÅpne den for endring? Bestillings-PDF-en består.`)) lagre(() => apneBestiltLinje(i, lid));
         return true;
       }
       case 'les-filter': {
@@ -741,7 +805,7 @@ export const innkjopFane = {
   },
 
   dobbeltklikk(el, e, s) {
-    if (!el.matches('.m-celle') || e.target.closest('input, button')) return;
+    if (!el.matches('.m-celle') || el.classList.contains('laast') || e.target.closest('input, button')) return;
     ui.redigerer = `${el.dataset.lid}|${el.dataset.sid}`;
     tegn();
   },

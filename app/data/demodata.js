@@ -153,6 +153,8 @@ export function lagDemodata() {
         k8: { mh: pris('5400'), nb: pris('4950') },
       },
       valgt: { k1: 'nb', k2: 'mh', k3: 'nb', k4: 'mh', k6: 'to', k8: 'nb' },
+      // Kornettene og trombonene er bestilt hos Nordic Brass; marsjtrommene ikke enda (B-32).
+      bestillinger: { b1: { sid: 'nb', tid: dagerSiden(25), av: { epost: kari[0], navn: kari[1] }, navn: 'Bestilling Nordic Brass.pdf', sti: 'demo/b1', linjer: { k1: true, k3: true } } },
       ...av(...kari, 1),
     },
     i2: {

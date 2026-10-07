@@ -111,7 +111,7 @@ let tegner = false;
 // Bare handlingene under (åpne, bla, filtrere, laste ned) slippes gjennom.
 // Knapper som viser en tilstand (avkrysning, valgt i en gruppe) blir stående,
 // men virker ikke.
-const LESEHANDLINGER = new Set(['apne', 'apne-giver', 'lukk-panel', 'filter', 'velger', 'bytt', 'skriv-ut', 'rapport', 'bestilling',
+const LESEHANDLINGER = new Set(['apne', 'apne-giver', 'lukk-panel', 'filter', 'velger', 'bytt', 'skriv-ut', 'rapport', 'apne-bestilling',
   'apne-dok', 'apne-fil', 'apne-faktura', 'apne-vedlegg', 'vedlegg-celle', 'tilbud-celle', 'leverandor', 'innkjop-velg', 'ikke-fordelt']);
 
 function skrivevern() {

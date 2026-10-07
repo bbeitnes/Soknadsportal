@@ -1,7 +1,7 @@
 ---
 id: 0017
 tittel: Låse et innkjøp mot utilsiktede endringer
-status: neste
+status: testes
 opprettet: 2026-10-07
 ---
 

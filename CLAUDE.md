@@ -89,6 +89,21 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   (tekstområde under «Kontakt» i panelet, alltid synlig, også frie leverandører). Utfylt er den hele
   «LEVERES TIL»-blokken i PDF-en (ingen organisasjonsnavn automatisk); tom = fast leveringsadresse fra
   Innstillinger, ellers postadressen. Ikke i Revisjon, rapporten eller avtrykket.
+- Bestillinger lagres (B-32, kort 0017): «Last ned bestilling (PDF)» lagrer PDF-en i Storage
+  (`innkjop/<id>/bestillinger/…`) og på innkjøpet som `innkjop.<id>.bestillinger.<bid>` =
+  `{ sid, tid, av, navn, sti, linjer: { lid: true } }` før den lastes ned (`opprettBestilling()`; feiler
+  lagringen, bestilles ingenting). En linje er bestilt når den står i en bestilling (`bestilteLinjer()`),
+  ingenting lagres på linjen. Låst da: antall, valgt leverandør, prisen hos den valgte (`raa`, `alternativ`),
+  tittel på fri linje, deling og fjerning – `utenBestilte()` i `beregning.js` tar disse feltene ut av
+  ALLE skrivinger i `oppdaterInnkjop()`, så masseoperasjoner hopper over bestilte linjer. Egne midler,
+  type, vedlegg og andre leverandørers priser er åpne. Neste bestilling til samme leverandør har bare
+  ubestilte linjer, og frakten står bare på den første. Opplåsing (alle brukere, `confirm()`): slett
+  bestillingen i leverandørpanelet (`slettBestilling()`, alle linjene åpnes, filen slettes) eller «Åpne
+  linjen for endring» i tilbudspanelet (`apneBestiltLinje()`, PDF-en består). «Fjern fra innkjøpet»,
+  «Slett innkjøp» og «Slett søknad» er sperret med bestillinger (også i datalaget); søknadslinjen bak en
+  bestilt innkjøpslinje kan ikke fjernes (`bestilteSoknadslinjer()`). Leser kan åpne bestillinger
+  (`apne-bestilling` i `LESEHANDLINGER`), ikke lage dem. Revisor ser dem ikke. Ikke i reglene, ikke i
+  avtrykket, ikke i rapporten.
 - En vare fordeles på flere leverandører ved å dele innkjøpslinjen (`delInnkjopslinje()`): to linjer
   med samme `soknadLinjeId`, hver med sitt antall og sin valgte leverandør. `valgt[lid]` er fortsatt
   én leverandør per linje. Priser fra «Les priser» gjelder alle delene av en delt linje.

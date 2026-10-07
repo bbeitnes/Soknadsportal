@@ -634,7 +634,9 @@ export function sumInnkjop(innkjop) {
 export function billigstPerLinje(innkjop) {
   const b = innkjopsberegning(innkjop);
   const ut = { ...(innkjop.valgt || {}) };
+  const bestilt = bestilteLinjer(innkjop);
   for (const l of b.linjer) {
+    if (bestilt.has(l.id)) continue;
     let best = null;
     for (const s of b.leverandorer) {
       const p = b.celle[l.id][s.id];
@@ -670,14 +672,20 @@ export function nesteRekkefolgeI(kart) {
 // kaller varen (alternativt produkt eller teksten fra tilbudet) når vi har
 // det, og da står vår egen betegnelse i `varLinje`. `rekkefolge` er
 // linje-ID-ene slik matrisen viser dem.
+//
+// Linjer som alt står i en lagret bestilling (B-32) er med i neste
+// bestilling bare som tellingen `bestilte`; frakten står bare på den første
+// bestillingen til leverandøren (ett beløp per leverandør, B-12).
 export function bestilling(innkjop, sid, { tittelFor, rekkefolge = [] }) {
   const b = innkjopsberegning(innkjop);
   const lev = innkjop?.leverandorer?.[sid] || {};
   const vedlegg = vedleggsliste(lev);
   const plass = id => { const i = rekkefolge.indexOf(id); return i === -1 ? Infinity : i; };
   const dokumenter = new Set();
+  const bestilt = bestilteLinjer(innkjop);
+  const bestilte = b.linjer.filter(l => bestilt.has(l.id) && b.perLinje[l.id].valgtSid === sid).length;
   const linjer = b.linjer
-    .filter(l => b.perLinje[l.id].valgtSid === sid)
+    .filter(l => b.perLinje[l.id].valgtSid === sid && !bestilt.has(l.id))
     .sort((x, y) => plass(x.id) - plass(y.id))
     .map(l => {
       const pris = innkjop.priser?.[l.id]?.[sid] || {}, p = b.celle[l.id][sid];
@@ -685,13 +693,80 @@ export function bestilling(innkjop, sid, { tittelFor, rekkefolge = [] }) {
       if (dok) dokumenter.add(dok.navn);
       const antall = Number(l.antall) || 0;
       const hos = (pris.alternativ || pris.tekst || '').trim();
-      return { vare: hos || tittelFor(l), varLinje: hos ? tittelFor(l) : '', antall, liste: p.liste, rabatt: p.rabatt, netto: p.netto, sum: antall * p.netto };
+      return { id: l.id, vare: hos || tittelFor(l), varLinje: hos ? tittelFor(l) : '', antall, liste: p.liste, rabatt: p.rabatt, netto: p.netto, sum: antall * p.netto };
     });
   const sum = linjer.reduce((s, l) => s + l.sum, 0);
-  const frakt = linjer.length ? Number(lev.frakt) || 0 : 0;
+  const frakt = linjer.length && !bestillingerHos(innkjop, sid).length ? Number(lev.frakt) || 0 : 0;
   // Egen leveringsadresse for denne bestillingen (kort 0015); tom = organisasjonens faste.
   const leveringsadresse = String(lev.leveringsadresse || '').trim();
-  return { linjer, sum, frakt, total: sum + frakt, dokumenter: [...dokumenter], leveringsadresse };
+  return { linjer, sum, frakt, total: sum + frakt, dokumenter: [...dokumenter], leveringsadresse, bestilte };
+}
+
+// ——— Lagrede bestillinger (B-32) ———
+// Bestillings-PDF-en lagres på innkjøpet når den lastes ned, med linjene
+// den inneholdt:
+//   bestillinger: { bid: { sid, tid, av: { epost, navn }, navn, sti, linjer: { lid: true } } }
+// En linje er bestilt når den står i en bestilling. Det som sto i
+// bestillingen – antall, valgt leverandør, prisen hos den (råtekst og
+// alternativt produkt), tittel på en fri linje, deling og fjerning – er låst
+// til linjen tas ut av bestillingen eller bestillingen slettes. Egne
+// midler, type, vedlegg og priser hos andre leverandører er åpne.
+export function bestillingsliste(innkjop) {
+  return Object.entries(innkjop?.bestillinger || {}).map(([id, b]) => ({ id, ...b })).sort((a, b) => (a.tid || 0) - (b.tid || 0));
+}
+
+export function bestillingerHos(innkjop, sid) {
+  return bestillingsliste(innkjop).filter(b => b.sid === sid);
+}
+
+// Kart linje-ID → bestillingen linjen står i (bare linjer som finnes).
+export function bestilteLinjer(innkjop) {
+  const ut = new Map();
+  for (const b of bestillingsliste(innkjop)) {
+    for (const lid of Object.keys(b.linjer || {})) if (innkjop?.linjer?.[lid] && !ut.has(lid)) ut.set(lid, b);
+  }
+  return ut;
+}
+
+export function harBestillinger(innkjop) {
+  return bestillingsliste(innkjop).length > 0;
+}
+
+// Søknadslinjene bak bestilte innkjøpslinjer, på tvers av søknadens innkjøp.
+export function bestilteSoknadslinjer(innkjopListe) {
+  const ut = new Set();
+  for (const i of innkjopListe) for (const lid of bestilteLinjer(i).keys()) {
+    const sl = i.linjer[lid]?.soknadLinjeId;
+    if (sl) ut.add(sl);
+  }
+  return ut;
+}
+
+// Feltene en skriving til innkjøpet får lov å røre: det som er låst på
+// bestilte linjer tas ut, resten slippes gjennom. Brukes av
+// `oppdaterInnkjop()` i data/index.js, så alle skrivinger – felt for felt,
+// innliming, «Velg alt», «Les priser» – hopper over bestilte linjer.
+export function utenBestilte(innkjop, felt) {
+  const bestilt = bestilteLinjer(innkjop);
+  if (!bestilt.size) return felt;
+  const ut = {};
+  for (const [nokkel, verdi] of Object.entries(felt)) {
+    if (!erLaastFelt(innkjop, bestilt, nokkel)) ut[nokkel] = verdi;
+  }
+  return ut;
+}
+
+function erLaastFelt(innkjop, bestilt, nokkel) {
+  const [del, lid, ...rest] = nokkel.split('.');
+  if (!lid || !bestilt.has(lid)) return false;
+  if (del === 'valgt') return true;
+  if (del === 'linjer') return rest.length === 0 || rest[0] === 'antall' || rest[0] === 'tittel';
+  if (del === 'priser') {
+    if (rest.length === 0) return true;
+    if (rest[0] !== innkjop.valgt?.[lid]) return false;
+    return rest.length === 1 || rest[1] === 'raa' || rest[1] === 'alternativ';
+  }
+  return false;
 }
 
 // ——— Lese priser fra et tilbud ———

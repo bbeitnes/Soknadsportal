@@ -524,8 +524,8 @@ test('bestilling: linjene som er valgt hos én leverandør', async () => {
   const valg = { tittelFor: l => 'Linje ' + l.id, rekkefolge: ['c', 'a', 'b'] };
   const x = bestilling(i, 'x', valg);
   assert.deepEqual(x.linjer, [
-    { vare: 'Linje c', varLinje: '', antall: 1, liste: 50, rabatt: '5,00', netto: 45, sum: 45 },
-    { vare: '100 Acme kornett', varLinje: 'Linje a', antall: 4, liste: 1000, rabatt: '10 %', netto: 900, sum: 3600 },
+    { id: 'c', vare: 'Linje c', varLinje: '', antall: 1, liste: 50, rabatt: '5,00', netto: 45, sum: 45 },
+    { id: 'a', vare: '100 Acme kornett', varLinje: 'Linje a', antall: 4, liste: 1000, rabatt: '10 %', netto: 900, sum: 3600 },
   ]);
   assert.deepEqual([x.sum, x.frakt, x.total, x.dokumenter], [3645, 500, 4145, ['Tilbud.pdf']]);
   const y = bestilling(i, 'y', valg);
@@ -534,6 +534,46 @@ test('bestilling: linjene som er valgt hos én leverandør', async () => {
   assert.deepEqual([x.leveringsadresse, y.leveringsadresse], ['', 'Kari Nordmann\nStorgata 1']);
   // Ingenting valgt hos leverandøren: tom bestilling, og frakten teller ikke.
   assert.deepEqual([bestilling(i, 'z', valg).linjer.length, bestilling(i, 'z', valg).total], [0, 0]);
+});
+
+test('bestillinger låser linjene de inneholder (B-32)', async () => {
+  const { bestilteLinjer, bestillingsliste, bestillingerHos, harBestillinger, bestilteSoknadslinjer, bestilling, utenBestilte, billigstPerLinje } = await import('../app/data/beregning.js');
+  const i = {
+    id: 'i1',
+    linjer: { a: { soknadLinjeId: 'sa', antall: 4, rekkefolge: 1 }, b: { soknadLinjeId: 'sb', antall: 2, rekkefolge: 2 }, c: { antall: 1, rekkefolge: 3 }, d: { antall: 1, rekkefolge: 4 } },
+    leverandorer: { x: { frakt: 500 }, y: { frakt: 100 } },
+    priser: { a: { x: { raa: '1000' }, y: { raa: '900' } }, b: { x: { raa: '200' } }, c: { x: { raa: '50' }, y: { raa: '40' } }, d: { y: { raa: '70' } } },
+    valgt: { a: 'x', b: 'x', c: 'x', d: 'y' },
+    // Bestilt hos x: a og b. Linjen «z» i bestillingen finnes ikke lenger og teller ikke.
+    bestillinger: { b2: { sid: 'x', tid: 20, linjer: { b: true } }, b1: { sid: 'x', tid: 10, linjer: { a: true, z: true } } },
+  };
+  assert.deepEqual(bestillingsliste(i).map(b => b.id), ['b1', 'b2']);
+  assert.deepEqual([...bestilteLinjer(i).keys()], ['a', 'b']);
+  assert.equal(bestilteLinjer(i).get('a').id, 'b1');
+  assert.deepEqual([bestillingerHos(i, 'x').length, bestillingerHos(i, 'y').length, harBestillinger(i), harBestillinger({})], [2, 0, true, false]);
+  assert.deepEqual([...bestilteSoknadslinjer([i])], ['sa', 'sb']);
+
+  // Neste bestilling til x: bare c, uten frakt (den sto på den første). Hos y: d med frakt.
+  const valg = { tittelFor: l => l.id };
+  const x = bestilling(i, 'x', valg);
+  assert.deepEqual([x.linjer.map(l => [l.id, l.vare]), x.bestilte, x.frakt, x.total], [[['c', 'c']], 2, 0, 50]);
+  const y = bestilling(i, 'y', valg);
+  assert.deepEqual([y.linjer.map(l => l.vare), y.bestilte, y.frakt, y.total], [['d'], 0, 100, 170]);
+  // Uten bestillinger står frakten på bestillingen som før.
+  assert.equal(bestilling({ ...i, bestillinger: {} }, 'x', valg).frakt, 500);
+
+  // Låst på a (bestilt hos x): antall, tittel, valget, prisen hos x. Åpent: egne midler, type, prisen hos y, alt på c.
+  const felt = {
+    'linjer.a.antall': 5, 'linjer.a.tittel': 'Ny', 'linjer.a': null, 'valgt.a': 'y', 'priser.a': null,
+    'priser.a.x': null, 'priser.a.x.raa': '1', 'priser.a.x.alternativ': 'Annet',
+    'linjer.a.egneMidler': 100, 'linjer.a.type': 'Instrument', 'priser.a.x.vedleggId': 'v1', 'priser.a.x.side': 2, 'priser.a.y.raa': '800',
+    'linjer.c.antall': 3, 'valgt.c': 'y', 'priser.c.x.raa': '60', 'navn': 'Nytt navn', 'bestillinger.b1.linjer.a': null,
+  };
+  assert.deepEqual(Object.keys(utenBestilte(i, felt)), ['linjer.a.egneMidler', 'linjer.a.type', 'priser.a.x.vedleggId', 'priser.a.x.side', 'priser.a.y.raa', 'linjer.c.antall', 'valgt.c', 'priser.c.x.raa', 'navn', 'bestillinger.b1.linjer.a']);
+  assert.equal(utenBestilte({ linjer: i.linjer }, felt), felt); // uten bestillinger: urørt
+
+  // «Billigst per linje» lar bestilte linjer stå: a blir hos x selv om y er billigere.
+  assert.deepEqual(billigstPerLinje(i), { a: 'x', b: 'x', c: 'y', d: 'y' });
 });
 
 test('delt linje: to innkjøpslinjer fra samme søknadslinje, hver sin leverandør', async () => {

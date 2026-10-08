@@ -21,8 +21,11 @@ import { tegn, fokuser, gaaTil, avkryss, sidepanel, lukkeknapp, IKON, fristdato 
 import { utskrift } from '../ui/utskrift.js';
 import { innkjopFane } from './innkjop.js';
 import { revisjonFane } from './revisjon.js';
+import { tekstFane } from './tekst.js';
 
-const FANER = [['soknad', 'Søknad'], ['innkjop', 'Innkjøp'], ['utgifter', 'Utgifter'], ['revisjon', 'Revisjon']];
+const FANER = [['soknad', 'Søknad'], ['tekst', 'Tekst'], ['innkjop', 'Innkjøp'], ['utgifter', 'Utgifter'], ['revisjon', 'Revisjon']];
+// Fanene som er låst med søknaden (B-16): det vi søkte om, og teksten vi sendte.
+const LASTE_FANER = new Set(['soknad', 'tekst']);
 
 const ui = { soknadId: null, panel: null, kobleId: null, nyttPanel: false, velger: false, laster: 0, leggerTil: false };
 
@@ -82,7 +85,7 @@ function topp(s, fane) {
       ${pottlinje(s)}
     </header>
     <nav style="flex:0 0 auto; padding:14px 40px 0; display:flex; gap:4px; align-items:center">
-      ${FANER.map(([id, navn]) => `<a href="#/soknad/${s.id}/${id}" style="height:36px; display:inline-flex; align-items:center; padding:0 18px; font-weight:600; font-size:15px; text-decoration:none; background:${fane === id ? 'var(--color-surface)' : 'transparent'}; color:${fane === id ? 'var(--color-text)' : 'var(--color-neutral-700)'}"${id === 'soknad' && erLast(s) ? ` title="${LAST_TITTEL}"` : ''}>${navn}${id === 'soknad' && erLast(s) ? `<span style="display:inline-flex; margin-left:8px">${IKON.las}</span>` : ''}</a>`).join('')}
+      ${FANER.map(([id, navn]) => `<a href="#/soknad/${s.id}/${id}" style="height:36px; display:inline-flex; align-items:center; padding:0 18px; font-weight:600; font-size:15px; text-decoration:none; background:${fane === id ? 'var(--color-surface)' : 'transparent'}; color:${fane === id ? 'var(--color-text)' : 'var(--color-neutral-700)'}"${LASTE_FANER.has(id) && erLast(s) ? ` title="${LAST_TITTEL}"` : ''}>${navn}${LASTE_FANER.has(id) && erLast(s) ? `<span style="display:inline-flex; margin-left:8px">${IKON.las}</span>` : ''}</a>`).join('')}
     </nav>`;
 }
 
@@ -525,8 +528,9 @@ export const soknadSide = {
   meny: 'soknader',
 
   tegn([id, fane = 'soknad'] = []) {
-    if (id !== ui.soknadId) { ui.soknadId = id; ui.panel = null; ui.velger = false; innkjopFane.forlat(); revisjonFane.forlat(); }
+    if (id !== ui.soknadId) { ui.soknadId = id; ui.panel = null; ui.velger = false; innkjopFane.forlat(); revisjonFane.forlat(); tekstFane.forlat(); }
     if (fane !== 'innkjop') innkjopFane.forlat();
+    if (fane !== 'tekst') tekstFane.forlat();
     if (fane !== 'revisjon' && !erRevisor()) revisjonFane.forlat(); // revisor har ingen faner i ruten
     const s = gjeldende();
     if (!s && erRevisor()) { gaaTil('#/revisor'); return ''; }
@@ -537,9 +541,10 @@ export const soknadSide = {
     const html = `
       ${topp(s, aktivFane)}
       <main class="innhold" style="padding-top:12px">
-        ${aktivFane === 'soknad' ? soknadsfane(s) : aktivFane === 'utgifter' ? utgiftsfane(s) : aktivFane === 'innkjop' ? innkjopFane.tegn(s) : revisjonFane.tegn(s)}
+        ${aktivFane === 'soknad' ? soknadsfane(s) : aktivFane === 'tekst' ? tekstFane.tegn(s) : aktivFane === 'utgifter' ? utgiftsfane(s) : aktivFane === 'innkjop' ? innkjopFane.tegn(s) : revisjonFane.tegn(s)}
       </main>
       ${ui.panel === 'fra-listen' ? fraListenPanel(s) : ''}
+      ${aktivFane === 'tekst' ? tekstFane.panel() : ''}
       ${aktivFane === 'utgifter' && ui.panel === 'fra-soknaden' ? fraSoknadenPanel(s) : ''}
       ${aktivFane === 'utgifter' && ui.panel === 'koble' && kobles ? koblePanel(s, kobles) : ''}`;
     ui.nyttPanel = false;
@@ -620,6 +625,7 @@ export const soknadSide = {
     }
     if (location.hash.includes('/innkjop') && await innkjopFane.klikk(handling, el, e, s)) return;
     if (location.hash.includes('/revisjon') && await revisjonFane.klikk(handling, el, e, s)) return;
+    if (location.hash.includes('/tekst') && await tekstFane.klikk(handling, el, e, s)) return;
     const linje = el.dataset.linje;
     switch (handling) {
       case 'velger': ui.velger = !ui.velger; tegn(); break;
@@ -725,6 +731,7 @@ export const soknadSide = {
     if (erRevisor()) return revisjonFane.escape();
     if (innkjopFane.escape()) return true;
     if (revisjonFane.escape()) return true;
+    if (tekstFane.escape()) return true;
     if (ui.velger) { ui.velger = false; return true; }
     if (ui.panel) { ui.panel = null; return true; }
     return false;

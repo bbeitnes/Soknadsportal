@@ -248,6 +248,19 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   (DCTDecode) og tapsfritt lagrede (FlateDecode, typisk «skriv ut til PDF» av et foto). Tekst og
   vektorgrafikk i PDF-er røres ikke, og originalen i Storage endres ikke. Et bilde byttes bare når
   det blir minst 20 % mindre.
+- Skrivestøtte for søknadstekster (kort 0018, B-34, snur B-21): søknadsteksten skrives i portalen i
+  fanen «Tekst» (`sider/tekst.js`, nummer to), ett tekstområde per felt i giverens skjema. Skjemaet
+  ligger på giveren: `givere.<id>.skjema.<fid>` = `{ navn, hjelp, maks, enhet: 'ord'|'tegn', rekkefolge }`
+  (giverpanelet, `leggTilSkjemafelt()` / `fjernSkjemafelt()` / `flyttSkjemafelt()`); teksten på søknaden:
+  `soknader.<id>.tekster.<fid>` (uten skjema: `fri`). Standardinfo «Om korpset» er faste felt (`OM_KORPSET`)
+  på `innstillinger/<orgId>`, redigerbare for alle brukere. `tekstfelt()` / `tekststatus()` / `tellTekst()`
+  i `beregning.js` gir felt, teller («N av maks M ord») og statuslinjen; tekst i felt som er fjernet fra
+  skjemaet vises under egen overskrift og slettes aldri. «Kopier underlag» (`skrivunderlag()`) samler
+  Om korpset, skjemaet, behov per type, beløp, historikk mot giveren (`giverhistorikk()`) og det som står
+  i feltene til et oppdrag som limes inn i Claude/ChatGPT – ingen språkmodell i portalen. Slipper
+  nettleseren oss ikke til på utklippstavlen, vises teksten i et sidepanel. Fanen låses med søknaden
+  (B-16). Leser ser den skrivebeskyttet (`kopier-underlag` i `LESEHANDLINGER`), revisor ser den ikke.
+  Ikke i avtrykket, rapporten eller potten. Prøves på branchen `skrivestotte`.
 - Endres `firebase/firestore.rules`, må HELE filen limes inn i Console for
   alle tre databasene (prod, test og `soknadsportal-restore`) — si fra om det i svaret.
 - Sikkerhetskopi (`backup/`, B-24/B-25): `kopier.mjs` (nattlig GitHub-jobb, bare leserett) legger

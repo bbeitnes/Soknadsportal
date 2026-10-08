@@ -1445,3 +1445,84 @@ test('postkostnad tåler begge formene på perPost', async () => {
   assert.equal(postkostnad(post, { p: { fakturert: null } }), 100);
   assert.equal(postkostnad({ ...post, venterFlere: true }, { p: 80 }), 100);
 });
+
+// ——— Skrivestøtte (kort 0018) ———
+
+test('tellTekst og tellerTekst: ord og tegn (kort 0018)', async () => {
+  const { tellTekst, tellerTekst } = await import('../app/data/beregning.js');
+  assert.equal(tellTekst('  Vi søker  om\nmidler ', 'ord'), 4);
+  assert.equal(tellTekst('', 'ord'), 0);
+  assert.equal(tellTekst('  abc de ', 'tegn'), 6);
+  assert.equal(tellerTekst(12, 150, 'ord'), '12 av maks 150 ord');
+  assert.equal(tellerTekst(12, null, 'tegn'), '12 tegn');
+});
+
+test('skjemafelt sorteres på rekkefølge, og tekstfelt gir tekst, teller og fjernede felt (kort 0018)', async () => {
+  const { skjemafelt, tekstfelt, tekststatus } = await import('../app/data/beregning.js');
+  const giver = { skjema: {
+    b: { navn: 'Beskrivelse', hjelp: 'Hva', maks: 3, enhet: 'ord', rekkefolge: 2 },
+    a: { navn: 'Om søkeren', maks: 20, enhet: 'tegn', rekkefolge: 1 },
+  } };
+  assert.deepEqual(skjemafelt(giver).map(f => f.id), ['a', 'b']);
+  const soknad = { tekster: { a: 'Skiens Skolemusikk', b: 'fire kornetter til aspirantene', gammel: 'Tekst i et felt som er slettet', tom: '  ' } };
+  const felt = tekstfelt(soknad, giver);
+  assert.deepEqual(felt.map(f => [f.id, f.antall, f.over, f.utfylt, f.fjernet]), [
+    ['a', 18, false, true, false], ['b', 4, true, true, false], ['gammel', 7, false, true, true],
+  ]);
+  const status = tekststatus(felt);
+  assert.equal(status.tekst, '2 av 2 felt utfylt · 1 over grensen');
+  // Uten skjema: ett fritt felt. Tekst skrevet mens giveren hadde skjema vises som fjernet.
+  const fri = tekstfelt({ tekster: { a: 'gammel' } }, {});
+  assert.deepEqual(fri.map(f => [f.id, f.fjernet]), [['fri', false], ['a', true]]);
+  assert.equal(tekststatus(fri).tekst, '0 av 1 felt utfylt');
+  // Det som står i feltene nå kan gis inn.
+  assert.equal(tekstfelt(soknad, giver, { b: 'en to' })[1].over, false);
+});
+
+test('giverhistorikk: tidligere søknader til samme giver, nyeste først, uten utkast og uten søknaden selv (kort 0018)', async () => {
+  const { giverhistorikk } = await import('../app/data/beregning.js');
+  const soknader = [
+    { id: 's1', giverId: 'g', tittel: 'Nå', status: 'utkast', frist: '2026-09-15', linjer: {} },
+    { id: 's2', giverId: 'g', tittel: 'I fjor', status: 'innvilget', sendt: '2025-03-01', innvilget: 20000, soktOverstyrt: 25000, linjer: {} },
+    { id: 's3', giverId: 'g', tittel: 'Eldre', status: 'avslatt', frist: '2024-03-15', soktOverstyrt: 9000, linjer: {} },
+    { id: 's4', giverId: 'g', tittel: 'Påbegynt', status: 'utkast', linjer: {} },
+    { id: 's5', giverId: 'annen', tittel: 'Annen giver', status: 'innvilget', sendt: '2025-01-01', linjer: {} },
+  ];
+  assert.deepEqual(giverhistorikk(soknader, 'g', 's1').map(h => [h.aar, h.tittel, h.sokt, h.innvilget, h.status]), [
+    ['2025', 'I fjor', 25000, 20000, 'innvilget'], ['2024', 'Eldre', 9000, null, 'avslatt'],
+  ]);
+});
+
+test('skrivunderlag tar med Om korpset, skjemaet med grenser, behovene per type, beløpene, historikken og det som står i feltene (kort 0018)', async () => {
+  const { skrivunderlag } = await import('../app/data/beregning.js');
+  const behov = [{ id: 'b1', type: 'Instrument', tittel: 'Kornett Bb', beskrivelse: 'Til aspirantene' }];
+  const giver = { navn: 'Stiftelsen', kontakt: 'Krever rapport', skjema: {
+    sf1: { navn: 'Om søkeren', hjelp: 'Hvem dere er', maks: 150, enhet: 'ord', rekkefolge: 1 },
+    sf2: { navn: 'Tiltaket', hjelp: '', maks: 800, enhet: 'tegn', rekkefolge: 2 },
+  } };
+  const soknad = { id: 's1', giverId: 'g', tittel: 'Instrumenter 2026', frist: '2026-09-15', status: 'utkast', momsProsent: 8, egenandel: 5000,
+    linjer: { l1: { behovId: 'b1', antall: 4, estPris: 8500, rekkefolge: 1 }, l2: { behovId: null, tittel: 'Notestativ', type: 'Utstyr', antall: 10, estPris: 400, rekkefolge: 2 }, l3: { behovId: null, tittel: 'Etter søknaden', antall: 1, estPris: 999, etterSoknad: true } },
+    tekster: { sf1: 'Vi er et skolekorps.' } };
+  const soknader = [soknad, { id: 's0', giverId: 'g', tittel: 'I fjor', status: 'innvilget', sendt: '2025-03-01', innvilget: 20000, soktOverstyrt: 25000, linjer: {} }];
+  const organisasjon = { omKorpset: 'Skiens Skolemusikk, stiftet 1952.', omOkonomi: '', typeRekkefolge: ['Utstyr', 'Instrument'] };
+  const u = skrivunderlag({ organisasjon, giver, soknad, behov, soknader });
+  for (const bit of [
+    '## Om korpset', '**Kort om korpset**', 'Skiens Skolemusikk, stiftet 1952.',
+    '## Giver: Stiftelsen', 'Notat om giveren: Krever rapport',
+    '1. Om søkeren (maks 150 ord)', '   Hvem dere er', '2. Tiltaket (maks 800 tegn)',
+    'Tittel: Instrumenter 2026', 'Søknadsfrist: 2026-09-15',
+    '- 4 × Kornett Bb à 8 500 kr = 34 000 kr – Til aspirantene', '- 10 × Notestativ à 400 kr = 4 000 kr',
+    'Sum estimert: 38 000 kr', 'Egenandel (det vi dekker selv): 5 000 kr', 'momskompensasjon: 8 %', 'Søkt beløp: 30 360 kr',
+    '- 2025: «I fjor» – søkt 25 000 kr, innvilget 20 000 kr (Innvilget)',
+    '## Det som allerede står i feltene', '**Om søkeren**', 'Vi er et skolekorps.',
+  ]) assert.ok(u.includes(bit), `mangler: ${bit}`);
+  assert.ok(!u.includes('**Økonomi**'), 'tomme felt i Om korpset skal ikke med');
+  assert.ok(!u.includes('Etter søknaden'), 'linjer lagt til etter søknaden skal ikke med');
+  assert.ok(u.indexOf('Utstyr:') < u.indexOf('Instrument:'), 'typerekkefølgen fra innstillingene gjelder');
+  assert.ok(!u.includes('**Tiltaket**'), 'tomme felt tas ikke med under «står i feltene»');
+  // Uten skjema og uten innhold sier underlaget fra.
+  const tomt = skrivunderlag({ soknad: { id: 'x', linjer: {} } });
+  assert.ok(tomt.includes('Ingenting er fylt ut under Innstillinger'));
+  assert.ok(tomt.includes('1. Søknadstekst'));
+  assert.ok(tomt.includes('Behov: ingen linjer i søknaden enda.'));
+});

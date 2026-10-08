@@ -7,7 +7,7 @@
 // hverandre på samme felt: siste lagring per felt vinner.
 import { lager as lageret, innlogging, SLETT } from './lager.js';
 import { ORGANISASJON_ID, MILJO } from '../config/app-config.js';
-import { pott, linjeliste, linjekostnad, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer, linjetype, anskaffetPerBehov, finansierteLinjer, revisornokkel, revisjonsavtrykk, revisorstatus, fakturakommentarer, kopistatus, utenBestilte, bestilteLinjer, bestillingerHos, bestillingsliste, harBestillinger } from './beregning.js';
+import { pott, linjeliste, linjekostnad, nesteRekkefolge, nesteUtgiftsrekkefolge, nesteRekkefolgeI, tolkPris, innkjopslinjer, leverandorer, vedleggsliste, nesteLopenummer, linjetype, anskaffetPerBehov, finansierteLinjer, revisornokkel, revisjonsavtrykk, revisorstatus, fakturakommentarer, kopistatus, utenBestilte, bestilteLinjer, bestillingerHos, bestillingsliste, harBestillinger, skjemafelt } from './beregning.js';
 
 export { innlogging };
 
@@ -158,6 +158,29 @@ export function leggTilFrist(giverId) {
 
 export function fjernFrist(giverId, fristId) {
   return oppdaterGiver(giverId, { [`frister.${fristId}`]: SLETT });
+}
+
+// Giverens søknadsskjema (kort 0018): tekstfelt i giverens rekkefølge, hvert
+// med navn, hjelpetekst og valgfri grense (`maks` + `enhet` ord/tegn).
+export function leggTilSkjemafelt(giver) {
+  const id = nyId('sf');
+  const rekkefolge = skjemafelt(giver).reduce((m, f) => Math.max(m, f.rekkefolge || 0), 0) + 1;
+  return oppdaterGiver(giver.id, { [`skjema.${id}`]: { navn: '', hjelp: '', maks: null, enhet: 'ord', rekkefolge } }).then(() => id);
+}
+
+// Feltet slettes; tekst som er skrevet i det på søknader blir stående (B-34).
+export function fjernSkjemafelt(giverId, feltId) {
+  return oppdaterGiver(giverId, { [`skjema.${feltId}`]: SLETT });
+}
+
+// Flytter et felt ett hakk opp eller ned. Hele rekkefølgen skrives på nytt,
+// så felt uten nummer også får ett.
+export function flyttSkjemafelt(giver, feltId, retning) {
+  const liste = skjemafelt(giver).map(f => f.id);
+  const i = liste.indexOf(feltId), j = i + (retning === 'opp' ? -1 : 1);
+  if (i === -1 || j < 0 || j >= liste.length) return Promise.resolve();
+  [liste[i], liste[j]] = [liste[j], liste[i]];
+  return oppdaterGiver(giver.id, Object.fromEntries(liste.map((id, n) => [`skjema.${id}.rekkefolge`, n + 1])));
 }
 
 export function slettGiver(id) {

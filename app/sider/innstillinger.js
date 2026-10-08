@@ -5,6 +5,7 @@ import { erAdmin, organisasjon, kopistatusNaa } from '../data/index.js';
 import { ORGANISASJON_ID } from '../config/app-config.js';
 import { escapeHtml, datoKl, heltall } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
+import { OM_KORPSET } from '../data/beregning.js';
 
 const SEKSJONER = [
   { rute: 'innstillinger', navn: 'Organisasjon' },
@@ -68,6 +69,15 @@ export const innstillingerSide = {
       <main class="innhold" style="overflow:auto">
         <div class="hint">Kontaktinfoen står på bestillinger dere laster ned fra Innkjøp.${admin ? '' : ' Den endres av en administrator.'}</div>
         <div class="to-kol" style="max-width:820px; gap:16px 24px">${FELT.map(felt).join('')}</div>
+        <div style="max-width:820px; margin-top:28px; display:flex; flex-direction:column; gap:6px">
+          <span class="etikett">Om korpset</span>
+          <div class="hint">Standardinfo til søknader. Tas med i underlaget fra Tekst-fanen i en søknad («Kopier underlag»), så skriv det slik en giver skal lese det. Alle brukere kan endre.</div>
+        </div>
+        <div class="to-kol" style="max-width:820px; gap:16px 24px; margin-top:12px">${OM_KORPSET.map(f => `
+          <label class="felt"><span class="etikett">${f.navn}</span>
+            ${tekstomrade(n(f.id), o[f.id], 'class="inndata" rows="5"')}
+            <span class="undertekst">${f.hjelp}</span>
+          </label>`).join('')}</div>
         ${kopistatusHtml()}
       </main>`;
   },

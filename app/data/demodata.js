@@ -22,12 +22,24 @@ export function lagDemodata() {
 
   const givere = {
     g1: { organisasjonId: org, navn: 'Sparebankstiftelsen Nord', kontakt: 'Frister 15. mars og 15. september. Krever revisjonsrapport.', nettadresse: 'soknad.sbnord.no', kontaktperson: 'Nina Hauge', epost: 'nina@sbnord.no', telefon: '77 60 10 20', momsTrekk: true, momsProsent: 8, ...av(...kari, 40),
-      frister: { f1: { dato: '2026-03-15', tekst: 'Ordinær tildeling', arlig: true }, f2: { dato: '2026-09-15', tekst: 'Ordinær tildeling', arlig: true } } },
+      frister: { f1: { dato: '2026-03-15', tekst: 'Ordinær tildeling', arlig: true }, f2: { dato: '2026-09-15', tekst: 'Ordinær tildeling', arlig: true } },
+      // Søknadsskjema (kort 0018): feltene stiftelsen ber om.
+      skjema: {
+        sf1: { navn: 'Kort om søkeren', hjelp: 'Hvem dere er, hvor mange dere er og hva dere driver med.', maks: 150, enhet: 'ord', rekkefolge: 1 },
+        sf2: { navn: 'Beskrivelse av tiltaket', hjelp: 'Hva pengene skal gå til, og hvorfor det trengs nå.', maks: 300, enhet: 'ord', rekkefolge: 2 },
+        sf3: { navn: 'Hvem får glede av tiltaket?', hjelp: 'Stiftelsen prioriterer barn og unge og tiltak som kommer mange til gode.', maks: 1000, enhet: 'tegn', rekkefolge: 3 },
+        sf4: { navn: 'Budsjett og finansiering', hjelp: 'Kostnader, egenandel og andre søkte midler.', maks: null, enhet: 'ord', rekkefolge: 4 },
+      } },
     g2: { organisasjonId: org, navn: 'Kulturrådet', kontakt: 'Instrumentfondet. Frist 1. juni.', momsTrekk: false, momsProsent: 8, ...av(...kari, 40),
       frister: { f1: { dato: '2026-06-01', tekst: 'Instrumentfondet', arlig: true }, f2: { dato: datoOm(20), tekst: 'Ekstra utlysning: talentmidler', arlig: false } } },
     g3: { organisasjonId: org, navn: 'Gjensidigestiftelsen', kontakt: 'Løpende søknader. Krever revisjonsrapport ved avslutning.', momsTrekk: true, momsProsent: 8, ...av(...per, 30) },
     g4: { organisasjonId: org, navn: 'Kommunen – kulturmidler', kontakt: 'Kultursjef Ole Vik, ole.vik@kommune.no', momsTrekk: false, momsProsent: 8, ...av(...per, 20),
-      frister: { f1: { dato: datoOm(-3), tekst: 'Tilskudd til arrangement', arlig: false } } },
+      frister: { f1: { dato: datoOm(-3), tekst: 'Tilskudd til arrangement', arlig: false } },
+      skjema: {
+        sf1: { navn: 'Om arrangementet', hjelp: 'Hva, når, hvor og for hvem.', maks: 100, enhet: 'ord', rekkefolge: 1 },
+        sf2: { navn: 'Hvorfor kommunen bør støtte det', hjelp: '', maks: 50, enhet: 'ord', rekkefolge: 2 },
+        sf3: { navn: 'Budsjett', hjelp: 'Inntekter og utgifter.', maks: null, enhet: 'ord', rekkefolge: 3 },
+      } },
   };
 
   const behov = {
@@ -59,6 +71,12 @@ export function lagDemodata() {
         u1: { beskrivelse: 'Frakt av notestativ fra lager', belop: 1200, dato: '2026-05-12', lagtInnAv: { epost: kari[0], navn: kari[1] }, rekkefolge: 1 },
         u2: { beskrivelse: 'Rekvisita til øvingslokalet', belop: 1850, dato: '2026-05-20', venterFlere: true, lagtInnAv: { epost: per[0], navn: per[1] }, rekkefolge: 2 },
         u3: { beskrivelse: 'Parkering ved henting av instrumenter', belop: 800, dato: '2026-06-02', lagtInnAv: { epost: kari[0], navn: kari[1] }, rekkefolge: 3 },
+      },
+      // Søknadsteksten slik den ble sendt (kort 0018). `sf9` fantes i skjemaet da.
+      tekster: {
+        sf1: 'Skiens Skolemusikk er et skolekorps med 48 musikanter fra 8 til 19 år, fordelt på aspirantkorps, juniorkorps og hovedkorps. Vi øver ukentlig på Lunde skole og spiller på 17. mai, julekonserter og i distriktsmesterskapet.',
+        sf2: 'Vi søker om midler til instrumenter til aspirantkorpset: fire kornetter, to althorn, to tromboner, en baryton og to klarinetter. Flere av dagens instrumenter er over 30 år gamle og har sprukne ventiler, og vi mangler instrumenter til de 12 aspirantene som begynte i høst.',
+        sf9: 'Søknaden sendes av styreleder på vegne av korpset.',
       },
       dokumenter: {
         d1: { navn: 'Søknad Sparebankstiftelsen 2026.pdf', sti: 'demo/d1', lastetOppAv: { epost: kari[0], navn: kari[1] }, tid: dagerSiden(200) },
@@ -93,6 +111,11 @@ export function lagDemodata() {
         l1: { behovId: null, type: 'Honorar', tittel: 'Instruktørhonorar', antall: 2, estPris: 6000, rekkefolge: 1 },
         l2: { behovId: null, type: 'Leie', tittel: 'Leie av seminarlokale', antall: 1, estPris: 8000, rekkefolge: 2 },
         l3: { behovId: null, type: 'Reise', tittel: 'Buss tur/retur', antall: 1, estPris: 9500, rekkefolge: 3 },
+      },
+      // Under skriving: ett felt over grensen, ett tomt (kort 0018).
+      tekster: {
+        sf1: 'Seminarhelg for hele korpset på Gvarv i oktober, med instruktører fra Forsvarets musikkorps. Alle musikantene fra 8 til 19 år deltar, og helgen avsluttes med en åpen konsert for familier og bygda.',
+        sf2: 'Seminaret gir musikantene instruksjon de ellers ikke får, og konserten er gratis og åpen for alle i kommunen. Det er et av få tilbud der barn og ungdom i alle aldre gjør noe sammen, og det holder på de eldste musikantene som ellers slutter når de begynner på videregående. Kommunen har støttet seminaret før, og det kom over 200 tilhørere til konserten i fjor.',
       },
       utgifter: {
         u1: { soknadLinjeId: 'l1', belop: 12500, dato: '2026-09-20', lagtInnAv: { epost: per[0], navn: per[1] }, rekkefolge: 1 },
@@ -189,5 +212,17 @@ export function lagDemodata() {
     },
   };
 
-  return { brukere, givere, behov, soknader, innkjop, leverandorer, fakturaer };
+  // Om korpset (kort 0018): standardinfoen som tas med i underlaget.
+  const innstillinger = {
+    [org]: {
+      organisasjonId: org, orgNavn: 'Skiens Skolemusikk',
+      omKorpset: 'Skiens Skolemusikk er et skolekorps i Skien, stiftet 1952, med aspirantkorps, juniorkorps og hovedkorps.',
+      omMedlemmer: '48 musikanter fra 8 til 19 år, 12 aspiranter begynte høsten 2026. Rekrutterer fra tre barneskoler.',
+      omAktiviteter: 'Ukentlige øvelser, 17. mai, julekonsert, vårkonsert, seminarhelg om høsten og distriktsmesterskap.',
+      omFormal: 'Et åpent fritidstilbud der alle kan være med uansett ferdighet, med musikk, samhold og mestring.',
+      omOkonomi: 'Inntekter fra kontingent, loppemarked og dugnad. Instrumenter og uniformer finansieres med tilskudd.',
+    },
+  };
+
+  return { brukere, givere, behov, soknader, innkjop, leverandorer, fakturaer, innstillinger };
 }

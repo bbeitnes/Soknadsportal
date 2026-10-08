@@ -8,6 +8,7 @@ let sistLagret = null;
 let visLagretTil = 0;
 let feil = null; // { melding, igjen }
 let melding = null; // { tekst } — valideringsfeil uten «Prøv igjen»
+let kvittering = null; // { tekst, til } — f.eks. «Kopiert», vises to sekunder
 let tidtaker;
 const ventende = new Set();
 
@@ -28,6 +29,8 @@ function tegn() {
     rot.innerHTML = `<span class="lagrestatus-feil" role="alert">${escapeHtml(feil.melding)}<button type="button" data-lagring="igjen">Prøv igjen</button></span>`;
   } else if (melding) {
     rot.innerHTML = `<span class="lagrestatus-feil" role="alert">${escapeHtml(melding.tekst)}<button type="button" data-lagring="lukk">OK</button></span>`;
+  } else if (kvittering && Date.now() < kvittering.til) {
+    rot.innerHTML = `<span class="lagrestatus-lagret">${HAK}${escapeHtml(kvittering.tekst)}</span>`;
   } else if (pagaende > 0) {
     rot.innerHTML = '<span class="lagrestatus-rolig">Lagrer …</span>';
   } else if (Date.now() < visLagretTil) {
@@ -95,6 +98,14 @@ async function utfor(skriving) {
 // «Prøv igjen», siden det er verdien som må rettes.
 export function visMelding(tekst) {
   melding = { tekst };
+  tegn();
+}
+
+// En kort bekreftelse på noe som ikke er en lagring (f.eks. «Kopiert»).
+export function visKvittering(tekst) {
+  kvittering = { tekst, til: Date.now() + 2000 };
+  clearTimeout(tidtaker);
+  tidtaker = setTimeout(tegn, 2050);
   tegn();
 }
 

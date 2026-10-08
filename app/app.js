@@ -112,7 +112,7 @@ let tegner = false;
 // Knapper som viser en tilstand (avkrysning, valgt i en gruppe) blir stående,
 // men virker ikke.
 const LESEHANDLINGER = new Set(['apne', 'apne-giver', 'lukk-panel', 'filter', 'velger', 'bytt', 'skriv-ut', 'rapport', 'apne-bestilling',
-  'apne-dok', 'apne-fil', 'apne-faktura', 'apne-vedlegg', 'vedlegg-celle', 'tilbud-celle', 'leverandor', 'innkjop-velg', 'ikke-fordelt']);
+  'apne-dok', 'apne-fil', 'apne-faktura', 'apne-vedlegg', 'vedlegg-celle', 'tilbud-celle', 'leverandor', 'innkjop-velg', 'ikke-fordelt', 'kopier-underlag', 'lukk-underlag']);
 
 function skrivevern() {
   rot.querySelectorAll('[data-felt]').forEach(el => {

@@ -1,7 +1,7 @@
 // Givere og brukere. Alle brukere kan opprette og endre givere; bare
 // administrator sletter dem og ser brukerlisten (B-29).
-import { tilstand, erAdmin, opprettGiver, oppdaterGiver, slettGiver, leggTilFrist, fjernFrist, opprettSoknad, inviterBruker, oppdaterBruker, fjernBruker, invitasjonstekst, sendInnloggingslenkeTil } from '../data/index.js';
-import { statusNavn, erTomPost, fristliste, nesteForekomst } from '../data/beregning.js';
+import { tilstand, erAdmin, opprettGiver, oppdaterGiver, slettGiver, leggTilFrist, fjernFrist, leggTilSkjemafelt, fjernSkjemafelt, flyttSkjemafelt, opprettSoknad, inviterBruker, oppdaterBruker, fjernBruker, invitasjonstekst, sendInnloggingslenkeTil } from '../data/index.js';
+import { statusNavn, erTomPost, fristliste, nesteForekomst, skjemafelt, TEKSTENHETER } from '../data/beregning.js';
 import { escapeHtml, kr, datoFelt, iDag } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
 import { lagre, ferdigLagret, visMelding } from '../ui/lagring.js';
@@ -40,6 +40,27 @@ function fristrad(g, f) {
     </div>`;
 }
 
+// Giverens søknadsskjema (kort 0018): feltene søknadsteksten skrives i, i
+// giverens rekkefølge, hvert med navn, hjelpetekst og valgfri grense.
+function skjemarad(g, f, i, antall) {
+  const nokkel = felt => `givere/${g.id}/skjema.${f.id}.${felt}`;
+  const pil = (retning, ikon, tittel) => `<button type="button" class="ikonknapp" data-handling="skjema-${retning}" data-id="${f.id}" title="${tittel}" ${(retning === 'opp' ? i === 0 : i === antall - 1) ? 'disabled' : ''}>${ikon}</button>`;
+  return `
+    <div class="skjemafelt">
+      <input class="inndata" placeholder="Feltets navn, f.eks. Beskrivelse av tiltaket" title="Navn på feltet i giverens skjema" ${feltAttr(nokkel('navn'), f.navn)}>
+      <div class="skjemahode">
+        <span class="undertekst">Maks</span>
+        <input class="inndata tall" style="text-align:left; padding:0 6px" inputmode="numeric" placeholder="–" title="Maks antall ord eller tegn. Tomt = ingen grense." ${feltAttr(nokkel('maks'), f.maks, 'tall')}>
+        <div class="segment">${TEKSTENHETER.map(([id, navn]) => `<button type="button" data-handling="skjema-enhet" data-id="${f.id}" data-enhet="${id}" aria-pressed="${(f.enhet || 'ord') === id}" title="Grensen telles i ${navn}">${navn}</button>`).join('')}</div>
+        <span class="fyll"></span>
+        ${pil('opp', IKON.opp, 'Flytt opp')}
+        ${pil('ned', IKON.ned, 'Flytt ned')}
+        <button type="button" class="ikonknapp" data-handling="skjema-slett" data-id="${f.id}" title="Fjern feltet. Tekst som er skrevet i det på søknader blir stående.">${IKON.lukk}</button>
+      </div>
+      ${tekstomrade(nokkel('hjelp'), f.hjelp, 'class="inndata" rows="2" placeholder="Giverens spørsmål, eller hva de legger vekt på" title="Vises under feltet i søknaden og tas med i underlaget"')}
+    </div>`;
+}
+
 // Giverpanelet. Brukes i registeret (Innstillinger → Givere, med «+ Ny giver»
 // nederst) og i Årshjul. Alle brukere kan endre; bare administrator sletter (B-29).
 export function giverpanel(g, { nytt = false, neste = false } = {}) {
@@ -47,6 +68,7 @@ export function giverpanel(g, { nytt = false, neste = false } = {}) {
   const eksempel = kr(1000 * (100 - (g.momsProsent ?? 0)) / 100);
   const nokkel = f => `givere/${g.id}/${f}`;
   const frister = fristliste(g);
+  const skjema = skjemafelt(g);
   return sidepanel(`
     <div class="panelhode">
       <div>
@@ -62,6 +84,11 @@ export function giverpanel(g, { nytt = false, neste = false } = {}) {
     <div class="felt"><span class="etikett">Søknadsfrister</span>
       ${frister.map(f => fristrad(g, f)).join('') || '<div class="undertekst">Ingen frister enda. De vises i Årshjul.</div>'}
       <button type="button" class="knapp knapp-ramme knapp-liten" style="align-self:flex-start" data-handling="frist-ny">+ Frist</button>
+    </div>
+    <div class="felt"><span class="etikett">Søknadsskjema</span>
+      <span class="undertekst">Feltene giveren ber om i søknaden, i deres rekkefølge, med maks ord eller tegn. Teksten skrives i søknadens Tekst-fane.</span>
+      ${skjema.map((f, i) => skjemarad(g, f, i, skjema.length)).join('') || '<div class="undertekst">Ingen felt enda. Uten skjema får søknaden ett fritt tekstfelt.</div>'}
+      <button type="button" class="knapp knapp-ramme knapp-liten" style="align-self:flex-start" data-handling="skjema-ny">+ Felt</button>
     </div>
     <div class="boksrute">
       ${avkryss(!!g.momsTrekk, 'Trekk ut momskompensasjon', 'moms', '', 'fet')}
@@ -97,6 +124,20 @@ export async function giverklikk(handling, el, g, lukk) {
     if (f) lagre(() => oppdaterGiver(g.id, { [`frister.${el.dataset.id}.arlig`]: !f.arlig }));
   }
   else if (handling === 'frist-slett') lagre(() => fjernFrist(g.id, el.dataset.id));
+  else if (handling === 'skjema-ny') {
+    if (!(await ferdigLagret())) return true;
+    const id = await lagre(() => leggTilSkjemafelt(g));
+    if (id) { fokuser(`givere/${g.id}/skjema.${id}.navn`); tegn(); }
+  }
+  else if (handling === 'skjema-enhet') lagre(() => oppdaterGiver(g.id, { [`skjema.${el.dataset.id}.enhet`]: el.dataset.enhet }));
+  else if (handling === 'skjema-opp' || handling === 'skjema-ned') {
+    if (!(await ferdigLagret())) return true;
+    lagre(() => flyttSkjemafelt(tilstand.givere.find(x => x.id === g.id) || g, el.dataset.id, handling === 'skjema-opp' ? 'opp' : 'ned'));
+  }
+  else if (handling === 'skjema-slett') {
+    const f = g.skjema?.[el.dataset.id];
+    if (f && confirm(`Fjerne feltet «${f.navn || 'Uten navn'}» fra skjemaet?\n\nTekst som er skrevet i feltet på søknader blir stående under «Felt som ikke lenger er i skjemaet».`)) lagre(() => fjernSkjemafelt(g.id, el.dataset.id));
+  }
   else if (handling === 'frist-soknad') {
     if (!(await ferdigLagret())) return true;
     const f = tilstand.givere.find(x => x.id === g.id)?.frister?.[el.dataset.id];

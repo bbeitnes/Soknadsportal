@@ -313,6 +313,17 @@ table.matrise { border-collapse: separate; border-spacing: 0; min-width: 100%; f
 .fristfelt { display: grid; grid-template-columns: 112px minmax(0, 1fr) 32px; gap: 6px; align-items: center; }
 .fristvalg { display: flex; align-items: center; gap: 10px; }
 .fristvalg .fyll { flex: 1 1 auto; }
+/* Giverens søknadsskjema (kort 0018): ett felt per rad i giverpanelet. */
+.skjemafelt { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; border-bottom: 1px solid var(--color-neutral-300); }
+.skjemafelt .skjemahode { display: flex; gap: 6px; align-items: center; }
+.skjemafelt .skjemahode .inndata { width: 64px; }
+.skjemafelt .skjemahode .fyll { flex: 1 1 auto; }
+.skjemafelt .skjemahode .ikonknapp { width: 28px; height: 28px; }
+.skjemafelt .segment button { height: 32px; padding: 0 8px; font-size: 12px; }
+/* Tekst-fanen i søknaden: ett tekstområde per felt i giverens skjema. */
+.tekstfelt { display: flex; flex-direction: column; gap: 4px; max-width: 860px; }
+.tekstfelt textarea.inndata { min-height: 120px; }
+.tekstfelt .over { color: var(--color-accent-700); font-weight: 600; }
 
 /* Toppmenyen på telefon og på kvitteringssiden */
 .meny-kvittering { display: none; }

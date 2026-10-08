@@ -1,7 +1,7 @@
 ---
 id: 0018
 tittel: Skrivestøtte for søknadstekster
-status: neste
+status: testes
 opprettet: 2026-10-08
 ---
 
@@ -190,3 +190,13 @@ dokument) og åpent spørsmål 1 snus av trinn 1 – teksten skrives i portalen.
 B-19 og B-20 berøres først av trinn 2. B-02: kortet peker på et uttalt behov,
 men «Om korpset»-feltene og giverskjemaet er nye data som må holdes i orden av
 frivillige – det er prisen.
+
+### Bygget 2026-10-08 (branch `skrivestotte`)
+
+Trinn 1 ligger på dev. Nytt: `sider/tekst.js` (Tekst-fanen), skjema i giverpanelet, «Om korpset» i
+Innstillinger, `tekstfelt()` / `tekststatus()` / `tellTekst()` / `giverhistorikk()` / `skrivunderlag()`
+i `beregning.js` med tester. Avvik fra kriteriene: når nettleseren nekter utklippstavlen (skjer i
+Claude-panelet), vises underlaget i et sidepanel i stedet for `prompt()`. Demo: Sparebankstiftelsen
+Nord og Kommunen har skjema; s1 (låst, med et fjernet felt) og s4 (utkast, ett felt over grensen)
+har tekst; s2 viser fanen uten skjema.
+

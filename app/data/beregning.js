@@ -1464,3 +1464,134 @@ export function tolkBehovimport(tekst, eksisterende = []) {
   });
   return { kolonner: kol, harOverskrift, rader };
 }
+
+// ——— Skrivestøtte for søknadstekster (kort 0018, B-34) ———
+// Giveren har et skjema (`givere.<id>.skjema.<fid>`: tekstfelt med navn,
+// hjelpetekst og valgfri grense i ord eller tegn), organisasjonen faste felt
+// «Om korpset» i innstillingene, og søknaden teksten per felt
+// (`soknader.<id>.tekster.<fid>`). Ingenting her lagres: ordtelling, status og
+// underlaget regnes ut hver gang.
+
+export const OM_KORPSET = [
+  { id: 'omKorpset', navn: 'Kort om korpset', hjelp: 'Hvem dere er, hvor, stiftet når, hva slags korps.' },
+  { id: 'omMedlemmer', navn: 'Medlemmer og alder', hjelp: 'Antall musikanter, aldersgrupper, aspiranter, rekruttering.' },
+  { id: 'omAktiviteter', navn: 'Aktiviteter i året', hjelp: 'Øvelser, konserter, 17. mai, seminarer, turer, konkurranser.' },
+  { id: 'omFormal', navn: 'Formål og hvorfor det er viktig', hjelp: 'Hva korpset betyr for barna og nærmiljøet.' },
+  { id: 'omOkonomi', navn: 'Økonomi', hjelp: 'Inntekter (kontingent, dugnad, loppemarked), hva pengene går til, egenkapital.' },
+];
+
+export const TEKSTENHETER = [['ord', 'ord'], ['tegn', 'tegn']];
+
+// Giverens skjema som sortert liste.
+export function skjemafelt(giver) {
+  return Object.entries(giver?.skjema || {})
+    .map(([id, f]) => ({ id, navn: '', hjelp: '', maks: null, enhet: 'ord', ...f }))
+    .sort((a, b) => (a.rekkefolge ?? Infinity) - (b.rekkefolge ?? Infinity) || (a.navn || '').localeCompare(b.navn || '', 'nb'));
+}
+
+// Antall ord eller tegn i en tekst. Tegn telles med mellomrom, som i
+// nettskjemaer, men uten blanke i start og slutt.
+export function tellTekst(tekst, enhet = 'ord') {
+  const t = (tekst || '').trim();
+  if (!t) return 0;
+  return enhet === 'tegn' ? t.length : t.split(/\s+/).length;
+}
+
+// Telleren under et felt: «N av maks M ord» eller bare «N ord».
+export function tellerTekst(antall, maks, enhet = 'ord') {
+  return maks ? `${antall} av maks ${maks} ${enhet}` : `${antall} ${enhet}`;
+}
+
+// Feltene i Tekst-fanen: giverens skjema med søknadens tekst, og til slutt
+// tekst for felt som ikke lenger er i skjemaet (`fjernet`) – den slettes aldri.
+// Uten skjema er det ett fritt felt («fri»). `tekster` kan gis inn for å regne
+// på det som står i feltene nå, før det er lagret.
+export function tekstfelt(soknad, giver, tekster = soknad?.tekster || {}) {
+  const felt = skjemafelt(giver);
+  const rad = (f, fjernet = false) => {
+    const tekst = tekster[f.id] || '';
+    const antall = tellTekst(tekst, f.enhet);
+    return { ...f, tekst, antall, utfylt: tekst.trim() !== '', over: !!f.maks && antall > f.maks, fjernet };
+  };
+  const liste = felt.length ? felt.map(f => rad(f)) : [rad({ id: 'fri', navn: 'Søknadstekst', hjelp: '', maks: null, enhet: 'ord' })];
+  const kjente = new Set(liste.map(f => f.id));
+  const fjernede = Object.entries(tekster)
+    .filter(([id, t]) => !kjente.has(id) && (t || '').trim())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([id]) => rad({ id, navn: id === 'fri' ? 'Søknadstekst (uten skjema)' : '', hjelp: '', maks: null, enhet: 'ord' }, true));
+  return [...liste, ...fjernede];
+}
+
+// Statuslinjen øverst i Tekst-fanen. Fjernede felt teller ikke.
+export function tekststatus(felt) {
+  const egne = felt.filter(f => !f.fjernet);
+  const utfylt = egne.filter(f => f.utfylt).length;
+  const over = felt.filter(f => f.over).length;
+  return { utfylt, antall: egne.length, over, tekst: `${utfylt} av ${egne.length} felt utfylt${over ? ` · ${over} over grensen` : ''}` };
+}
+
+// Tidligere søknader til samme giver, nyeste først. Utkast er ikke historikk.
+export function giverhistorikk(soknader, giverId, unntattId = null) {
+  return soknader
+    .filter(s => s.giverId === giverId && s.id !== unntattId && s.status && s.status !== 'utkast')
+    .map(s => ({ id: s.id, tittel: s.tittel || 'Uten tittel', aar: (s.sendt || s.frist || '').slice(0, 4) || null, sokt: soktBelop(s), innvilget: s.innvilget ?? null, status: s.status }))
+    .sort((a, b) => (b.aar || '').localeCompare(a.aar || '') || a.tittel.localeCompare(b.tittel, 'nb'));
+}
+
+const kroner = n => `${Math.round(Number(n) || 0).toLocaleString('nb-NO').replace(/ /g, ' ')} kr`;
+
+// Underlaget som kopieres og limes inn i en språkmodell: oppdraget, Om
+// korpset, giveren og skjemaet, det vi søker om, historikken og det som
+// allerede står i feltene. Ren tekst med enkel markdown.
+export function skrivunderlag({ organisasjon = {}, giver = {}, soknad, behov = [], soknader = [] }) {
+  const felt = tekstfelt(soknad, giver).filter(f => !f.fjernet);
+  const linjer = soktLinjer(soknad);
+  const typeAv = l => linjetype(l, behov);
+  const behovAv = l => l.behovId ? behov.find(b => b.id === l.behovId) : null;
+  const grupper = grupperPerType(linjer, typeAv, typerekkefolgeFor(soknad, organisasjon.typeRekkefolge || []));
+  const historikk = giverhistorikk(soknader, soknad?.giverId, soknad?.id);
+  const prosent = momsProsent(soknad);
+  const egenandel = egenandelPlanlagt(soknad);
+  const ut = [];
+  ut.push('Du skal hjelpe oss å skrive en søknad om tilskudd. Skriv et utkast til hvert felt i giverens skjema, på norsk bokmål, innenfor grensen som står ved feltet. Bruk bare fakta som står under – finn ikke på tall, navn eller historikk, og spør heller hvis noe mangler. Skriv konkret og nøkternt, uten floskler. Svar med feltets navn som overskrift og teksten under, og oppgi antall ord eller tegn for hvert felt. Der det allerede står tekst i et felt, bygg videre på den.');
+  ut.push('', '## Om korpset');
+  const om = OM_KORPSET.filter(f => (organisasjon[f.id] || '').trim());
+  if (om.length) for (const f of om) ut.push(`**${f.navn}**`, organisasjon[f.id].trim(), '');
+  else ut.push('(Ingenting er fylt ut under Innstillinger → Organisasjon → Om korpset.)', '');
+  ut.push(`## Giver: ${giver.navn || 'Ukjent giver'}`);
+  if ((giver.kontakt || '').trim()) ut.push(`Notat om giveren: ${giver.kontakt.trim()}`);
+  ut.push('', '## Giverens skjema – feltene som skal skrives');
+  felt.forEach((f, i) => {
+    ut.push(`${i + 1}. ${f.navn || 'Uten navn'}${f.maks ? ` (maks ${f.maks} ${f.enhet})` : ''}`);
+    if ((f.hjelp || '').trim()) ut.push(`   ${f.hjelp.trim()}`);
+  });
+  ut.push('', '## Det vi søker om');
+  ut.push(`Tittel: ${soknad?.tittel || 'Uten tittel'}`);
+  if (soknad?.frist) ut.push(`Søknadsfrist: ${soknad.frist}`);
+  if (linjer.length) {
+    ut.push('Behov:');
+    for (const g of grupper) {
+      if (g.type) ut.push(`${g.type}:`);
+      for (const l of g.elementer) {
+        const b = behovAv(l);
+        const tittel = b ? (b.tittel || 'Slettet behov') : (l.tittel || 'Uten tittel');
+        const beskrivelse = (b?.beskrivelse || l.notat || '').trim();
+        ut.push(`- ${l.antall || 0} × ${tittel} à ${kroner(l.estPris)} = ${kroner(linjekostnad(l))}${beskrivelse ? ` – ${beskrivelse}` : ''}`);
+      }
+    }
+    ut.push(`Sum estimert: ${kroner(sumEstimert(soknad))}`);
+  } else ut.push('Behov: ingen linjer i søknaden enda.');
+  if (egenandel > 0) ut.push(`Egenandel (det vi dekker selv): ${kroner(egenandel)}`);
+  if (prosent != null) ut.push(`Giveren trekker ut momskompensasjon: ${prosent} % av kostnaden dekkes av momskompensasjon året etter, så søkt beløp er giverens andel.`);
+  ut.push(`Søkt beløp: ${kroner(soktBelop(soknad))}`);
+  if (historikk.length) {
+    ut.push('', '## Tidligere søknader til samme giver');
+    for (const h of historikk) ut.push(`- ${h.aar || 'Ukjent år'}: «${h.tittel}» – søkt ${kroner(h.sokt)}${h.innvilget != null ? `, innvilget ${kroner(h.innvilget)}` : ''} (${statusNavn(h.status)})`);
+  }
+  const skrevet = felt.filter(f => f.utfylt);
+  if (skrevet.length) {
+    ut.push('', '## Det som allerede står i feltene');
+    for (const f of skrevet) ut.push(`**${f.navn || 'Uten navn'}**`, f.tekst.trim(), '');
+  }
+  return ut.join('\n').trim() + '\n';
+}

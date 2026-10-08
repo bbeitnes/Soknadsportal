@@ -1,7 +1,7 @@
 ---
 id: 0018
 tittel: Skrivestøtte for søknadstekster
-status: testes
+status: ferdig
 opprettet: 2026-10-08
 ---
 
@@ -199,4 +199,8 @@ i `beregning.js` med tester. Avvik fra kriteriene: når nettleseren nekter utkli
 Claude-panelet), vises underlaget i et sidepanel i stedet for `prompt()`. Demo: Sparebankstiftelsen
 Nord og Kommunen har skjema; s1 (låst, med et fjernet felt) og s4 (utkast, ett felt over grensen)
 har tekst; s2 viser fanen uten skjema.
+
+Sett på dev og pushet til test og prod 2026-10-08. Neste: legg inn skjemaet til Norsk Musikkråd på
+giveren og skriv NMR-søknaden med «Kopier underlag». Vurderingen etterpå avgjør om trinn 2 (språkmodell
+i portalen) får et eget kort.
 

@@ -9,5 +9,5 @@ er også historikk.
 
 | # | Spørsmål | Hvorfor utsatt | Hva det blokkerer |
 |---|---|---|---|
-| 1 | Skal søknadsteksten kunne skrives i portalen? | Opplasting holder foreløpig (B-21) | Teksteditor i Søknad-fanen |
+| ~~1~~ | ~~Skal søknadsteksten kunne skrives i portalen?~~ | ~~Opplasting holder foreløpig (B-21)~~ | Lukket 2026-10-08: ja, per felt i giverens skjema (B-34, kort 0018) |
 | 2 | Skal data importeres fra Bestillingsportal? | «Kan vurderes senere» i spec.md | Ingenting nå |

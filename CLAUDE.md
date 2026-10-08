@@ -270,8 +270,11 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   inn). Den står på `http://localhost:8430` og kommer opp sammen med Docker. Svarer den ikke:
   `docker compose up -d`. Preview-oppsettet `soknadsportal` (`.claude/launch.json`) kobler seg til
   den og starter ingen egen server.
-- **Arbeidsflyt: dev → test → prod.** Alle endringer vises først på dev. Push til `test` først når
-  brukeren har sett på dem der og sier fra.
+- **Arbeidsflyt: dev → test og prod samtidig (B-33).** Alle endringer vises først på dev. Når brukeren
+  har sett dem der og sier «push», pushes `test` og `main` i samme vending (`main` fast-forwardes fra
+  `test`), og kortet settes til ferdig. Bare når brukeren uttrykkelig ber om at noe skal til test først
+  (typisk regelendringer, innlogging, Storage eller noe som må prøves mot ekte data), ventes det med
+  prod til brukeren har sett det på test-siden.
 - `http://localhost:8430/?demo=revisor` = samme demodata, innlogget som revisoren Rita (tildelt to
   søknader; «Noteskap og notemapper 2025» er Avsluttet og kan godkjennes). Reglene gjelder ikke i demo.
 - `http://localhost:8430/?demo=leser` = samme demodata, innlogget som Siri med bare leserett.

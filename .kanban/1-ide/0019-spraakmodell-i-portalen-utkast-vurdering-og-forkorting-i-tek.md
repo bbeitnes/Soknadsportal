@@ -84,3 +84,10 @@ underlaget. Kortet kan ikke flyttes ut av «idé» før dette er besvart._
 
 Venter på vurderingen av trinn 1 (kort 0018) etter NMR-søknaden. Gjennomgangen
 av alternativene står i Notater på kort 0018.
+
+Grilling påbegynt og stoppet 2026-10-08 etter ett spørsmål: sperren står – kortet tas ikke før
+vurderingen av trinn 1 (kort 0018) er skrevet. Vi prøver først om «Kopier underlag» og Claude.ai/ChatGPT
+holder. Fakta funnet til veivalget: deploy skriver nøkkelfil fra GitHub-secret og laster opp med SFTP;
+dev-containeren er ren Apache (`httpd`) uten PHP, så vei A trenger et `php-apache`-bilde på dev eller en
+oppdiktet modell i demo.
+

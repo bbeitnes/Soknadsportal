@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "soknadsportal",
-      "url": "http://localhost:8430",
+      "url": "http://127.0.0.1:8430",
       "port": 8430
     }
   ]

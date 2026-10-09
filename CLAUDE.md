@@ -280,7 +280,8 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
 
 ## Kjøre lokalt (dev)
 - Dev-serveren er en Docker-container (`docker-compose.yml`, Apache som på ProISP, `app/` montert
-  inn). Den står på `http://localhost:8430` og kommer opp sammen med Docker. Svarer den ikke:
+  inn). Den står på `http://127.0.0.1:8430` (bruk 127.0.0.1, ikke localhost – det er den adressen Docker
+  åpner) og kommer opp sammen med Docker. Svarer den ikke:
   `docker compose up -d`. Preview-oppsettet `soknadsportal` (`.claude/launch.json`) kobler seg til
   den og starter ingen egen server.
 - **Arbeidsflyt: dev → test og prod samtidig (B-33).** Alle endringer vises først på dev. Når brukeren
@@ -288,10 +289,10 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   `test`), og kortet settes til ferdig. Bare når brukeren uttrykkelig ber om at noe skal til test først
   (typisk regelendringer, innlogging, Storage eller noe som må prøves mot ekte data), ventes det med
   prod til brukeren har sett det på test-siden.
-- `http://localhost:8430/?demo=revisor` = samme demodata, innlogget som revisoren Rita (tildelt to
+- `http://127.0.0.1:8430/?demo=revisor` = samme demodata, innlogget som revisoren Rita (tildelt to
   søknader; «Noteskap og notemapper 2025» er Avsluttet og kan godkjennes). Reglene gjelder ikke i demo.
-- `http://localhost:8430/?demo=leser` = samme demodata, innlogget som Siri med bare leserett.
-- `http://localhost:8430/?demo` = data i minnet, ingen innlogging. `demoFeil = true`
+- `http://127.0.0.1:8430/?demo=leser` = samme demodata, innlogget som Siri med bare leserett.
+- `http://127.0.0.1:8430/?demo` = data i minnet, ingen innlogging. `demoFeil = true`
   i konsollen simulerer lagringsfeil.
 - Uten `?demo` på localhost brukes testdatabasen (krever innlogging).
-- `http://localhost:8430/?restore` = databasen restore-testen fyller (`soknadsportal-restore`). Virker bare på localhost.
+- `http://127.0.0.1:8430/?restore` = databasen restore-testen fyller (`soknadsportal-restore`). Virker bare på localhost.

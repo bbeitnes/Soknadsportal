@@ -1485,7 +1485,7 @@ export const TEKSTENHETER = [['ord', 'ord'], ['tegn', 'tegn']];
 // Giverens skjema som sortert liste.
 export function skjemafelt(giver) {
   return Object.entries(giver?.skjema || {})
-    .map(([id, f]) => ({ id, navn: '', hjelp: '', maks: null, enhet: 'ord', ...f }))
+    .map(([id, f]) => ({ id, navn: '', hjelp: '', maks: null, enhet: 'tegn', ...f }))
     .sort((a, b) => (a.rekkefolge ?? Infinity) - (b.rekkefolge ?? Infinity) || (a.navn || '').localeCompare(b.navn || '', 'nb'));
 }
 

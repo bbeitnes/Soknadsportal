@@ -204,3 +204,4 @@ Sett på dev og pushet til test og prod 2026-10-08. Neste: legg inn skjemaet til
 giveren og skriv NMR-søknaden med «Kopier underlag». Vurderingen etterpå avgjør om trinn 2 (språkmodell
 i portalen) får et eget kort.
 
+2026-10-09: nye skjemafelt får «tegn» som standard enhet i stedet for «ord» (de fleste nettskjemaer teller tegn).

@@ -165,7 +165,7 @@ export function fjernFrist(giverId, fristId) {
 export function leggTilSkjemafelt(giver) {
   const id = nyId('sf');
   const rekkefolge = skjemafelt(giver).reduce((m, f) => Math.max(m, f.rekkefolge || 0), 0) + 1;
-  return oppdaterGiver(giver.id, { [`skjema.${id}`]: { navn: '', hjelp: '', maks: null, enhet: 'ord', rekkefolge } }).then(() => id);
+  return oppdaterGiver(giver.id, { [`skjema.${id}`]: { navn: '', hjelp: '', maks: null, enhet: 'tegn', rekkefolge } }).then(() => id);
 }
 
 // Feltet slettes; tekst som er skrevet i det på søknader blir stående (B-34).

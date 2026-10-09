@@ -151,10 +151,12 @@ det («blocked by CORS policy»). Settes én gang for bøtta (felles for test
 og prod) fra Cloud Shell på console.cloud.google.com:
 
 ```bash
-printf '[{"origin":["https://beitnes.net","http://beitnes.net","http://localhost:8430"],"method":["GET"],"responseHeader":["Content-Type"],"maxAgeSeconds":3600}]' > cors.json && gcloud storage buckets update gs://skiensskolemusikk-b5cbc.firebasestorage.app --cors-file=cors.json
+printf '[{"origin":["https://beitnes.net","http://beitnes.net","http://localhost:8430","http://127.0.0.1:8430"],"method":["GET"],"responseHeader":["Content-Type"],"maxAgeSeconds":3600}]' > cors.json && gcloud storage buckets update gs://skiensskolemusikk-b5cbc.firebasestorage.app --cors-file=cors.json
 ```
 
-Får portalen ny adresse, må den legges til i `origin`-listen.
+Får portalen ny adresse, må den legges til i `origin`-listen. (127.0.0.1 lagt til 2026-10-09:
+dev åpnes på `http://127.0.0.1:8430`, og nettleseren regner det som en annen opprinnelse enn
+localhost.)
 
 ## 7. Lokal dev-server (Docker)
 Forhåndsvisning på egen maskin før noe pushes til `test`. Krever Docker Desktop.
@@ -166,10 +168,12 @@ docker compose up -d
 Gjøres én gang fra prosjektmappa; containeren `soknadsportal-dev` starter
 deretter sammen med Docker. `app/` er montert rett inn, så endringer vises ved
 omlasting.
-- `http://localhost:8430/?demo` – oppdiktede data i minnet, ingen innlogging.
-- `http://localhost:8430/` – lokal kode mot testdatabasen (krever innlogging).
+- `http://127.0.0.1:8430/?demo` – oppdiktede data i minnet, ingen innlogging.
+- `http://127.0.0.1:8430/` – lokal kode mot testdatabasen (krever innlogging).
 
-Porten må være 8430: den står i CORS-listen (§6).
+Adressen må være `127.0.0.1:8430` (eller `localhost:8430`): begge står i CORS-listen (§6), i
+nøkkelens nettsteder (§8) og i Firebase Authentication → Settings → Authorized domains
+(`localhost` ligger der fra før; `127.0.0.1` ble lagt til 2026-10-09).
 
 ## 8. API-nøkkelen (Firebase / Google Cloud)
 Nøkkelen ligger ikke i repoet (det er offentlig). `app/config/firebase-config.js` henter den
@@ -185,8 +189,8 @@ begrensningene på nøkkelen og `firestore.rules` – ikke at den er skjult.
 ### Begrensninger på nøkkelen
 Google Cloud Console → APIs & Services → Credentials → nøkkelen:
 - **Application restrictions → Websites:** `https://beitnes.net/*`, `http://beitnes.net/*`,
-  `https://skiensskolemusikk-b5cbc.firebaseapp.com/*` (innloggingsvinduet til Google) og
-  `http://localhost:8430/*` (dev).
+  `https://skiensskolemusikk-b5cbc.firebaseapp.com/*` (innloggingsvinduet til Google),
+  `http://localhost:8430/*` og `http://127.0.0.1:8430/*` (dev).
 - **API restrictions → Restrict key:** samme liste som Firebase la på den opprinnelige
   nøkkelen (ca. 25 API-er). Den kopieres ved bytte (under) – ikke plukk dem for hånd.
 
@@ -204,7 +208,7 @@ nye før den gamle slettes.
    gcloud services api-keys list --format="table(displayName,uid)"
    GAMMEL=<uid>
    gcloud services api-keys create --display-name="Nettleser $(date +%F)" \
-     --allowed-referrers="https://beitnes.net/*,http://beitnes.net/*,https://skiensskolemusikk-b5cbc.firebaseapp.com/*,http://localhost:8430/*" \
+     --allowed-referrers="https://beitnes.net/*,http://beitnes.net/*,https://skiensskolemusikk-b5cbc.firebaseapp.com/*,http://localhost:8430/*,http://127.0.0.1:8430/*" \
      $(gcloud services api-keys describe "$GAMMEL" --format=json | jq -r '.restrictions.apiTargets[].service | "--api-target=service=" + .')
    ```
    Nøkkelen står som `keyString` i svaret.

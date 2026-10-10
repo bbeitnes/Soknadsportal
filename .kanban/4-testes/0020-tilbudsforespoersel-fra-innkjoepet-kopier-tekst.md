@@ -154,3 +154,6 @@ Grillet 2026-10-10 med `/grill-me`, ett spørsmål om gangen. Ni spørsmål, all
   Sjekket på dev i `?demo` (tekst, reservepanel, «Kopiert», tomt innkjøp slått
   av) og `?demo=leser` (knappen virker). Gjenstår for brukeren: lime inn i
   Gmail/Outlook.
+- 2026-10-10: Satt på vent av brukeren etter første visning på dev – «det ble ikke
+  helt slik jeg hadde sett det for meg». Ligger committet på `test` lokalt
+  (e8c84ed), ikke pushet. Hva som skal endres er ikke sagt enda.

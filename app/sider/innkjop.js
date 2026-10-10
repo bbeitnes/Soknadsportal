@@ -19,17 +19,17 @@ import {
   ikkeFordelte, vedleggsliste, momsProsent, giverandel, leverandorNavn, leverandorKontaktinfo, kontaktlinjer, kontaktkort, leverandorIRegister,
   grupperInnkjopslinjer, grupperPerType, linjetype, typeliste, typerekkefolgeFor, tolkPris, velgbareBehov,
   tolkTilbudslinjer, tilbudsprisTekst, foreslaKobling, bestilling,
-  bestilteLinjer, bestillingerHos, harBestillinger,
+  bestilteLinjer, bestillingerHos, harBestillinger, tilbudsforesporsel,
 } from '../data/beregning.js';
 import { escapeHtml, kr, tidspunkt, fornavn, dato } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
-import { lagre, visMelding } from '../ui/lagring.js';
+import { lagre, visMelding, visKvittering } from '../ui/lagring.js';
 import { tegn, fokuser, sidepanel, lukkeknapp, IKON } from '../ui/visning.js';
 import { lesPdfLinjer } from '../ui/pdftekst.js';
 import { lagBestilling, lastNed } from '../ui/bestilling.js';
 import { leverandorpanel } from './leverandorer.js';
 
-const ui = { aktiv: {}, panel: null, nyttPanel: false, redigerer: null, sok: '', limTekst: false, lesing: null, lagerBestilling: false };
+const ui = { aktiv: {}, panel: null, nyttPanel: false, redigerer: null, sok: '', limTekst: false, lesing: null, lagerBestilling: false, foresporsel: null, kopiert: false };
 
 const navn = lev => leverandorNavn(lev, tilstand.leverandorer);
 
@@ -89,6 +89,8 @@ function chips(s, liste, aktiv, ikkeFordelt) {
           <button type="button" class="knapp knapp-ramme" data-handling="behov-fra-listen" title="Behovet har endret seg: legg et behov fra behovslisten inn i søknaden og dette innkjøpet">+ Behov fra listen</button>
           <button type="button" class="knapp knapp-ramme" data-handling="fri-linje">+ Fri linje</button>
           <button type="button" class="knapp knapp-ramme" data-handling="leverandor-ny">+ Leverandør</button>
+          ${ui.kopiert ? '<span class="undertekst">Kopiert – lim inn i e-posten</span>' : ''}
+          <button type="button" class="knapp knapp-ramme" data-handling="kopier-foresporsel" ${Object.keys(aktiv.linjer || {}).length ? 'title="Kopierer en tilbudsforespørsel med alle linjene i innkjøpet. Lim den inn i e-posten til leverandørene."' : 'disabled title="Innkjøpet har ingen linjer"'}>Kopier tilbudsforespørsel</button>
           <button type="button" class="knapp knapp-primar" data-handling="billigst">Billigst per linje</button>` : ''}
       </div>
     </div>`;
@@ -255,6 +257,18 @@ function innkjopPanel(s, i) {
     <div class="panelbunn"><span>${i.endretAv ? `Sist endret av ${escapeHtml(fornavn(i.endretAv.navn, i.endretAv.epost))}, ${tidspunkt(i.endretTid)}` : ''}</span>${harBestillinger(i)
       ? '<span title="Innkjøpet kan ikke slettes så lenge det har bestillinger. Slett dem i leverandørpanelene først.">Har bestillinger – slett dem først</span>'
       : '<button type="button" class="knapp knapp-fare" data-handling="slett-innkjop">Slett innkjøp</button>'}</div>`, { nytt: ui.nyttPanel });
+}
+
+// Reserve når nettleseren ikke lar oss skrive til utklippstavlen: teksten
+// vises merket, så den kan kopieres for hånd (som «Kopier underlag»).
+function foresporselPanel() {
+  return sidepanel(`
+    <div class="panelhode">
+      <div><h2>Tilbudsforespørsel</h2><div class="ingress" style="margin-top:4px">Nettleseren slapp oss ikke til på utklippstavlen. Merk teksten (⌘/Ctrl+A i feltet) og kopier den selv, så lim den inn i e-posten til leverandørene.</div></div>
+      ${lukkeknapp()}
+    </div>
+    <textarea class="inndata" id="foresporseltekst" readonly style="flex:1 1 auto; min-height:300px; font-size:13px; font-family:ui-monospace, Menlo, monospace">${escapeHtml(ui.foresporsel)}</textarea>
+    <div class="panelbunn"><span></span><button type="button" class="knapp knapp-ramme" data-handling="kopier-foresporsel">Prøv å kopiere igjen</button></div>`, { nytt: ui.nyttPanel });
 }
 
 function ikkeFordeltPanel(s, i, liste) {
@@ -590,6 +604,7 @@ export const innkjopFane = {
     else if (aktiv && ui.panel?.type === 'velg-leverandor') panel = velgLeverandorPanel(aktiv);
     else if (ui.panel?.type === 'register' && tilstand.leverandorer.some(l => l.id === ui.panel.id)) panel = leverandorpanel(tilstand.leverandorer.find(l => l.id === ui.panel.id), ui.nyttPanel);
     else if (aktiv && ui.panel?.type === 'behov-fra-listen') panel = behovFraListenPanel(s, aktiv);
+    else if (aktiv && ui.panel?.type === 'foresporsel' && ui.foresporsel != null) panel = foresporselPanel();
     else if (aktiv && ui.panel?.type === 'les-priser' && ui.lesing?.status === 'klar' && aktiv.leverandorer?.[ui.lesing.sid]) panel = lesPriserPanel(s, aktiv);
     else if (ui.panel) ui.panel = null;
     if (!panel) ui.limTekst = false;
@@ -631,6 +646,23 @@ export const innkjopFane = {
         }
         return true;
       case 'ikke-fordelt': apne('ikke-fordelt'); return true;
+      case 'kopier-foresporsel': {
+        if (!i) return true;
+        const tekst = tilbudsforesporsel({ organisasjon: organisasjon(), soknad: s, innkjop: i, behov: tilstand.behov });
+        let kopiert = false;
+        try { await navigator.clipboard.writeText(tekst); kopiert = true; } catch { kopiert = false; }
+        if (kopiert) {
+          if (ui.panel?.type === 'foresporsel') ui.panel = null;
+          ui.foresporsel = null;
+          visKvittering('Kopiert');
+          ui.kopiert = true; tegn();
+          setTimeout(() => { ui.kopiert = false; tegn(); }, 4000);
+        } else {
+          ui.foresporsel = tekst; apne('foresporsel');
+          document.getElementById('foresporseltekst')?.select();
+        }
+        return true;
+      }
       case 'legg-i-innkjop': {
         const sl = s.linjer?.[lid];
         if (!i || !sl) return true;
@@ -799,7 +831,7 @@ export const innkjopFane = {
         if (v && confirm(`Slette «${v.navn}»?`)) lagre(() => slettVedlegg(i, sid, el.dataset.vid, v.sti));
         return true;
       }
-      case 'lukk-panel': ui.panel = null; ui.limTekst = false; tegn(); return true;
+      case 'lukk-panel': ui.panel = null; ui.limTekst = false; ui.foresporsel = null; tegn(); return true;
     }
     return false;
   },
@@ -884,5 +916,5 @@ export const innkjopFane = {
     return false;
   },
 
-  forlat() { ui.panel = null; ui.redigerer = null; ui.limTekst = false; ui.lesing = null; },
+  forlat() { ui.panel = null; ui.redigerer = null; ui.limTekst = false; ui.lesing = null; ui.foresporsel = null; },
 };

@@ -261,6 +261,14 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   nettleseren oss ikke til på utklippstavlen, vises teksten i et sidepanel. Fanen låses med søknaden
   (B-16). Leser ser den skrivebeskyttet (`kopier-underlag` i `LESEHANDLINGER`), revisor ser den ikke.
   Ikke i avtrykket, rapporten eller potten. Prøves på branchen `skrivestotte`.
+- Tilbudsforespørsel (kort 0020): «Kopier tilbudsforespørsel» i verktøylinjen over matrisen legger en ren
+  tekst på utklippstavlen (`tilbudsforesporsel()` i `beregning.js`): «Gjelder: ‹innkjøpets navn›», hvem vi er
+  og leveringsadressen fra `innstillinger` (ellers postadressen), alle linjene i innkjøpet gruppert som i
+  matrisen med behovets beskrivelse og antall (delte linjer slått sammen, «Uten tittel»/«0 stk» som de står),
+  og en fast tekst som ber om pris per stykk per linje (listepris minus rabatt eller nettopris, ingen
+  pakkepris, frakt, leveringstid, alternativ vare per linje). Lik for alle leverandørene, ingen mottaker,
+  ingenting lagres, ingen PDF. Slipper nettleseren oss ikke til på utklippstavlen, vises teksten i et
+  sidepanel (som «Kopier underlag»). Leser kan kopiere (`kopier-foresporsel` i `LESEHANDLINGER`).
 - Endres `firebase/firestore.rules`, må HELE filen limes inn i Console for
   alle tre databasene (prod, test og `soknadsportal-restore`) — si fra om det i svaret.
 - Sikkerhetskopi (`backup/`, B-24/B-25): `kopier.mjs` (nattlig GitHub-jobb, bare leserett) legger

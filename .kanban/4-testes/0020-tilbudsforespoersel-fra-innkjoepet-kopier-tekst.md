@@ -1,7 +1,7 @@
 ---
 id: 0020
 tittel: Tilbudsforespørsel fra innkjøpet (kopier tekst)
-status: neste
+status: testes
 opprettet: 2026-10-10
 ---
 
@@ -148,3 +148,9 @@ Grillet 2026-10-10 med `/grill-me`, ett spørsmål om gangen. Ni spørsmål, all
   referanselinjen «Gjelder».
 - Mønster å følge: `skrivunderlag()` i `beregning.js` og «Kopier underlag» i
   `sider/tekst.js` (`kopier()`, `visKvittering('Kopiert')`, reservepanel).
+- Bygget 2026-10-10: `tilbudsforesporsel()` i `beregning.js` (+ test), knappen,
+  reservepanelet og handlingen i `sider/innkjop.js`, `kopier-foresporsel` i
+  `LESEHANDLINGER`, demo-innstillingene fikk org.nr, kontakt og adresser.
+  Sjekket på dev i `?demo` (tekst, reservepanel, «Kopiert», tomt innkjøp slått
+  av) og `?demo=leser` (knappen virker). Gjenstår for brukeren: lime inn i
+  Gmail/Outlook.

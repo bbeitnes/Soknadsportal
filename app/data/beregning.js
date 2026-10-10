@@ -1595,3 +1595,49 @@ export function skrivunderlag({ organisasjon = {}, giver = {}, soknad, behov = [
   }
   return ut.join('\n').trim() + '\n';
 }
+
+// Tilbudsforespørselen som kopieres og limes inn i e-posten til
+// leverandørene (kort 0020): hvem vi er, hvor det leveres, alle linjene i
+// innkjøpet gruppert som i matrisen, og en fast tekst om hvordan prisen skal
+// oppgis (B-12). Lik for alle leverandørene – ingen mottaker. Delte linjer
+// (samme søknadslinje) står én gang med summen av antallene. Ren tekst.
+export function tilbudsforesporsel({ organisasjon = {}, soknad, innkjop, behov = [] }) {
+  const org = organisasjon;
+  const grupper = grupperInnkjopslinjer(innkjop, soknad, behov, typerekkefolgeFor(soknad, org.typeRekkefolge || []));
+  const linjerAv = t => String(t || '').split('\n').map(l => l.trim()).filter(Boolean);
+  const ut = [];
+  ut.push('TILBUDSFORESPØRSEL', `Gjelder: ${(innkjop?.navn || '').trim() || 'Innkjøp'}`, '');
+  ut.push('Fra:');
+  ut.push(...[
+    org.orgNavn, org.orgNr && `Org.nr ${org.orgNr}`, ...linjerAv(org.adresse),
+    org.kontaktperson && `Kontaktperson: ${org.kontaktperson}`, org.telefon && `Telefon: ${org.telefon}`, org.epost && `E-post: ${org.epost}`,
+  ].map(x => (x || '').trim()).filter(Boolean));
+  const levering = linjerAv(org.leveringsadresse || org.adresse);
+  if (levering.length) ut.push('', 'Leveres til:', ...levering);
+  ut.push('', 'Vi ber om tilbud på:');
+  let nr = 0;
+  for (const g of grupper) {
+    // Slå sammen delte linjer: samme søknadslinje står én gang, på første plass.
+    const rader = [];
+    const perSoknadslinje = new Map();
+    for (const l of g.linjer) {
+      const antall = Number(l.antall) || 0;
+      const r = l.soknadLinjeId ? perSoknadslinje.get(l.soknadLinjeId) : null;
+      if (r) { r.antall += antall; continue; }
+      const sl = l.soknadLinjeId ? soknad?.linjer?.[l.soknadLinjeId] : null;
+      const b = sl?.behovId ? behov.find(x => x.id === sl.behovId) : null;
+      const tittel = (sl ? (sl.behovId ? (b?.tittel || l.tittel) : sl.tittel) : l.tittel) || '';
+      const rad = { tittel: tittel.trim() || 'Uten tittel', beskrivelse: (b?.beskrivelse || '').trim(), antall };
+      rader.push(rad);
+      if (l.soknadLinjeId) perSoknadslinje.set(l.soknadLinjeId, rad);
+    }
+    if (g.type) ut.push('', `${g.type}:`);
+    for (const r of rader) ut.push(`${++nr}. ${r.tittel}${r.beskrivelse ? ` – ${r.beskrivelse}` : ''} · ${r.antall} stk`);
+  }
+  if (!nr) ut.push('(Innkjøpet har ingen linjer.)');
+  ut.push('',
+    'Vi ber om pris per stykk for hver linje, oppgitt enten som listepris minus rabatt (f.eks. 1 200 kr -15 %) eller som nettopris. Vi ønsker ikke pakkepris eller totalrabatt – hver linje vurderes for seg.',
+    'Oppgi frakt og leveringstid.',
+    'Har dere ikke varen, eller anbefaler dere et annet produkt, oppgi det tydelig på den linjen, med pris per stykk på samme måte.');
+  return ut.join('\n') + '\n';
+}

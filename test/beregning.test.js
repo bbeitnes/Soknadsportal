@@ -1526,3 +1526,40 @@ test('skrivunderlag tar med Om korpset, skjemaet med grenser, behovene per type,
   assert.ok(tomt.includes('1. Søknadstekst'));
   assert.ok(tomt.includes('Behov: ingen linjer i søknaden enda.'));
 });
+
+test('tilbudsforesporsel: hvem vi er, leveringsadresse, linjene per type med beskrivelse og antall, delte linjer slått sammen, fast avslutning (kort 0020)', async () => {
+  const { tilbudsforesporsel } = await import('../app/data/beregning.js');
+  const behov = [
+    { id: 'b1', type: 'Instrument', tittel: 'Bb-klarinett', beskrivelse: 'Buffet E13, med etui' },
+    { id: 'b2', type: 'Uniform', tittel: 'Jakke', beskrivelse: '' },
+  ];
+  const soknad = { id: 's1', typeRekkefolge: ['Uniform', 'Instrument'], linjer: {
+    l1: { behovId: 'b1', antall: 4, rekkefolge: 1 }, l2: { behovId: 'b2', antall: 10, rekkefolge: 2 }, l3: { behovId: null, tittel: 'Notestativ', type: 'Utstyr', antall: 6, rekkefolge: 3 },
+  } };
+  // l1 er delt i to innkjøpslinjer (3 + 1); k4 er en fri linje uten tittel.
+  const innkjop = { navn: ' Instrumenter 2026 ', linjer: {
+    k1: { soknadLinjeId: 'l1', antall: 3, rekkefolge: 1 }, k2: { soknadLinjeId: 'l2', antall: 10, rekkefolge: 2 },
+    k3: { soknadLinjeId: 'l1', antall: 1, rekkefolge: 3 }, k4: { soknadLinjeId: null, tittel: '', antall: 0, rekkefolge: 4 },
+    k5: { soknadLinjeId: 'l3', antall: 6, rekkefolge: 5 },
+  } };
+  const organisasjon = { orgNavn: 'Skiens Skolemusikk', orgNr: '999 888 777', kontaktperson: 'Kari Nordmann', telefon: '900 00 000', epost: 'post@skiens.no',
+    adresse: 'Postboks 1\n3701 Skien', leveringsadresse: 'Storgata 12\n3717 Skien' };
+  const t = tilbudsforesporsel({ organisasjon, soknad, innkjop, behov });
+  for (const bit of [
+    'TILBUDSFORESPØRSEL', 'Gjelder: Instrumenter 2026',
+    'Fra:\nSkiens Skolemusikk\nOrg.nr 999 888 777\nPostboks 1\n3701 Skien\nKontaktperson: Kari Nordmann\nTelefon: 900 00 000\nE-post: post@skiens.no',
+    'Leveres til:\nStorgata 12\n3717 Skien',
+    'Uniform:\n1. Jakke · 10 stk', 'Instrument:\n2. Bb-klarinett – Buffet E13, med etui · 4 stk', 'Utstyr:\n3. Notestativ · 6 stk', '4. Uten tittel · 0 stk',
+    'pris per stykk for hver linje', 'listepris minus rabatt', 'nettopris', 'ikke pakkepris', 'frakt og leveringstid', 'annet produkt',
+  ]) assert.ok(t.includes(bit), `mangler: ${bit}\n${t}`);
+  assert.equal((t.match(/Bb-klarinett/g) || []).length, 1, 'delte linjer står én gang');
+  assert.ok(t.indexOf('Uniform:') < t.indexOf('Instrument:') && t.indexOf('Instrument:') < t.indexOf('Utstyr:'), 'typerekkefølgen fra søknaden gjelder');
+  assert.ok(!t.includes('kr ') || t.includes('1 200 kr'), 'ingen priser på linjene');
+  // Uten leveringsadresse brukes postadressen; tomme felt hoppes over; tomt innkjøp sier fra.
+  const t2 = tilbudsforesporsel({ organisasjon: { orgNavn: 'Korpset', adresse: 'Veien 1' }, soknad: { linjer: {} }, innkjop: { navn: '', linjer: {} }, behov: [] });
+  assert.ok(t2.includes('Gjelder: Innkjøp'));
+  assert.ok(t2.includes('Fra:\nKorpset\nVeien 1\n'));
+  assert.ok(t2.includes('Leveres til:\nVeien 1'));
+  assert.ok(!t2.includes('Org.nr') && !t2.includes('Kontaktperson'));
+  assert.ok(t2.includes('(Innkjøpet har ingen linjer.)'));
+});

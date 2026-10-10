@@ -215,7 +215,8 @@ export function lagDemodata() {
   // Om korpset (kort 0018): standardinfoen som tas med i underlaget.
   const innstillinger = {
     [org]: {
-      organisasjonId: org, orgNavn: 'Skiens Skolemusikk',
+      organisasjonId: org, orgNavn: 'Skiens Skolemusikk', orgNr: '987 654 321', kontaktperson: 'Kari Nordmann', telefon: '900 12 345', epost: 'post@skiensskolemusikk.no',
+      adresse: 'Postboks 123\n3701 Skien', leveringsadresse: 'Skiens Skolemusikk, korpsrommet\nStorgata 12\n3717 Skien',
       omKorpset: 'Skiens Skolemusikk er et skolekorps i Skien, stiftet 1952, med aspirantkorps, juniorkorps og hovedkorps.',
       omMedlemmer: '48 musikanter fra 8 til 19 år, 12 aspiranter begynte høsten 2026. Rekrutterer fra tre barneskoler.',
       omAktiviteter: 'Ukentlige øvelser, 17. mai, julekonsert, vårkonsert, seminarhelg om høsten og distriktsmesterskap.',

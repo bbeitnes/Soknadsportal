@@ -39,8 +39,9 @@ export function avkryss(pa, etikett, handling, data = '', ekstraKlasse = '') {
 }
 
 // Sidepanel-ramme. `nytt` gir panelet fokus når det åpnes.
-export function sidepanel(innhold, { nytt = false, rull = 'panel' } = {}) {
-  return `<aside class="sidepanel" tabindex="-1" data-rull="${rull}" data-nytt="${nytt ? 'ja' : 'nei'}">${innhold}</aside>`;
+// `bred`: et bredere panel for innhold med mange kolonner (tilbudsforespørselen).
+export function sidepanel(innhold, { nytt = false, rull = 'panel', bred = false } = {}) {
+  return `<aside class="sidepanel${bred ? ' sidepanel-bred' : ''}" tabindex="-1" data-rull="${rull}" data-nytt="${nytt ? 'ja' : 'nei'}">${innhold}</aside>`;
 }
 
 // «+ Ny …» nederst i et panel som viser en post: åpner en ny tom post uten

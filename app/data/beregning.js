@@ -1654,12 +1654,13 @@ export function tilbudsforesporsel({ organisasjon = {}, soknad, innkjop, behov =
 }
 
 // Ren tekst av forespørselen: tabellen med tabulator mellom kolonnene (blir
-// celler i et regneark), typene som egne linjer.
+// celler i et regneark), typene som egne linjer, tomme priskolonner til slutt.
 export function tilbudsforesporselTekst(f) {
-  const ut = [`${f.intro}${f.ref ? `   Ref.: ${f.ref}` : ''}`, '', 'Nr\tAntall\tVare\tSpesifikasjon'];
+  const ut = [`${f.intro}${f.ref ? `   Ref.: ${f.ref}` : ''}`, '', 'Nr\tAntall\tVare\tSpesifikasjon\tPris\tRabatt\tNettopris'];
   for (const g of f.grupper) {
     if (g.type) ut.push(g.type);
-    for (const r of g.rader) ut.push(`${r.nr}\t${r.antall} stk\t${r.tittel}\t${r.spesifikasjon}`);
+    // Pris, Rabatt og Nettopris står tomme – dem fyller leverandøren ut.
+    for (const r of g.rader) ut.push(`${r.nr}\t${r.antall} stk\t${r.tittel}\t${r.spesifikasjon}\t\t\t`);
   }
   if (!f.antallLinjer) ut.push('(Innkjøpet har ingen linjer.)');
   ut.push('', 'Slik ønsker vi tilbudet:', ...f.krav.map(k => `• ${k}`));

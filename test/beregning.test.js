@@ -1560,8 +1560,8 @@ test('tilbudsforesporsel: linjene per type med spesifikasjon (aldri beskrivelsen
   assert.equal(f.krav, FORESPORSELKRAV);
   const t = tilbudsforesporselTekst(f);
   for (const bit of [
-    'ber om tilbud på varene under.   Ref.: Instrumenter 2026', 'Nr\tAntall\tVare\tSpesifikasjon',
-    'Uniform\n1\t10 stk\tJakke\t\n', 'Instrument\n2\t4 stk\tBb-klarinett\tBuffet E13, med etui\n', '4\t0 stk\tUten tittel\t\n',
+    'ber om tilbud på varene under.   Ref.: Instrumenter 2026', 'Nr\tAntall\tVare\tSpesifikasjon\tPris\tRabatt\tNettopris',
+    'Uniform\n1\t10 stk\tJakke\t\t\t\t\n', 'Instrument\n2\t4 stk\tBb-klarinett\tBuffet E13, med etui\t\t\t\n', '4\t0 stk\tUten tittel\t\t\t\t\n',
     'Slik ønsker vi tilbudet:', '• Pris per stykk for hver linje', 'listepris minus rabatt', 'nettopris', 'Ingen pakkepris', 'Frakt og leveringstid', 'annet produkt',
     'Leveres til: Storgata 12, 3717 Skien', 'org.nr 999 888 777',
   ]) assert.ok(t.includes(bit), `mangler: ${bit}\n${t}`);

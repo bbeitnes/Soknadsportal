@@ -276,7 +276,7 @@ function foresporselPanel(s, i) {
     </div>
     ${mangler ? `<div class="hint">${mangler === 1 ? 'Én linje' : `${mangler} linjer`} mangler spesifikasjon. Den settes på behovet (Behov → Spesifikasjon); beskrivelsen der er vår begrunnelse og tas ikke med.</div>` : ''}
     <div id="foresporsel" style="flex:1 1 auto; overflow:auto; border:1px solid var(--color-neutral-300); padding:12px; background:#fff; user-select:text">${foresporselHtml(f)}</div>
-    <div class="panelbunn">${melding}<button type="button" class="knapp knapp-primar" data-handling="kopier-foresporsel">Kopier</button></div>`, { nytt: ui.nyttPanel });
+    <div class="panelbunn">${melding}<button type="button" class="knapp knapp-primar" data-handling="kopier-foresporsel">Kopier</button></div>`, { nytt: ui.nyttPanel, bred: true });
 }
 
 function ikkeFordeltPanel(s, i, liste) {

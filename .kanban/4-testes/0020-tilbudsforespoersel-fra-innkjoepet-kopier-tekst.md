@@ -62,8 +62,9 @@ hvor mange linjer som mangler spesifikasjon.
 `ui/foresporsel.js` HTML, `tilbudsforesporselTekst()` ren tekst):
 
 1. «‹Organisasjon› ber om tilbud på varene under.» og «Ref.: ‹innkjøpets navn›».
-2. Tabell Nr · Antall · Vare · Spesifikasjon, typene som mellomtitler i
-   matrisens rekkefølge. Delte linjer (samme `soknadLinjeId`) står én gang med
+2. Tabell Nr · Antall · Vare · Spesifikasjon · Pris · Rabatt · Nettopris, typene
+   som mellomtitler i matrisens rekkefølge. De tre priskolonnene står tomme og
+   fylles ut av leverandøren. Delte linjer (samme `soknadLinjeId`) står én gang med
    summen av antallene. «Uten tittel» og «0 stk» tas med som de står.
 3. «Slik ønsker vi tilbudet» (fast i koden, `FORESPORSELKRAV`): pris per
    stykk per linje som listepris minus rabatt eller nettopris; ingen pakkepris
@@ -78,15 +79,15 @@ hvor mange linjer som mangler spesifikasjon.
       knappen «Tilbudsforespørsel» i verktøylinjen over matrisen, mellom
       «+ Leverandør» og «Billigst per linje».
 - [ ] Gitt at jeg trykker på knappen, så åpnes et sidepanel med tabellen slik
-      den blir i e-posten (Nr · Antall · Vare · Spesifikasjon, typer som
-      mellomtitler), kravteksten, «Leveres til» og signaturlinjen, og knappen
+      den blir i e-posten (Nr · Antall · Vare · Spesifikasjon · Pris · Rabatt ·
+      Nettopris, de tre siste tomme, typer som mellomtitler), kravteksten, «Leveres til» og signaturlinjen, og knappen
       «Kopier» nederst.
 - [ ] Gitt at jeg trykker «Kopier», så ligger tabellen på utklippstavlen som
       HTML og ren tekst, panelet sier «Kopiert – lim inn i e-posten» og
       toppmenyen viser «Kopiert». Slipper nettleseren oss ikke til, sier
       panelet fra og tabellen er merket, så ⌘/Ctrl+C kopierer den.
 - [ ] Gitt at tabellen limes inn i Gmail eller Outlook, så kommer den som en
-      tabell med fire kolonner og typene som egne rader; limt inn i Excel blir
+      tabell med sju kolonner og typene som egne rader; limt inn i Excel blir
       den celler.
 - [ ] Gitt at innkjøpet har linjer av flere typer, så er linjene gruppert på
       type i samme rekkefølge som matrisen og nummerert fortløpende, med
@@ -183,3 +184,5 @@ Grillet 2026-10-10 med `/grill-me`, ett spørsmål om gangen. Ni spørsmål, all
   behovpanelet, listene og importen (`IMPORTKOLONNER.spesifikasjon`). Sjekket på
   dev i `?demo` (panel, HTML + tekst på utklippstavlen, merking når den er
   sperret, varsel om manglende spesifikasjon) og `?demo=leser`.
+- 2026-10-11: Tomme kolonner Pris, Rabatt og Nettopris lagt til etter ønske fra
+  brukeren – leverandøren fyller dem ut per linje.

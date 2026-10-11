@@ -146,6 +146,7 @@ textarea.inndata { height: auto; padding: 8px 10px; font-size: 14px; line-height
 
 /* ——— Sidepanel (detaljer til høyre, Escape lukker) ——— */
 .sidepanel { position: absolute; top: 0; right: 0; bottom: 0; width: 400px; max-width: calc(100% - 32px); background: var(--color-neutral-100); border-left: 2px solid var(--color-divider); box-shadow: var(--shadow-lg); padding: 24px 26px; overflow: auto; z-index: 20; animation: panelInn .18s ease-out; display: flex; flex-direction: column; gap: 18px; outline: none; }
+.sidepanel-bred { width: 680px; }
 .panelhode { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .panelhode > div { min-width: 0; flex: 1; }
 .panelhode h2 { font-family: var(--font-heading); font-weight: 800; font-size: 22px; margin: 0; line-height: 1.15; }

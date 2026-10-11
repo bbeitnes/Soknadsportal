@@ -1,7 +1,7 @@
 ---
 id: 0020
 tittel: Tilbudsforespørsel fra innkjøpet (kopier tekst)
-status: testes
+status: ferdig
 opprettet: 2026-10-10
 ---
 

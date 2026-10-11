@@ -43,15 +43,15 @@ export function lagDemodata() {
   };
 
   const behov = {
-    b1: { organisasjonId: org, type: 'Instrument', tittel: 'Kornett Bb', beskrivelse: 'Til nye aspiranter. Studentmodell med etui.', antall: 6, estPris: 8500, statusOverstyring: null, ...av(...kari, 12) },
+    b1: { organisasjonId: org, type: 'Instrument', tittel: 'Kornett Bb', spesifikasjon: 'Studentmodell med etui', beskrivelse: 'Til nye aspiranter.', antall: 6, estPris: 8500, statusOverstyring: null, ...av(...kari, 12) },
     b2: { organisasjonId: org, type: 'Instrument', tittel: 'Althorn Eb', beskrivelse: 'Erstatter to instrumenter med sprukne ventiler.', antall: 2, estPris: 12000, statusOverstyring: null, ...av(...kari, 60) },
-    b3: { organisasjonId: org, type: 'Instrument', tittel: 'Trombone, tenor', beskrivelse: 'Yamaha YSL-354 eller tilsvarende.', antall: 2, estPris: 10000, statusOverstyring: null, ...av(...per, 62) },
+    b3: { organisasjonId: org, type: 'Instrument', tittel: 'Trombone, tenor', spesifikasjon: 'Yamaha YSL-354 eller tilsvarende', beskrivelse: '', antall: 2, estPris: 10000, statusOverstyring: null, ...av(...per, 62) },
     b4: { organisasjonId: org, type: 'Instrument', tittel: 'Baryton', beskrivelse: '', antall: 1, estPris: 21000, statusOverstyring: null, ...av(...per, 62) },
-    b6: { organisasjonId: org, type: 'Utstyr', tittel: 'Notestativ', beskrivelse: 'Sammenleggbare, til øvingslokalet.', antall: 12, estPris: 450, statusOverstyring: null, ...av(...kari, 60) },
+    b6: { organisasjonId: org, type: 'Utstyr', tittel: 'Notestativ', spesifikasjon: 'Sammenleggbare', beskrivelse: 'Til øvingslokalet.', antall: 12, estPris: 450, statusOverstyring: null, ...av(...kari, 60) },
     b7: { organisasjonId: org, type: 'Instrument', tittel: 'Klarinett Bb', beskrivelse: '', antall: 4, estPris: 6500, statusOverstyring: null, ...av(...kari, 45) },
     b8: { organisasjonId: org, type: 'Utstyr', tittel: 'Dirigentpodium', beskrivelse: 'Kulturskolen låner oss sitt.', antall: 1, estPris: 4800, statusOverstyring: 'trengs-ikke', ...av(...per, 15) },
-    b9: { organisasjonId: org, type: 'Uniform', tittel: 'Uniformsjakker', beskrivelse: 'Marineblå, blandede størrelser.', antall: 30, estPris: 1400, statusOverstyring: null, ...av(...per, 90) },
-    b10: { organisasjonId: org, type: 'Instrument', tittel: 'Marsjtrommer', beskrivelse: 'To tenortrommer med bæresele.', antall: 2, estPris: 5200, statusOverstyring: null, ...av(...kari, 3) },
+    b9: { organisasjonId: org, type: 'Uniform', tittel: 'Uniformsjakker', spesifikasjon: 'Marineblå, blandede størrelser', beskrivelse: '', antall: 30, estPris: 1400, statusOverstyring: null, ...av(...per, 90) },
+    b10: { organisasjonId: org, type: 'Instrument', tittel: 'Marsjtrommer', spesifikasjon: 'Tenortrommer med bæresele', beskrivelse: '', antall: 2, estPris: 5200, statusOverstyring: null, ...av(...kari, 3) },
   };
 
   const linje = (behovId, antall, estPris, rekkefolge) => ({ behovId, tittel: '', antall, estPris, rekkefolge });

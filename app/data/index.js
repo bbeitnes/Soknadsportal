@@ -193,7 +193,7 @@ export function slettGiver(id) {
 // ——— Behov ———
 
 export function opprettBehov() {
-  return lager.opprett('behov', { type: '', tittel: '', beskrivelse: '', antall: 1, estPris: 0, statusOverstyring: null, ...signatur() });
+  return lager.opprett('behov', { type: '', tittel: '', spesifikasjon: '', beskrivelse: '', antall: 1, estPris: 0, statusOverstyring: null, ...signatur() });
 }
 
 // Import fra regneark: ett behov per rad. Går raden galt underveis,
@@ -202,7 +202,7 @@ export function opprettBehov() {
 export async function importerBehov(rader) {
   let antall = 0;
   for (const r of rader) {
-    await lager.opprett('behov', { type: r.type || '', tittel: r.tittel, beskrivelse: r.beskrivelse, antall: r.antall, estPris: r.estPris, statusOverstyring: null, ...signatur() });
+    await lager.opprett('behov', { type: r.type || '', tittel: r.tittel, spesifikasjon: r.spesifikasjon || '', beskrivelse: r.beskrivelse, antall: r.antall, estPris: r.estPris, statusOverstyring: null, ...signatur() });
     antall++;
   }
   return antall;

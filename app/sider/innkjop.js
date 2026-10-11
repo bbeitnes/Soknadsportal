@@ -21,6 +21,7 @@ import {
   tolkTilbudslinjer, tilbudsprisTekst, foreslaKobling, bestilling,
   bestilteLinjer, bestillingerHos, harBestillinger, tilbudsforesporsel,
 } from '../data/beregning.js';
+import { foresporselHtml, kopierForesporsel } from '../ui/foresporsel.js';
 import { escapeHtml, kr, tidspunkt, fornavn, dato } from '../ui/format.js';
 import { feltAttr, tekstomrade } from '../ui/felt.js';
 import { lagre, visMelding, visKvittering } from '../ui/lagring.js';
@@ -29,7 +30,7 @@ import { lesPdfLinjer } from '../ui/pdftekst.js';
 import { lagBestilling, lastNed } from '../ui/bestilling.js';
 import { leverandorpanel } from './leverandorer.js';
 
-const ui = { aktiv: {}, panel: null, nyttPanel: false, redigerer: null, sok: '', limTekst: false, lesing: null, lagerBestilling: false, foresporsel: null, kopiert: false };
+const ui = { aktiv: {}, panel: null, nyttPanel: false, redigerer: null, sok: '', limTekst: false, lesing: null, lagerBestilling: false, kopiert: null };
 
 const navn = lev => leverandorNavn(lev, tilstand.leverandorer);
 
@@ -58,8 +59,9 @@ function linjetittel(s, l) {
   return l.tittel;
 }
 
-// Beskrivelsen følger behovet, som i søknadens behovstabell.
-const behovsbeskrivelse = sl => sl?.behovId ? (tilstand.behov.find(b => b.id === sl.behovId)?.beskrivelse || '') : '';
+// Underteksten følger behovet: spesifikasjonen (det leverandøren trenger), eller
+// beskrivelsen når behovet ikke har fått noen spesifikasjon enda (kort 0020).
+const behovsbeskrivelse = sl => { const b = sl?.behovId ? tilstand.behov.find(x => x.id === sl.behovId) : null; return (b?.spesifikasjon || b?.beskrivelse || '').trim(); };
 const linjebeskrivelse = (s, l) => behovsbeskrivelse(l.soknadLinjeId ? s.linjer?.[l.soknadLinjeId] : null);
 const under = tekst => tekst ? `<div class="celleunder" title="${escapeHtml(tekst)}">${escapeHtml(tekst)}</div>` : '';
 
@@ -89,8 +91,7 @@ function chips(s, liste, aktiv, ikkeFordelt) {
           <button type="button" class="knapp knapp-ramme" data-handling="behov-fra-listen" title="Behovet har endret seg: legg et behov fra behovslisten inn i søknaden og dette innkjøpet">+ Behov fra listen</button>
           <button type="button" class="knapp knapp-ramme" data-handling="fri-linje">+ Fri linje</button>
           <button type="button" class="knapp knapp-ramme" data-handling="leverandor-ny">+ Leverandør</button>
-          ${ui.kopiert ? '<span class="undertekst">Kopiert – lim inn i e-posten</span>' : ''}
-          <button type="button" class="knapp knapp-ramme" data-handling="kopier-foresporsel" ${Object.keys(aktiv.linjer || {}).length ? 'title="Kopierer en tilbudsforespørsel med alle linjene i innkjøpet. Lim den inn i e-posten til leverandørene."' : 'disabled title="Innkjøpet har ingen linjer"'}>Kopier tilbudsforespørsel</button>
+          <button type="button" class="knapp knapp-ramme" data-handling="foresporsel" ${Object.keys(aktiv.linjer || {}).length ? 'title="Viser en tilbudsforespørsel med alle linjene i innkjøpet, klar til å kopieres inn i e-posten til leverandørene."' : 'disabled title="Innkjøpet har ingen linjer"'}>Tilbudsforespørsel</button>
           <button type="button" class="knapp knapp-primar" data-handling="billigst">Billigst per linje</button>` : ''}
       </div>
     </div>`;
@@ -259,16 +260,23 @@ function innkjopPanel(s, i) {
       : '<button type="button" class="knapp knapp-fare" data-handling="slett-innkjop">Slett innkjøp</button>'}</div>`, { nytt: ui.nyttPanel });
 }
 
-// Reserve når nettleseren ikke lar oss skrive til utklippstavlen: teksten
-// vises merket, så den kan kopieres for hånd (som «Kopier underlag»).
-function foresporselPanel() {
+const MERKET = 'Nettleseren slapp oss ikke til. Tabellen er merket – trykk ⌘/Ctrl+C.';
+
+// Forhåndsvisning av tilbudsforespørselen slik den blir i e-posten, med
+// «Kopier». Slipper nettleseren oss ikke til på utklippstavlen, merkes
+// tabellen så den kan kopieres med Ctrl+C (merket tekst kopieres som tabell).
+function foresporselPanel(s, i) {
+  const f = tilbudsforesporsel({ organisasjon: organisasjon(), soknad: s, innkjop: i, behov: tilstand.behov });
+  const mangler = f.grupper.flatMap(g => g.rader).filter(r => !r.spesifikasjon).length;
+  const melding = `<span class="undertekst" id="foresporsel-melding">${ui.kopiert === 'ja' ? 'Kopiert – lim inn i e-posten' : ui.kopiert === 'nei' ? MERKET : ''}</span>`;
   return sidepanel(`
     <div class="panelhode">
-      <div><h2>Tilbudsforespørsel</h2><div class="ingress" style="margin-top:4px">Nettleseren slapp oss ikke til på utklippstavlen. Merk teksten (⌘/Ctrl+A i feltet) og kopier den selv, så lim den inn i e-posten til leverandørene.</div></div>
+      <div><h2>Tilbudsforespørsel</h2><div class="ingress" style="margin-top:4px">Slik blir den i e-posten. Kopier og lim inn i Gmail, Outlook eller Apple Mail – tabellen følger med. Hilsen, svarfrist og mottaker skriver du selv.</div></div>
       ${lukkeknapp()}
     </div>
-    <textarea class="inndata" id="foresporseltekst" readonly style="flex:1 1 auto; min-height:300px; font-size:13px; font-family:ui-monospace, Menlo, monospace">${escapeHtml(ui.foresporsel)}</textarea>
-    <div class="panelbunn"><span></span><button type="button" class="knapp knapp-ramme" data-handling="kopier-foresporsel">Prøv å kopiere igjen</button></div>`, { nytt: ui.nyttPanel });
+    ${mangler ? `<div class="hint">${mangler === 1 ? 'Én linje' : `${mangler} linjer`} mangler spesifikasjon. Den settes på behovet (Behov → Spesifikasjon); beskrivelsen der er vår begrunnelse og tas ikke med.</div>` : ''}
+    <div id="foresporsel" style="flex:1 1 auto; overflow:auto; border:1px solid var(--color-neutral-300); padding:12px; background:#fff; user-select:text">${foresporselHtml(f)}</div>
+    <div class="panelbunn">${melding}<button type="button" class="knapp knapp-primar" data-handling="kopier-foresporsel">Kopier</button></div>`, { nytt: ui.nyttPanel });
 }
 
 function ikkeFordeltPanel(s, i, liste) {
@@ -604,7 +612,7 @@ export const innkjopFane = {
     else if (aktiv && ui.panel?.type === 'velg-leverandor') panel = velgLeverandorPanel(aktiv);
     else if (ui.panel?.type === 'register' && tilstand.leverandorer.some(l => l.id === ui.panel.id)) panel = leverandorpanel(tilstand.leverandorer.find(l => l.id === ui.panel.id), ui.nyttPanel);
     else if (aktiv && ui.panel?.type === 'behov-fra-listen') panel = behovFraListenPanel(s, aktiv);
-    else if (aktiv && ui.panel?.type === 'foresporsel' && ui.foresporsel != null) panel = foresporselPanel();
+    else if (aktiv && ui.panel?.type === 'foresporsel') panel = foresporselPanel(s, aktiv);
     else if (aktiv && ui.panel?.type === 'les-priser' && ui.lesing?.status === 'klar' && aktiv.leverandorer?.[ui.lesing.sid]) panel = lesPriserPanel(s, aktiv);
     else if (ui.panel) ui.panel = null;
     if (!panel) ui.limTekst = false;
@@ -646,20 +654,21 @@ export const innkjopFane = {
         }
         return true;
       case 'ikke-fordelt': apne('ikke-fordelt'); return true;
+      case 'foresporsel': if (i) { ui.kopiert = null; apne('foresporsel'); } return true;
       case 'kopier-foresporsel': {
         if (!i) return true;
-        const tekst = tilbudsforesporsel({ organisasjon: organisasjon(), soknad: s, innkjop: i, behov: tilstand.behov });
-        let kopiert = false;
-        try { await navigator.clipboard.writeText(tekst); kopiert = true; } catch { kopiert = false; }
-        if (kopiert) {
-          if (ui.panel?.type === 'foresporsel') ui.panel = null;
-          ui.foresporsel = null;
-          visKvittering('Kopiert');
-          ui.kopiert = true; tegn();
-          setTimeout(() => { ui.kopiert = false; tegn(); }, 4000);
+        const f = tilbudsforesporsel({ organisasjon: organisasjon(), soknad: s, innkjop: i, behov: tilstand.behov });
+        if (await kopierForesporsel(f)) {
+          ui.kopiert = 'ja'; visKvittering('Kopiert'); tegn();
+          setTimeout(() => { if (ui.kopiert === 'ja') { ui.kopiert = null; tegn(); } }, 4000);
         } else {
-          ui.foresporsel = tekst; apne('foresporsel');
-          document.getElementById('foresporseltekst')?.select();
+          // Ingen ny tegning her: den ville revet bort merkingen. Meldingen
+          // settes rett i panelet, og tilstanden gjør at den overlever neste tegning.
+          ui.kopiert = 'nei';
+          const melding = document.getElementById('foresporsel-melding');
+          if (melding) melding.textContent = MERKET;
+          const el = document.getElementById('foresporsel');
+          if (el) { const r = document.createRange(); r.selectNodeContents(el); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); }
         }
         return true;
       }
@@ -831,7 +840,7 @@ export const innkjopFane = {
         if (v && confirm(`Slette «${v.navn}»?`)) lagre(() => slettVedlegg(i, sid, el.dataset.vid, v.sti));
         return true;
       }
-      case 'lukk-panel': ui.panel = null; ui.limTekst = false; ui.foresporsel = null; tegn(); return true;
+      case 'lukk-panel': ui.panel = null; ui.limTekst = false; tegn(); return true;
     }
     return false;
   },
@@ -916,5 +925,5 @@ export const innkjopFane = {
     return false;
   },
 
-  forlat() { ui.panel = null; ui.redigerer = null; ui.limTekst = false; ui.lesing = null; ui.foresporsel = null; },
+  forlat() { ui.panel = null; ui.redigerer = null; ui.limTekst = false; ui.lesing = null; },
 };

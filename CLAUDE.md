@@ -261,14 +261,21 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   nettleseren oss ikke til på utklippstavlen, vises teksten i et sidepanel. Fanen låses med søknaden
   (B-16). Leser ser den skrivebeskyttet (`kopier-underlag` i `LESEHANDLINGER`), revisor ser den ikke.
   Ikke i avtrykket, rapporten eller potten. Prøves på branchen `skrivestotte`.
-- Tilbudsforespørsel (kort 0020): «Kopier tilbudsforespørsel» i verktøylinjen over matrisen legger en ren
-  tekst på utklippstavlen (`tilbudsforesporsel()` i `beregning.js`): «Gjelder: ‹innkjøpets navn›», hvem vi er
-  og leveringsadressen fra `innstillinger` (ellers postadressen), alle linjene i innkjøpet gruppert som i
-  matrisen med behovets beskrivelse og antall (delte linjer slått sammen, «Uten tittel»/«0 stk» som de står),
-  og en fast tekst som ber om pris per stykk per linje (listepris minus rabatt eller nettopris, ingen
-  pakkepris, frakt, leveringstid, alternativ vare per linje). Lik for alle leverandørene, ingen mottaker,
-  ingenting lagres, ingen PDF. Slipper nettleseren oss ikke til på utklippstavlen, vises teksten i et
-  sidepanel (som «Kopier underlag»). Leser kan kopiere (`kopier-foresporsel` i `LESEHANDLINGER`).
+- Tilbudsforespørsel (kort 0020): knappen «Tilbudsforespørsel» i verktøylinjen over matrisen åpner et
+  sidepanel med forhåndsvisning og «Kopier». `tilbudsforesporsel()` i `beregning.js` gir dataene (ref =
+  innkjøpets navn, tabell Nr · Antall · Vare · Spesifikasjon gruppert som matrisen, delte linjer slått sammen,
+  `FORESPORSELKRAV` om pris per stykk per linje, «Leveres til» og signaturlinje fra `innstillinger`);
+  `ui/foresporsel.js` lager HTML-tabellen og legger HTML + ren tekst (`tilbudsforesporselTekst()`, tabulator
+  mellom kolonnene) på utklippstavlen med `ClipboardItem`. Limt inn i Gmail/Outlook blir det en tabell, i
+  Excel celler. Sperret utklippstavle: tabellen i panelet merkes og brukeren trykker ⌘/Ctrl+C (ingen ny
+  tegning da – den ville revet bort merkingen). Lik for alle leverandørene, ingen mottaker, ingenting
+  lagres, ingen PDF (neste steg). Leser kan kopiere (`foresporsel`, `kopier-foresporsel` i `LESEHANDLINGER`).
+- Behov har `spesifikasjon` (kort 0020): det leverandøren trenger (merke, modell, størrelse). `beskrivelse`
+  er vår begrunnelse og går ALDRI til leverandøren. Behovslisten og søknadens behovstabell viser
+  «spesifikasjon · beskrivelse»; Innkjøp viser spesifikasjonen under varenavnet, med beskrivelsen som
+  reserve for eldre behov uten spesifikasjon (`behovsbeskrivelse()` i `sider/innkjop.js` – brukes også i
+  bestillings-PDF-ens varetekst og «Les priser»). Importen kjenner «Spesifikasjon»/«Modell» som eget felt;
+  uten overskrift er kolonnene som før (Type, Tittel, Beskrivelse, Antall, Pris).
 - Endres `firebase/firestore.rules`, må HELE filen limes inn i Console for
   alle tre databasene (prod, test og `soknadsportal-restore`) — si fra om det i svaret.
 - Sikkerhetskopi (`backup/`, B-24/B-25): `kopier.mjs` (nattlig GitHub-jobb, bare leserett) legger

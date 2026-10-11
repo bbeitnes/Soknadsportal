@@ -10,10 +10,10 @@ opprettet: 2026-10-10
 ## Brukerhistorie
 
 Som **bruker** ønsker jeg å kopiere en ferdig tilbudsforespørsel fra et
-innkjøp – med linjene, spesifikasjonene og antallene vi har lagt inn – og lime
-den rett inn i e-posten til leverandørene, slik at alle får den samme listen
-uten at jeg skriver den på nytt. Leverandørene får da pris per linje, som
-matrisen trenger.
+innkjøp – en tabell med nummer, antall, vare og spesifikasjon – og lime den
+rett inn i e-posten til leverandørene, slik at alle får den samme listen og
+kan taste den inn i sitt eget ERP-system uten å tolke prosa. Leverandørene får
+da pris per linje, som matrisen trenger.
 
 ## Kontekst
 
@@ -30,85 +30,103 @@ Spec.md nevner ingen forespørsel; hjelpeteksten «Be leverandøren om pris per
 linje» (B-12) forutsetter at det skjer utenfor portalen. Forespørselen er lik
 for alle leverandørene i innkjøpet og har derfor ingen mottaker; den hører til
 innkjøpet, ikke til leverandørpanelet. Portalen sender ingenting (B-19):
-brukeren limer teksten inn i sin egen e-post og skriver hilsen og svarfrist
-selv.
+brukeren limer tabellen inn i sin egen e-post og skriver hilsen, svarfrist og
+mottaker selv.
 
-Utgangen er ren tekst på utklippstavlen, samme mønster som «Kopier underlag» i
-Tekst-fanen (kort 0018, `sider/tekst.js`): `navigator.clipboard.writeText()`,
-«Kopiert» i toppmenyen (`visKvittering()`), og et sidepanel med teksten
-merket hvis nettleseren ikke slipper oss til. Innholdet lages av én ren
-funksjon i `beregning.js` (`tilbudsforesporsel()`), som `skrivunderlag()`.
+**Første utgave (ren tekst) ble forkastet** 2026-10-10: elleve linjer «Fra:»
+før varelisten, antallet sist på linjen etter en beskrivelse av varierende
+lengde, og ren tekst kan ikke lage kolonner i Gmail/Outlook. Leverandørene
+lager tilbudet i sitt eget ERP-system og trenger antall og vare som kolonner.
 
-Innholdet finnes allerede: linjene med tittel og antall
-(`innkjop.<id>.linjer`, tittel fra søknadslinjen/behovet for koblede linjer,
-`linjetittel()`), behovets `beskrivelse` (spesifikasjonen, slik matrisen viser
-den under varenavnet), typen (`innkjopslinjetype()`) og kontaktinfoen vår fra
-`innstillinger/<orgId>` (orgNavn, orgNr, kontaktperson, telefon, epost,
-adresse, leveringsadresse). Ingenting nytt lagres (B-15).
+**Løsningen er en tabell på utklippstavlen.** Utklippstavlen tar HTML sammen
+med ren tekst (`navigator.clipboard.write()` med `ClipboardItem`): limt inn i
+Gmail, Outlook eller Apple Mail blir det en ekte tabell, limt inn i Excel blir
+det celler. Knappen «Tilbudsforespørsel» i verktøylinjen over matrisen åpner
+alltid et sidepanel med forhåndsvisning av tabellen slik den blir i e-posten,
+og «Kopier» i panelet. Slipper nettleseren oss ikke til, merkes tabellen i
+panelet, og ⌘/Ctrl+C kopierer den som rik tekst (merket HTML kopieres som
+tabell i alle nettlesere). Ren tekst-utgaven har tabulator mellom kolonnene.
 
-**Teksten** (fast i koden), i denne rekkefølgen:
+**Nytt felt `spesifikasjon` på behovet** (`behov.<id>.spesifikasjon`, fritekst):
+det leverandøren trenger – merke, modell, størrelse. Behovets `beskrivelse` er
+vår begrunnelse («Erstatter to instrumenter med sprukne ventiler») og går aldri
+til leverandøren. Spesifikasjonen settes i behovpanelet, vises i behovslisten
+og søknadens behovstabell (sammen med beskrivelsen), og i Innkjøp under
+varenavnet (med beskrivelsen som reserve for eldre behov uten spesifikasjon –
+der går den også inn i bestillings-PDF-ens varetekst og i «Les priser»).
+Importen kjenner overskriften «Spesifikasjon»/«Modell» som eget felt (før gikk
+den til beskrivelsen); uten overskrift er kolonnene som før. Panelet varsler
+hvor mange linjer som mangler spesifikasjon.
 
-1. «Tilbudsforespørsel» og «Gjelder: ‹innkjøpets navn›».
-2. Hvem vi er: organisasjonens navn, org.nr, kontaktperson, telefon, e-post
-   og postadresse. «Leveres til»: `leveringsadresse`, ellers postadressen.
-3. Linjene gruppert på type i samme rekkefølge som matrisen, med løpenummer,
-   tittel, beskrivelse etter bindestrek og antall («3. Bb-klarinett – Buffet
-   E13, med etui · 4 stk»). Delte linjer (samme `soknadLinjeId`) står én gang
-   med summen av antallene. «Uten tittel» og «0 stk» tas med som de står.
-4. Fast avslutning: vi ber om pris per stykk for hver linje, oppgitt enten
-   som listepris minus rabatt eller som nettopris; vi ønsker ikke pakkepris
-   eller totalrabatt. Oppgi frakt og leveringstid. Har dere ikke varen eller
-   anbefaler et annet produkt, oppgi det tydelig på den linjen, med pris per
-   stykk på samme måte.
+**Innholdet** (`tilbudsforesporsel()` i `beregning.js` gir data,
+`ui/foresporsel.js` HTML, `tilbudsforesporselTekst()` ren tekst):
+
+1. «‹Organisasjon› ber om tilbud på varene under.» og «Ref.: ‹innkjøpets navn›».
+2. Tabell Nr · Antall · Vare · Spesifikasjon, typene som mellomtitler i
+   matrisens rekkefølge. Delte linjer (samme `soknadLinjeId`) står én gang med
+   summen av antallene. «Uten tittel» og «0 stk» tas med som de står.
+3. «Slik ønsker vi tilbudet» (fast i koden, `FORESPORSELKRAV`): pris per
+   stykk per linje som listepris minus rabatt eller nettopris; ingen pakkepris
+   eller totalrabatt; frakt og leveringstid; alternativ vare oppgis på linjen
+   med pris per stykk.
+4. «Leveres til: ‹leveringsadresse, ellers postadresse›» på én linje, og en
+   signaturlinje: navn · org.nr · kontaktperson · telefon · e-post.
 
 ## Akseptansekriterier
 
 - [ ] Gitt et innkjøp med minst én linje, når jeg ser på matrisen, så står
-      knappen «Kopier tilbudsforespørsel» i verktøylinjen over matrisen,
-      sammen med «+ Fri linje», «+ Leverandør» og «Billigst per linje».
-- [ ] Gitt at jeg trykker på knappen, så ligger forespørselen på
-      utklippstavlen som ren tekst, og toppmenyen viser «Kopiert». Slipper
-      nettleseren oss ikke til, vises teksten merket i et sidepanel der jeg kan
-      kopiere den selv (som «Kopier underlag»).
-- [ ] Gitt at teksten limes inn i Gmail eller Outlook, så kommer linjeskift,
-      æøå og gruppeoverskriftene riktig, og teksten følger rekkefølgen i
-      Kontekst: overskrift og «Gjelder», hvem vi er og leveringsadresse,
-      linjene, fast avslutning.
+      knappen «Tilbudsforespørsel» i verktøylinjen over matrisen, mellom
+      «+ Leverandør» og «Billigst per linje».
+- [ ] Gitt at jeg trykker på knappen, så åpnes et sidepanel med tabellen slik
+      den blir i e-posten (Nr · Antall · Vare · Spesifikasjon, typer som
+      mellomtitler), kravteksten, «Leveres til» og signaturlinjen, og knappen
+      «Kopier» nederst.
+- [ ] Gitt at jeg trykker «Kopier», så ligger tabellen på utklippstavlen som
+      HTML og ren tekst, panelet sier «Kopiert – lim inn i e-posten» og
+      toppmenyen viser «Kopiert». Slipper nettleseren oss ikke til, sier
+      panelet fra og tabellen er merket, så ⌘/Ctrl+C kopierer den.
+- [ ] Gitt at tabellen limes inn i Gmail eller Outlook, så kommer den som en
+      tabell med fire kolonner og typene som egne rader; limt inn i Excel blir
+      den celler.
 - [ ] Gitt at innkjøpet har linjer av flere typer, så er linjene gruppert på
-      type i samme rekkefølge som matrisen, nummerert fortløpende, med tittel,
-      behovets beskrivelse etter bindestrek (utelatt når den er tom) og antall
-      – uten priser, rabatt, frakt eller sum.
+      type i samme rekkefølge som matrisen og nummerert fortløpende, med
+      antall, varenavn og behovets spesifikasjon – aldri beskrivelsen, og uten
+      priser, rabatt, frakt eller sum.
 - [ ] Gitt at en linje er delt (to innkjøpslinjer med samme `soknadLinjeId`),
       så står varen én gang med summen av antallene.
-- [ ] Gitt at Innstillinger har `leveringsadresse`, så står den under «Leveres
+- [ ] Gitt at linjer mangler spesifikasjon, så sier panelet hvor mange og
+      hvor den settes.
+- [ ] Gitt behovpanelet, så har det feltet «Spesifikasjon» over «Beskrivelse»,
+      med forklaring på hva som går til leverandøren og hva som er internt;
+      behovslisten, søknadens behovstabell og matrisen viser spesifikasjonen.
+- [ ] Gitt et regneark med kolonnen «Spesifikasjon» eller «Modell», så
+      importeres den til feltet `spesifikasjon`; «Beskrivelse» går fortsatt til
+      beskrivelsen.
+- [ ] Gitt at Innstillinger har `leveringsadresse`, så står den i «Leveres
       til»; ellers står postadressen der.
-- [ ] Gitt at den faste avslutningen vises, så ber den om pris per stykk per
-      linje som listepris minus rabatt eller nettopris, sier at vi ikke ønsker
-      pakkepris, ber om frakt og leveringstid, og ber om at alternativ vare
-      oppgis tydelig per linje med pris per stykk (B-12).
 - [ ] Gitt at forespørselen kopieres, så lagres ingenting på innkjøpet,
       leverandørene eller i Storage, og «Sist endret» på innkjøpet endres ikke.
-- [ ] Gitt at jeg er leser, så kan jeg kopiere forespørselen (handlingen er i
-      `LESEHANDLINGER`); gitt at jeg er revisor, så finnes ikke knappen.
+- [ ] Gitt at jeg er leser, så kan jeg åpne panelet og kopiere (handlingene er
+      i `LESEHANDLINGER`); gitt at jeg er revisor, så finnes ikke knappen.
 - [ ] Gitt at innkjøpet ikke har noen linjer, så er knappen slått av med
       forklaringen «Innkjøpet har ingen linjer».
-- [ ] Gitt `tilbudsforesporsel()` i `beregning.js`, så har den en node-test
-      som dekker gruppering og rekkefølge, sammenslåing av delte linjer,
-      beskrivelse etter bindestrek, leveringsadresse foran postadresse og at
-      den faste avslutningen er med.
+- [ ] Gitt `tilbudsforesporsel()` og `tilbudsforesporselTekst()` i
+      `beregning.js`, så har de node-tester som dekker gruppering og
+      rekkefølge, sammenslåing av delte linjer, spesifikasjon men aldri
+      beskrivelse, leveringsadresse foran postadresse, signatur og kravene.
 
 ## Avgrensning
 
-- Portalen sender ikke e-post (B-19). Teksten limes inn av brukeren.
-- Ingen PDF. Kommer det en leverandør som vil ha et dokument, er det et eget
-  kort; da bør samme funksjon gi innholdet til PDF-en.
+- Portalen sender ikke e-post (B-19). Tabellen limes inn av brukeren.
+- Ingen PDF i dette kortet. **Neste steg** (eget kort): PDF med samme tabell
+  fra samme `tilbudsforesporsel()`-data, for leverandører som vil ha et
+  dokument.
 - Ingen mottaker i teksten: samme forespørsel går til alle leverandørene.
   Leverandørens navn, hilsen og svarfrist skriver brukeren i e-posten.
-- Den faste teksten er lik for alle organisasjoner og kan ikke redigeres.
-  Trengs egen ordlyd per korps, er det et lite tilleggskort (felt på
-  `innstillinger`).
-- Ingen fritekst per linje ut over behovets beskrivelse; mangler
-  spesifikasjonen, rettes den på behovet.
+- Kravteksten er lik for alle organisasjoner og kan ikke redigeres. Trengs
+  egen ordlyd per korps, er det et lite tilleggskort (felt på `innstillinger`).
+- Spesifikasjonen ligger på behovet, ikke på søknadslinjen eller
+  innkjøpslinjen. Frie linjer i innkjøpet har bare tittelen.
 - Forespørselen lagres ikke og låser ingenting (ulikt bestillingen, B-32);
   ingen liste over sendte forespørsler.
 - Ingen forespørsel fra søknaden direkte; linjene må ligge i et innkjøp først.
@@ -157,3 +175,11 @@ Grillet 2026-10-10 med `/grill-me`, ett spørsmål om gangen. Ni spørsmål, all
 - 2026-10-10: Satt på vent av brukeren etter første visning på dev – «det ble ikke
   helt slik jeg hadde sett det for meg». Ligger committet på `test` lokalt
   (e8c84ed), ikke pushet. Hva som skal endres er ikke sagt enda.
+- 2026-10-11: Bygget om etter tilbakemeldingen. Brukeren valgte nytt felt
+  «Spesifikasjon» på behovet (alternativ 3) og tabell-kopiering med
+  forhåndsvisning; PDF venter som neste steg. Nytt: `ui/foresporsel.js`
+  (HTML + utklippstavle), `tilbudsforesporsel()` gir data og
+  `tilbudsforesporselTekst()` ren tekst, `FORESPORSELKRAV`, feltet i
+  behovpanelet, listene og importen (`IMPORTKOLONNER.spesifikasjon`). Sjekket på
+  dev i `?demo` (panel, HTML + tekst på utklippstavlen, merking når den er
+  sperret, varsel om manglende spesifikasjon) og `?demo=leser`.

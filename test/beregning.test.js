@@ -266,9 +266,9 @@ test('import av behov: CSV med semikolon, overskrifter og duplikater', async () 
   assert.deepEqual(tolkTabell('a,b\n"x,y",2')[1], ['x,y', '2']);
   const i = tolkBehovimport(csv, [{ tittel: 'trompet', beskrivelse: 'Bb; Yamaha "pro"' }]);
   assert.equal(i.harOverskrift, true);
-  assert.deepEqual(i.kolonner, { type: 0, tittel: 1, beskrivelse: 2, antall: 3, estPris: 4 });
+  assert.deepEqual(i.kolonner, { type: 0, tittel: 1, spesifikasjon: 2, antall: 3, estPris: 4 });
   assert.deepEqual(i.rader.map(r => r.status), ['ny', 'finnes', 'ugyldig', 'finnes']);
-  assert.deepEqual(i.rader[0], { type: 'Instrumenter', tittel: 'Kornett', beskrivelse: 'Yamaha YCR2330III', antall: 6, estPris: 13539, status: 'ny', grunn: '' });
+  assert.deepEqual(i.rader[0], { type: 'Instrumenter', tittel: 'Kornett', spesifikasjon: 'Yamaha YCR2330III', beskrivelse: '', antall: 6, estPris: 13539, status: 'ny', grunn: '' });
   assert.equal(i.rader[1].estPris, 23000);
   assert.equal(i.rader[2].grunn, 'ugyldig antall');
   assert.equal(i.rader[3].grunn, 'står to ganger');
@@ -280,6 +280,7 @@ test('import av behov: limt inn fra regneark uten overskrift', async () => {
   assert.equal(i.harOverskrift, false);
   assert.deepEqual(i.rader.map(r => [r.tittel, r.antall, r.estPris, r.status]), [['Tuba', 2, 45000, 'ny'], ['Notestativ', 1, 0, 'ny'], ['', 1, 1, 'ugyldig']]);
   assert.equal(tolkBehovimport('').rader.length, 0);
+  assert.equal(tolkBehovimport('Instrument\tTuba\tBesson\t2\t45000').rader[0].spesifikasjon, '', 'uten overskrift er tredje kolonne beskrivelsen');
   assert.equal(tolkBehovimport('Behov\tAntall\tPris\nFlagg\t3\t1.250').rader[0].estPris, 1250);
 });
 
@@ -289,9 +290,9 @@ test('importbeskrivelsen stemmer med det som gjenkjennes', async () => {
   const lengste = Math.max(...IMPORTFELT.map(f => f.overskrifter.length));
   for (let n = 0; n < lengste; n++) {
     const hode = IMPORTFELT.map(f => f.overskrifter[Math.min(n, f.overskrifter.length - 1)]).join('\t');
-    const i = tolkBehovimport(hode + '\nInstrument\tKornett\tYamaha\t6\t13 539');
+    const i = tolkBehovimport(hode + '\nInstrument\tKornett\tYamaha\tTil aspirantene\t6\t13 539');
     assert.equal(i.harOverskrift, true, hode);
-    assert.deepEqual(i.rader[0], { type: 'Instrument', tittel: 'Kornett', beskrivelse: 'Yamaha', antall: 6, estPris: 13539, status: 'ny', grunn: '' }, hode);
+    assert.deepEqual(i.rader[0], { type: 'Instrument', tittel: 'Kornett', spesifikasjon: 'Yamaha', beskrivelse: 'Til aspirantene', antall: 6, estPris: 13539, status: 'ny', grunn: '' }, hode);
   }
   // … og malen (navn + eksempel) må kunne importeres som den er.
   const mal = IMPORTFELT.map(f => f.navn).join(';') + '\r\n' + IMPORTFELT.map(f => f.eksempel).join(';');
@@ -1159,7 +1160,7 @@ test('erTomPost: urørt post slik «+ Ny …» lager den, og ikke når noe er fy
   assert.equal(erTomPost('fakturaer', { ...faktura, dekker: { 'i1|l1': true } }), false);
   assert.equal(erTomPost('fakturaer', { ...faktura, merknad: 'delfaktura' }), false);
 
-  const behov = { id: 'b', type: '', tittel: '', beskrivelse: '', antall: 1, estPris: 0, statusOverstyring: null };
+  const behov = { id: 'b', type: '', tittel: '', spesifikasjon: '', beskrivelse: '', antall: 1, estPris: 0, statusOverstyring: null };
   assert.equal(erTomPost('behov', behov), true);
   assert.equal(erTomPost('behov', { ...behov, tittel: 'Kornett' }), false);
   assert.equal(erTomPost('behov', { ...behov, antall: 3 }), false);
@@ -1495,7 +1496,7 @@ test('giverhistorikk: tidligere søknader til samme giver, nyeste først, uten u
 
 test('skrivunderlag tar med Om korpset, skjemaet med grenser, behovene per type, beløpene, historikken og det som står i feltene (kort 0018)', async () => {
   const { skrivunderlag } = await import('../app/data/beregning.js');
-  const behov = [{ id: 'b1', type: 'Instrument', tittel: 'Kornett Bb', beskrivelse: 'Til aspirantene' }];
+  const behov = [{ id: 'b1', type: 'Instrument', tittel: 'Kornett Bb', spesifikasjon: 'Yamaha YCR2330III', beskrivelse: 'Til aspirantene' }];
   const giver = { navn: 'Stiftelsen', kontakt: 'Krever rapport', skjema: {
     sf1: { navn: 'Om søkeren', hjelp: 'Hvem dere er', maks: 150, enhet: 'ord', rekkefolge: 1 },
     sf2: { navn: 'Tiltaket', hjelp: '', maks: 800, enhet: 'tegn', rekkefolge: 2 },
@@ -1511,7 +1512,7 @@ test('skrivunderlag tar med Om korpset, skjemaet med grenser, behovene per type,
     '## Giver: Stiftelsen', 'Notat om giveren: Krever rapport',
     '1. Om søkeren (maks 150 ord)', '   Hvem dere er', '2. Tiltaket (maks 800 tegn)',
     'Tittel: Instrumenter 2026', 'Søknadsfrist: 2026-09-15',
-    '- 4 × Kornett Bb à 8 500 kr = 34 000 kr – Til aspirantene', '- 10 × Notestativ à 400 kr = 4 000 kr',
+    '- 4 × Kornett Bb (Yamaha YCR2330III) à 8 500 kr = 34 000 kr – Til aspirantene', '- 10 × Notestativ à 400 kr = 4 000 kr',
     'Sum estimert: 38 000 kr', 'Egenandel (det vi dekker selv): 5 000 kr', 'momskompensasjon: 8 %', 'Søkt beløp: 30 360 kr',
     '- 2025: «I fjor» – søkt 25 000 kr, innvilget 20 000 kr (Innvilget)',
     '## Det som allerede står i feltene', '**Om søkeren**', 'Vi er et skolekorps.',
@@ -1527,11 +1528,11 @@ test('skrivunderlag tar med Om korpset, skjemaet med grenser, behovene per type,
   assert.ok(tomt.includes('Behov: ingen linjer i søknaden enda.'));
 });
 
-test('tilbudsforesporsel: hvem vi er, leveringsadresse, linjene per type med beskrivelse og antall, delte linjer slått sammen, fast avslutning (kort 0020)', async () => {
-  const { tilbudsforesporsel } = await import('../app/data/beregning.js');
+test('tilbudsforesporsel: linjene per type med spesifikasjon (aldri beskrivelsen) og antall, delte linjer slått sammen, krav, levering og signatur (kort 0020)', async () => {
+  const { tilbudsforesporsel, tilbudsforesporselTekst, FORESPORSELKRAV } = await import('../app/data/beregning.js');
   const behov = [
-    { id: 'b1', type: 'Instrument', tittel: 'Bb-klarinett', beskrivelse: 'Buffet E13, med etui' },
-    { id: 'b2', type: 'Uniform', tittel: 'Jakke', beskrivelse: '' },
+    { id: 'b1', type: 'Instrument', tittel: 'Bb-klarinett', spesifikasjon: 'Buffet E13, med etui', beskrivelse: 'Erstatter sprukne' },
+    { id: 'b2', type: 'Uniform', tittel: 'Jakke', beskrivelse: 'Til de nye' },
   ];
   const soknad = { id: 's1', typeRekkefolge: ['Uniform', 'Instrument'], linjer: {
     l1: { behovId: 'b1', antall: 4, rekkefolge: 1 }, l2: { behovId: 'b2', antall: 10, rekkefolge: 2 }, l3: { behovId: null, tittel: 'Notestativ', type: 'Utstyr', antall: 6, rekkefolge: 3 },
@@ -1544,22 +1545,34 @@ test('tilbudsforesporsel: hvem vi er, leveringsadresse, linjene per type med bes
   } };
   const organisasjon = { orgNavn: 'Skiens Skolemusikk', orgNr: '999 888 777', kontaktperson: 'Kari Nordmann', telefon: '900 00 000', epost: 'post@skiens.no',
     adresse: 'Postboks 1\n3701 Skien', leveringsadresse: 'Storgata 12\n3717 Skien' };
-  const t = tilbudsforesporsel({ organisasjon, soknad, innkjop, behov });
+  const f = tilbudsforesporsel({ organisasjon, soknad, innkjop, behov });
+  assert.equal(f.ref, 'Instrumenter 2026');
+  assert.equal(f.intro, 'Skiens Skolemusikk ber om tilbud på varene under.');
+  assert.deepEqual(f.grupper.map(g => [g.type, g.rader.map(r => [r.nr, r.antall, r.tittel, r.spesifikasjon])]), [
+    ['Uniform', [[1, 10, 'Jakke', '']]],
+    ['Instrument', [[2, 4, 'Bb-klarinett', 'Buffet E13, med etui']]],
+    ['Utstyr', [[3, 6, 'Notestativ', '']]],
+    ['', [[4, 0, 'Uten tittel', '']]],
+  ]);
+  assert.equal(f.antallLinjer, 4);
+  assert.equal(f.levering, 'Storgata 12, 3717 Skien');
+  assert.equal(f.signatur, 'Skiens Skolemusikk · org.nr 999 888 777 · Kari Nordmann · 900 00 000 · post@skiens.no');
+  assert.equal(f.krav, FORESPORSELKRAV);
+  const t = tilbudsforesporselTekst(f);
   for (const bit of [
-    'TILBUDSFORESPØRSEL', 'Gjelder: Instrumenter 2026',
-    'Fra:\nSkiens Skolemusikk\nOrg.nr 999 888 777\nPostboks 1\n3701 Skien\nKontaktperson: Kari Nordmann\nTelefon: 900 00 000\nE-post: post@skiens.no',
-    'Leveres til:\nStorgata 12\n3717 Skien',
-    'Uniform:\n1. Jakke · 10 stk', 'Instrument:\n2. Bb-klarinett – Buffet E13, med etui · 4 stk', 'Utstyr:\n3. Notestativ · 6 stk', '4. Uten tittel · 0 stk',
-    'pris per stykk for hver linje', 'listepris minus rabatt', 'nettopris', 'ikke pakkepris', 'frakt og leveringstid', 'annet produkt',
+    'ber om tilbud på varene under.   Ref.: Instrumenter 2026', 'Nr\tAntall\tVare\tSpesifikasjon',
+    'Uniform\n1\t10 stk\tJakke\t\n', 'Instrument\n2\t4 stk\tBb-klarinett\tBuffet E13, med etui\n', '4\t0 stk\tUten tittel\t\n',
+    'Slik ønsker vi tilbudet:', '• Pris per stykk for hver linje', 'listepris minus rabatt', 'nettopris', 'Ingen pakkepris', 'Frakt og leveringstid', 'annet produkt',
+    'Leveres til: Storgata 12, 3717 Skien', 'org.nr 999 888 777',
   ]) assert.ok(t.includes(bit), `mangler: ${bit}\n${t}`);
-  assert.equal((t.match(/Bb-klarinett/g) || []).length, 1, 'delte linjer står én gang');
-  assert.ok(t.indexOf('Uniform:') < t.indexOf('Instrument:') && t.indexOf('Instrument:') < t.indexOf('Utstyr:'), 'typerekkefølgen fra søknaden gjelder');
-  assert.ok(!t.includes('kr ') || t.includes('1 200 kr'), 'ingen priser på linjene');
+  assert.ok(!t.includes('Erstatter sprukne') && !t.includes('Til de nye'), 'beskrivelsen (begrunnelsen) går aldri til leverandøren');
   // Uten leveringsadresse brukes postadressen; tomme felt hoppes over; tomt innkjøp sier fra.
-  const t2 = tilbudsforesporsel({ organisasjon: { orgNavn: 'Korpset', adresse: 'Veien 1' }, soknad: { linjer: {} }, innkjop: { navn: '', linjer: {} }, behov: [] });
-  assert.ok(t2.includes('Gjelder: Innkjøp'));
-  assert.ok(t2.includes('Fra:\nKorpset\nVeien 1\n'));
-  assert.ok(t2.includes('Leveres til:\nVeien 1'));
-  assert.ok(!t2.includes('Org.nr') && !t2.includes('Kontaktperson'));
-  assert.ok(t2.includes('(Innkjøpet har ingen linjer.)'));
+  const f2 = tilbudsforesporsel({ organisasjon: { orgNavn: 'Korpset', adresse: 'Veien 1' }, soknad: { linjer: {} }, innkjop: { navn: '', linjer: {} }, behov: [] });
+  assert.equal(f2.ref, '');
+  assert.equal(f2.levering, 'Veien 1');
+  assert.equal(f2.signatur, 'Korpset');
+  assert.deepEqual(f2.grupper, []);
+  const t2 = tilbudsforesporselTekst(f2);
+  assert.ok(t2.includes('(Innkjøpet har ingen linjer.)') && !t2.includes('Ref.:'));
+  assert.ok(tilbudsforesporsel({ soknad: { linjer: {} }, innkjop: { linjer: {} } }).intro.startsWith('Vi ber om'));
 });

@@ -61,7 +61,7 @@ function rad({ b, info }) {
   const prosent = info.total ? Math.min(100, Math.round(info.anskaffet / info.total * 100)) : 0;
   return `
     <tr class="klikkbar ${b.id === ui.panel ? 'valgt' : ''}" data-handling="apne" data-id="${b.id}" data-slippmal="behov:${b.id}">
-      <td><div style="display:flex; align-items:center"><span class="dra" draggable="true" data-dra="behov:${b.id}" data-handling="ingen" title="Dra for å endre rekkefølge, eller flytt til en annen type">⠿</span><div style="min-width:0"><div class="celletittel">${escapeHtml(b.tittel || 'Uten tittel')}</div><div class="celleunder">${escapeHtml(b.beskrivelse || '') || '&nbsp;'}</div></div></div></td>
+      <td><div style="display:flex; align-items:center"><span class="dra" draggable="true" data-dra="behov:${b.id}" data-handling="ingen" title="Dra for å endre rekkefølge, eller flytt til en annen type">⠿</span><div style="min-width:0"><div class="celletittel">${escapeHtml(b.tittel || 'Uten tittel')}</div><div class="celleunder">${escapeHtml([b.spesifikasjon, b.beskrivelse].filter(x => (x || '').trim()).join(' · ')) || '&nbsp;'}</div></div></div></td>
       <td style="width:200px"><div class="fremdrift"><span class="smal fet">${info.erApent ? `${info.gjenstar} av ${info.total}` : `${info.anskaffet} av ${info.total}`}</span><span class="stolpe"><span style="width:${prosent}%"></span></span></div></td>
       <td class="tall">${kr(b.estPris)}</td>
       <td class="tall fet">${info.erApent ? kr(info.gjenstarKr) : '–'}</td>
@@ -83,7 +83,8 @@ function panel(b) {
       ${lukkeknapp()}
     </div>
     <label class="felt"><span class="etikett">Type</span><input class="inndata" list="typer" placeholder="F.eks. Instrument, Uniform, Utstyr" ${feltAttr(n('type'), b.type)}><span class="undertekst">Fritt valg. Behovslisten grupperes på type. Kan overstyres per søknad.</span></label>
-    <label class="felt"><span class="etikett">Beskrivelse</span>${tekstomrade(n('beskrivelse'), b.beskrivelse, 'class="inndata" rows="3" placeholder="Hva og hvorfor"')}</label>
+    <label class="felt"><span class="etikett">Spesifikasjon</span><input class="inndata" placeholder="Merke, modell, størrelse – det leverandøren trenger" ${feltAttr(n('spesifikasjon'), b.spesifikasjon)}><span class="undertekst">Går til leverandøren i tilbudsforespørselen og vises i innkjøpet.</span></label>
+    <label class="felt"><span class="etikett">Beskrivelse</span>${tekstomrade(n('beskrivelse'), b.beskrivelse, 'class="inndata" rows="3" placeholder="Hvorfor vi trenger det"')}<span class="undertekst">Vår begrunnelse – bare internt og i søknaden.</span></label>
     <div class="to-kol">
       <label class="felt"><span class="etikett">Antall totalt</span><input class="inndata tall" inputmode="numeric" ${feltAttr(n('antall'), b.antall, 'tall')}></label>
       <label class="felt"><span class="etikett">Est. stykkpris</span><input class="inndata tall" inputmode="numeric" ${feltAttr(n('estPris'), b.estPris, 'tall')}></label>
@@ -121,7 +122,7 @@ function importForhandsvisning() {
     <div class="tabellramme" style="flex:0 1 auto; max-height:40vh">
       <table class="liste" style="font-size:13px">
         <thead><tr><th>Type</th><th>Behov</th><th class="tall">Antall</th><th class="tall">Est. pris</th><th></th></tr></thead>
-        <tbody>${i.rader.map(r => `<tr style="${r.status === 'ny' ? '' : 'color:var(--color-neutral-500)'}"><td class="smal">${escapeHtml(r.type || '–')}</td><td><div class="celletittel">${escapeHtml(r.tittel || '–')}</div><div class="celleunder" style="max-width:200px">${escapeHtml(r.beskrivelse)}</div></td><td class="tall">${r.antall}</td><td class="tall">${kr(r.estPris)}</td><td class="smal">${r.status === 'ny' ? '' : `<span class="merkelapp ${r.status === 'ugyldig' ? 'm-varsel' : 'm-av'}">${escapeHtml(r.grunn)}</span>`}</td></tr>`).join('')}</tbody>
+        <tbody>${i.rader.map(r => `<tr style="${r.status === 'ny' ? '' : 'color:var(--color-neutral-500)'}"><td class="smal">${escapeHtml(r.type || '–')}</td><td><div class="celletittel">${escapeHtml(r.tittel || '–')}</div><div class="celleunder" style="max-width:200px">${escapeHtml([r.spesifikasjon, r.beskrivelse].filter(Boolean).join(' · '))}</div></td><td class="tall">${r.antall}</td><td class="tall">${kr(r.estPris)}</td><td class="smal">${r.status === 'ny' ? '' : `<span class="merkelapp ${r.status === 'ugyldig' ? 'm-varsel' : 'm-av'}">${escapeHtml(r.grunn)}</span>`}</td></tr>`).join('')}</tbody>
       </table>
     </div>
     <div class="hint">${nye.length} nye behov${hoppet ? ` · ${hoppet} hoppes over` : ''}</div>`;
@@ -176,7 +177,7 @@ document.addEventListener('input', e => {
 
 function skrivUt(d) {
   const navn = { apne: 'Åpne behov', lukket: 'Anskaffede og lukkede behov', alle: 'Alle behov' }[ui.filter];
-  const rad = ({ b, info }) => `<tr><td>${escapeHtml(b.tittel)}${b.beskrivelse ? `<div class="d">${escapeHtml(b.beskrivelse)}</div>` : ''}</td><td class="n">${info.anskaffet} / ${info.total}</td><td class="n">${kr(b.estPris)}</td><td class="n">${info.erApent ? kr(info.gjenstarKr) : '–'}</td><td>${escapeHtml(info.bruk.map(x => `${giverNavn(x.soknad.giverId)} (${x.linje.antall ?? 0})`).join(', ')) || '–'}</td><td>${escapeHtml(info.status)}</td></tr>`;
+  const rad = ({ b, info }) => `<tr><td>${escapeHtml(b.tittel)}${b.spesifikasjon || b.beskrivelse ? `<div class="d">${escapeHtml([b.spesifikasjon, b.beskrivelse].filter(Boolean).join(' · '))}</div>` : ''}</td><td class="n">${info.anskaffet} / ${info.total}</td><td class="n">${kr(b.estPris)}</td><td class="n">${info.erApent ? kr(info.gjenstarKr) : '–'}</td><td>${escapeHtml(info.bruk.map(x => `${giverNavn(x.soknad.giverId)} (${x.linje.antall ?? 0})`).join(', ')) || '–'}</td><td>${escapeHtml(info.status)}</td></tr>`;
   const rader = grupperPerType(d.synlig, x => x.b.type, fellesTyperekkefolge()).map(g => `<tr class="g"><td colspan="3">${escapeHtml(g.type || 'Uten type')}</td><td class="n">${kr(g.elementer.reduce((sum, x) => sum + (x.info.erApent ? x.info.gjenstarKr : 0), 0))}</td><td colspan="2"></td></tr>${g.elementer.map(rad).join('')}`).join('');
   utskrift(navn, `<p>Behovsliste · skrevet ut ${new Date().toLocaleDateString('nb-NO')} · ${d.synlig.length} behov</p>
     <table><thead><tr><th>Behov</th><th class="n">Anskaffet / totalt</th><th class="n">Est. stk.pris</th><th class="n">Gjenstår, kr</th><th>Søknader</th><th>Status</th></tr></thead>

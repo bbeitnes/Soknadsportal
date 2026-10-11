@@ -991,7 +991,7 @@ export function leverandorIRegister(navn, register) {
 // `opprett…()` setter; tom tekst, null og tomme kart regnes som det samme.
 const URORT = {
   fakturaer: { leverandor: '', fakturanr: '', dato: null, belop: null, fil: null, dekker: {}, merknad: '' },
-  behov: { type: '', tittel: '', beskrivelse: '', antall: 1, estPris: 0, statusOverstyring: null },
+  behov: { type: '', tittel: '', spesifikasjon: '', beskrivelse: '', antall: 1, estPris: 0, statusOverstyring: null },
   leverandorer: { navn: '', kontakt: '', nettadresse: '', kontaktperson: '', epost: '', telefon: '' },
   givere: { navn: '', kontakt: '', momsTrekk: false, nettadresse: '', kontaktperson: '', epost: '', telefon: '' },
 };
@@ -1406,7 +1406,8 @@ export function tolkTabell(tekst) {
 const IMPORTKOLONNER = {
   type: /^(type|kategori|gruppe)$/i,
   tittel: /^(tittel|navn|navn\/produkt|produkt|behov|vare)$/i,
-  beskrivelse: /^(beskrivelse|spesifikasjon|spek|modell|notat|kommentar|detaljer)$/i,
+  spesifikasjon: /^(spesifikasjon|spek|modell|merke\/modell)$/i,
+  beskrivelse: /^(beskrivelse|notat|kommentar|detaljer|begrunnelse)$/i,
   antall: /^(antall|stk|ant\.?|mengde)$/i,
   estPris: /^(est\.? ?(stk\.?|stykk)?pris|estimert (stk\.?|stykk)?pris|stykkpris|stk\.?pris|listepris|pris|enhetspris|pris per stk)$/i,
 };
@@ -1416,7 +1417,8 @@ const IMPORTKOLONNER = {
 export const IMPORTFELT = [
   { navn: 'Type', paakrevd: false, overskrifter: ['Type', 'Kategori'], eksempel: 'Instrument', tomt: 'Uten type' },
   { navn: 'Tittel', paakrevd: true, overskrifter: ['Tittel', 'Navn', 'Navn/produkt', 'Produkt', 'Behov'], eksempel: 'Kornett', tomt: 'Raden hoppes over' },
-  { navn: 'Beskrivelse', paakrevd: false, overskrifter: ['Beskrivelse', 'Spesifikasjon', 'Notat'], eksempel: 'Yamaha YCR2330III', tomt: 'Blir tom' },
+  { navn: 'Spesifikasjon', paakrevd: false, overskrifter: ['Spesifikasjon', 'Modell'], eksempel: 'Yamaha YCR2330III', tomt: 'Blir tom' },
+  { navn: 'Beskrivelse', paakrevd: false, overskrifter: ['Beskrivelse', 'Notat', 'Begrunnelse'], eksempel: 'Til aspirantene', tomt: 'Blir tom' },
   { navn: 'Antall', paakrevd: false, overskrifter: ['Antall', 'Stk'], eksempel: '6', tomt: 'Blir 1' },
   { navn: 'Est. stykkpris', paakrevd: false, overskrifter: ['Est. stykkpris', 'Stykkpris', 'Listepris', 'Pris'], eksempel: '13 539', tomt: 'Blir 0' },
 ];
@@ -1430,7 +1432,8 @@ function tilTall(tekst) {
 }
 
 // Gir { kolonner, harOverskrift, rader }. Uten gjenkjent overskrift antas
-// rekkefølgen Type, Tittel, Beskrivelse, Antall, Est. stykkpris. Hver rad får
+// rekkefølgen Type, Tittel, Beskrivelse, Antall, Est. stykkpris (Spesifikasjon
+// bare med overskrift). Hver rad får
 // status 'ny', 'finnes' (samme tittel og beskrivelse ligger der alt) eller
 // 'ugyldig' (mangler tittel, eller ugyldig tall).
 export function tolkBehovimport(tekst, eksisterende = []) {
@@ -1444,23 +1447,26 @@ export function tolkBehovimport(tekst, eksisterende = []) {
   });
   const harOverskrift = kolonner.tittel != null;
   const kol = harOverskrift ? kolonner : { type: 0, tittel: 1, beskrivelse: 2, antall: 3, estPris: 4 };
-  const nokkel = (t, b) => `${(t || '').trim().toLowerCase()}|${(b || '').trim().toLowerCase()}`;
-  const finnes = new Set(eksisterende.map(b => nokkel(b.tittel, b.beskrivelse)));
+  // Samme behov = samme tittel og samme tekst (spesifikasjon og beskrivelse
+  // sett under ett, så eldre behov med modellen i beskrivelsen kjennes igjen).
+  const nokkel = (t, sp, b) => `${(t || '').trim().toLowerCase()}|${[sp, b].map(x => (x || '').trim().toLowerCase()).filter(Boolean).join(' ')}`;
+  const finnes = new Set(eksisterende.map(b => nokkel(b.tittel, b.spesifikasjon, b.beskrivelse)));
   const sett = new Set();
   const rader = tabell.slice(harOverskrift ? 1 : 0).map(r => {
     const tittel = (r[kol.tittel] ?? '').trim();
     const type = kol.type != null ? (r[kol.type] ?? '').trim() : '';
     const beskrivelse = kol.beskrivelse != null ? (r[kol.beskrivelse] ?? '').trim() : '';
+    const spesifikasjon = kol.spesifikasjon != null ? (r[kol.spesifikasjon] ?? '').trim() : '';
     const antall = kol.antall != null ? tilTall(r[kol.antall]) : null;
     const estPris = kol.estPris != null ? tilTall(r[kol.estPris]) : null;
     let status = 'ny', grunn = '';
     if (!tittel) { status = 'ugyldig'; grunn = 'mangler tittel'; }
     else if (Number.isNaN(antall)) { status = 'ugyldig'; grunn = 'ugyldig antall'; }
     else if (Number.isNaN(estPris)) { status = 'ugyldig'; grunn = 'ugyldig pris'; }
-    else if (finnes.has(nokkel(tittel, beskrivelse))) { status = 'finnes'; grunn = 'finnes fra før'; }
-    else if (sett.has(nokkel(tittel, beskrivelse))) { status = 'finnes'; grunn = 'står to ganger'; }
-    if (status === 'ny') sett.add(nokkel(tittel, beskrivelse));
-    return { type, tittel, beskrivelse, antall: antall ?? 1, estPris: estPris ?? 0, status, grunn };
+    else if (finnes.has(nokkel(tittel, spesifikasjon, beskrivelse))) { status = 'finnes'; grunn = 'finnes fra før'; }
+    else if (sett.has(nokkel(tittel, spesifikasjon, beskrivelse))) { status = 'finnes'; grunn = 'står to ganger'; }
+    if (status === 'ny') sett.add(nokkel(tittel, spesifikasjon, beskrivelse));
+    return { type, tittel, spesifikasjon, beskrivelse, antall: antall ?? 1, estPris: estPris ?? 0, status, grunn };
   });
   return { kolonner: kol, harOverskrift, rader };
 }
@@ -1575,8 +1581,9 @@ export function skrivunderlag({ organisasjon = {}, giver = {}, soknad, behov = [
       for (const l of g.elementer) {
         const b = behovAv(l);
         const tittel = b ? (b.tittel || 'Slettet behov') : (l.tittel || 'Uten tittel');
+        const spesifikasjon = (b?.spesifikasjon || '').trim();
         const beskrivelse = (b?.beskrivelse || l.notat || '').trim();
-        ut.push(`- ${l.antall || 0} × ${tittel} à ${kroner(l.estPris)} = ${kroner(linjekostnad(l))}${beskrivelse ? ` – ${beskrivelse}` : ''}`);
+        ut.push(`- ${l.antall || 0} × ${tittel}${spesifikasjon ? ` (${spesifikasjon})` : ''} à ${kroner(l.estPris)} = ${kroner(linjekostnad(l))}${beskrivelse ? ` – ${beskrivelse}` : ''}`);
       }
     }
     ut.push(`Sum estimert: ${kroner(sumEstimert(soknad))}`);
@@ -1597,27 +1604,27 @@ export function skrivunderlag({ organisasjon = {}, giver = {}, soknad, behov = [
 }
 
 // Tilbudsforespørselen som kopieres og limes inn i e-posten til
-// leverandørene (kort 0020): hvem vi er, hvor det leveres, alle linjene i
-// innkjøpet gruppert som i matrisen, og en fast tekst om hvordan prisen skal
-// oppgis (B-12). Lik for alle leverandørene – ingen mottaker. Delte linjer
-// (samme søknadslinje) står én gang med summen av antallene. Ren tekst.
+// leverandørene (kort 0020). Gir innholdet som data – `ui/foresporsel.js`
+// lager HTML-tabellen (utklippstavle og forhåndsvisning), og
+// `tilbudsforesporselTekst()` under gir ren tekst (reserve, og det som
+// limes inn der HTML ikke tas imot). Lik for alle leverandørene – ingen
+// mottaker. Linjene er alle linjene i innkjøpet, gruppert som i matrisen;
+// delte linjer (samme søknadslinje) står én gang med summen av antallene.
+// Spesifikasjonen er behovets `spesifikasjon` – aldri beskrivelsen, som er
+// vår begrunnelse (kort 0020). Fast tekst om hvordan prisen oppgis (B-12).
+export const FORESPORSELKRAV = [
+  'Pris per stykk for hver linje, som listepris minus rabatt eller som nettopris.',
+  'Ingen pakkepris eller totalrabatt – hver linje vurderes for seg.',
+  'Frakt og leveringstid.',
+  'Har dere ikke varen, eller anbefaler dere et annet produkt: oppgi det på linjen, med pris per stykk.',
+];
+
 export function tilbudsforesporsel({ organisasjon = {}, soknad, innkjop, behov = [] }) {
   const org = organisasjon;
   const grupper = grupperInnkjopslinjer(innkjop, soknad, behov, typerekkefolgeFor(soknad, org.typeRekkefolge || []));
-  const linjerAv = t => String(t || '').split('\n').map(l => l.trim()).filter(Boolean);
-  const ut = [];
-  ut.push('TILBUDSFORESPØRSEL', `Gjelder: ${(innkjop?.navn || '').trim() || 'Innkjøp'}`, '');
-  ut.push('Fra:');
-  ut.push(...[
-    org.orgNavn, org.orgNr && `Org.nr ${org.orgNr}`, ...linjerAv(org.adresse),
-    org.kontaktperson && `Kontaktperson: ${org.kontaktperson}`, org.telefon && `Telefon: ${org.telefon}`, org.epost && `E-post: ${org.epost}`,
-  ].map(x => (x || '').trim()).filter(Boolean));
-  const levering = linjerAv(org.leveringsadresse || org.adresse);
-  if (levering.length) ut.push('', 'Leveres til:', ...levering);
-  ut.push('', 'Vi ber om tilbud på:');
+  const enLinje = t => String(t || '').split('\n').map(l => l.trim()).filter(Boolean).join(', ');
   let nr = 0;
-  for (const g of grupper) {
-    // Slå sammen delte linjer: samme søknadslinje står én gang, på første plass.
+  const grupperUt = grupper.map(g => {
     const rader = [];
     const perSoknadslinje = new Map();
     for (const l of g.linjer) {
@@ -1627,17 +1634,36 @@ export function tilbudsforesporsel({ organisasjon = {}, soknad, innkjop, behov =
       const sl = l.soknadLinjeId ? soknad?.linjer?.[l.soknadLinjeId] : null;
       const b = sl?.behovId ? behov.find(x => x.id === sl.behovId) : null;
       const tittel = (sl ? (sl.behovId ? (b?.tittel || l.tittel) : sl.tittel) : l.tittel) || '';
-      const rad = { tittel: tittel.trim() || 'Uten tittel', beskrivelse: (b?.beskrivelse || '').trim(), antall };
+      const rad = { nr: ++nr, antall, tittel: tittel.trim() || 'Uten tittel', spesifikasjon: (b?.spesifikasjon || '').trim() };
       rader.push(rad);
       if (l.soknadLinjeId) perSoknadslinje.set(l.soknadLinjeId, rad);
     }
-    if (g.type) ut.push('', `${g.type}:`);
-    for (const r of rader) ut.push(`${++nr}. ${r.tittel}${r.beskrivelse ? ` – ${r.beskrivelse}` : ''} · ${r.antall} stk`);
+    return { type: g.type, rader };
+  }).filter(g => g.rader.length);
+  const navn = (org.orgNavn || '').trim();
+  return {
+    navn,
+    ref: (innkjop?.navn || '').trim(),
+    intro: `${navn || 'Vi'} ber om tilbud på varene under.`,
+    grupper: grupperUt,
+    antallLinjer: nr,
+    krav: FORESPORSELKRAV,
+    levering: enLinje(org.leveringsadresse || org.adresse),
+    signatur: [navn, org.orgNr && `org.nr ${org.orgNr}`, org.kontaktperson, org.telefon, org.epost].map(x => (x || '').trim()).filter(Boolean).join(' · '),
+  };
+}
+
+// Ren tekst av forespørselen: tabellen med tabulator mellom kolonnene (blir
+// celler i et regneark), typene som egne linjer.
+export function tilbudsforesporselTekst(f) {
+  const ut = [`${f.intro}${f.ref ? `   Ref.: ${f.ref}` : ''}`, '', 'Nr\tAntall\tVare\tSpesifikasjon'];
+  for (const g of f.grupper) {
+    if (g.type) ut.push(g.type);
+    for (const r of g.rader) ut.push(`${r.nr}\t${r.antall} stk\t${r.tittel}\t${r.spesifikasjon}`);
   }
-  if (!nr) ut.push('(Innkjøpet har ingen linjer.)');
-  ut.push('',
-    'Vi ber om pris per stykk for hver linje, oppgitt enten som listepris minus rabatt (f.eks. 1 200 kr -15 %) eller som nettopris. Vi ønsker ikke pakkepris eller totalrabatt – hver linje vurderes for seg.',
-    'Oppgi frakt og leveringstid.',
-    'Har dere ikke varen, eller anbefaler dere et annet produkt, oppgi det tydelig på den linjen, med pris per stykk på samme måte.');
+  if (!f.antallLinjer) ut.push('(Innkjøpet har ingen linjer.)');
+  ut.push('', 'Slik ønsker vi tilbudet:', ...f.krav.map(k => `• ${k}`));
+  if (f.levering) ut.push('', `Leveres til: ${f.levering}`);
+  if (f.signatur) ut.push(f.signatur);
   return ut.join('\n') + '\n';
 }

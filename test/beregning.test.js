@@ -1528,7 +1528,7 @@ test('skrivunderlag tar med Om korpset, skjemaet med grenser, behovene per type,
   assert.ok(tomt.includes('Behov: ingen linjer i søknaden enda.'));
 });
 
-test('tilbudsforesporsel: linjene per type med spesifikasjon (aldri beskrivelsen) og antall, delte linjer slått sammen, krav, levering og signatur (kort 0020)', async () => {
+test('tilbudsforesporsel: linjene per type med spesifikasjon (aldri beskrivelsen) og antall, delte linjer slått sammen, krav og signatur (kort 0020)', async () => {
   const { tilbudsforesporsel, tilbudsforesporselTekst, FORESPORSELKRAV } = await import('../app/data/beregning.js');
   const behov = [
     { id: 'b1', type: 'Instrument', tittel: 'Bb-klarinett', spesifikasjon: 'Buffet E13, med etui', beskrivelse: 'Erstatter sprukne' },
@@ -1555,21 +1555,21 @@ test('tilbudsforesporsel: linjene per type med spesifikasjon (aldri beskrivelsen
     ['', [[4, 0, 'Uten tittel', '']]],
   ]);
   assert.equal(f.antallLinjer, 4);
-  assert.equal(f.levering, 'Storgata 12, 3717 Skien');
   assert.equal(f.signatur, 'Skiens Skolemusikk · org.nr 999 888 777 · Kari Nordmann · 900 00 000 · post@skiens.no');
   assert.equal(f.krav, FORESPORSELKRAV);
   const t = tilbudsforesporselTekst(f);
   for (const bit of [
     'ber om tilbud på varene under.   Ref.: Instrumenter 2026', 'Nr\tAntall\tVare\tSpesifikasjon\tPris\tRabatt\tNettopris',
     'Uniform\n1\t10 stk\tJakke\t\t\t\t\n', 'Instrument\n2\t4 stk\tBb-klarinett\tBuffet E13, med etui\t\t\t\n', '4\t0 stk\tUten tittel\t\t\t\t\n',
-    'Slik ønsker vi tilbudet:', '• Pris per stykk for hver linje', 'listepris minus rabatt', 'nettopris', 'Ingen pakkepris', 'Frakt og leveringstid', 'annet produkt',
-    'Leveres til: Storgata 12, 3717 Skien', 'org.nr 999 888 777',
+    'Slik ønsker vi tilbudet:', '• Pris per stykk for hver linje', 'listepris minus rabatt', 'nettopris', 'Frakt og leveringstid', 'annet produkt',
+    '\n\nSkiens Skolemusikk · org.nr 999 888 777',
   ]) assert.ok(t.includes(bit), `mangler: ${bit}\n${t}`);
   assert.ok(!t.includes('Erstatter sprukne') && !t.includes('Til de nye'), 'beskrivelsen (begrunnelsen) går aldri til leverandøren');
+  assert.ok(!t.includes('pakkepris') && !t.includes('Leveres til') && !t.includes('Storgata'), 'ingen pakkepris-setning og ingen leveringsadresse (2026-10-11)');
+  assert.equal(f.krav.length, 3);
   // Uten leveringsadresse brukes postadressen; tomme felt hoppes over; tomt innkjøp sier fra.
   const f2 = tilbudsforesporsel({ organisasjon: { orgNavn: 'Korpset', adresse: 'Veien 1' }, soknad: { linjer: {} }, innkjop: { navn: '', linjer: {} }, behov: [] });
   assert.equal(f2.ref, '');
-  assert.equal(f2.levering, 'Veien 1');
   assert.equal(f2.signatur, 'Korpset');
   assert.deepEqual(f2.grupper, []);
   const t2 = tilbudsforesporselTekst(f2);

@@ -1612,9 +1612,9 @@ export function skrivunderlag({ organisasjon = {}, giver = {}, soknad, behov = [
 // delte linjer (samme søknadslinje) står én gang med summen av antallene.
 // Spesifikasjonen er behovets `spesifikasjon` – aldri beskrivelsen, som er
 // vår begrunnelse (kort 0020). Fast tekst om hvordan prisen oppgis (B-12).
+// Ingen leveringsadresse: frakt avtales i e-posten.
 export const FORESPORSELKRAV = [
   'Pris per stykk for hver linje, som listepris minus rabatt eller som nettopris.',
-  'Ingen pakkepris eller totalrabatt – hver linje vurderes for seg.',
   'Frakt og leveringstid.',
   'Har dere ikke varen, eller anbefaler dere et annet produkt: oppgi det på linjen, med pris per stykk.',
 ];
@@ -1622,7 +1622,6 @@ export const FORESPORSELKRAV = [
 export function tilbudsforesporsel({ organisasjon = {}, soknad, innkjop, behov = [] }) {
   const org = organisasjon;
   const grupper = grupperInnkjopslinjer(innkjop, soknad, behov, typerekkefolgeFor(soknad, org.typeRekkefolge || []));
-  const enLinje = t => String(t || '').split('\n').map(l => l.trim()).filter(Boolean).join(', ');
   let nr = 0;
   const grupperUt = grupper.map(g => {
     const rader = [];
@@ -1648,7 +1647,6 @@ export function tilbudsforesporsel({ organisasjon = {}, soknad, innkjop, behov =
     grupper: grupperUt,
     antallLinjer: nr,
     krav: FORESPORSELKRAV,
-    levering: enLinje(org.leveringsadresse || org.adresse),
     signatur: [navn, org.orgNr && `org.nr ${org.orgNr}`, org.kontaktperson, org.telefon, org.epost].map(x => (x || '').trim()).filter(Boolean).join(' · '),
   };
 }
@@ -1664,7 +1662,6 @@ export function tilbudsforesporselTekst(f) {
   }
   if (!f.antallLinjer) ut.push('(Innkjøpet har ingen linjer.)');
   ut.push('', 'Slik ønsker vi tilbudet:', ...f.krav.map(k => `• ${k}`));
-  if (f.levering) ut.push('', `Leveres til: ${f.levering}`);
-  if (f.signatur) ut.push(f.signatur);
+  if (f.signatur) ut.push('', f.signatur);
   return ut.join('\n') + '\n';
 }

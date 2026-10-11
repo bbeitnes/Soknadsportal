@@ -265,7 +265,8 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   sidepanel med forhåndsvisning og «Kopier» (`sidepanel(…, { bred: true })` = 680 px, så alle kolonnene får plass). `tilbudsforesporsel()` i `beregning.js` gir dataene (ref =
   innkjøpets navn, tabell Nr · Antall · Vare · Spesifikasjon · Pris · Rabatt · Nettopris (de tre siste
   tomme, fylles av leverandøren) gruppert som matrisen, delte linjer slått sammen,
-  `FORESPORSELKRAV` om pris per stykk per linje, «Leveres til» og signaturlinje fra `innstillinger`);
+  `FORESPORSELKRAV` om pris per stykk per linje, frakt/leveringstid og alternativ vare – ingen pakkepris-setning og
+  ingen leveringsadresse – og signaturlinje fra `innstillinger`);
   `ui/foresporsel.js` lager HTML-tabellen og legger HTML + ren tekst (`tilbudsforesporselTekst()`, tabulator
   mellom kolonnene) på utklippstavlen med `ClipboardItem`. Limt inn i Gmail/Outlook blir det en tabell, i
   Excel celler. Sperret utklippstavle: tabellen i panelet merkes og brukeren trykker ⌘/Ctrl+C (ingen ny

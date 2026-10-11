@@ -186,3 +186,7 @@ Grillet 2026-10-10 med `/grill-me`, ett spørsmål om gangen. Ni spørsmål, all
   sperret, varsel om manglende spesifikasjon) og `?demo=leser`.
 - 2026-10-11: Tomme kolonner Pris, Rabatt og Nettopris lagt til etter ønske fra
   brukeren – leverandøren fyller dem ut per linje.
+- 2026-10-11, etter ferdig: brukeren tok ut setningen «Ingen pakkepris eller
+  totalrabatt …» og linjen «Leveres til» fra forespørselen. Kravene er nå tre:
+  pris per stykk per linje, frakt og leveringstid, alternativ vare på linjen.
+  Signaturlinjen står som før.

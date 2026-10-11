@@ -27,7 +27,6 @@ export function foresporselHtml(f) {
 </table>
 <p style="${avsnitt}; margin-bottom:4px"><b>Slik ønsker vi tilbudet:</b></p>
 <ul style="${avsnitt}; padding-left:20px">${f.krav.map(k => `<li>${escapeHtml(k)}</li>`).join('')}</ul>
-${f.levering ? `<p style="${avsnitt}; margin-bottom:4px">Leveres til: ${escapeHtml(f.levering)}</p>` : ''}
 ${f.signatur ? `<p style="${avsnitt}; color:#444">${escapeHtml(f.signatur)}</p>` : ''}
 </div>`;
 }

@@ -108,20 +108,36 @@ Authentication → Sign-in method:
 Authentication → Settings → Authorized domains: sjekk at `beitnes.net` og
 `localhost` står der.
 
-### E-post fra eget domene (anbefalt)
+### E-post via egen SMTP-konto (anbefalt)
 Innloggingslenken sendes som standard fra `noreply@skiensskolemusikk-b5cbc.firebaseapp.com`
-og havner lett i søppelpost (bekreftet 2026-09-30). Send heller gjennom en
-e-postkonto på eget domene:
+og havner lett i søppelpost (bekreftet 2026-09-30). iCloud-adresser (@me.com, @icloud.com)
+kan kaste den stille, uten at den dukker opp i noen mappe (2026-10-12). Firebase logger ikke
+sendte e-poster, og portalen får ingen feil når mottakeren avviser den. Send heller gjennom en
+e-postkonto med godt rykte. Enklest er en Gmail-konto:
 
-1. Opprett en e-postkonto hos ProISP, f.eks. `portal@beitnes.net`. SMTP-server,
-   port og sikkerhet står under kontoens oppsett for e-postklient i kontrollpanelet.
-2. Firebase Console → Authentication → Templates → **SMTP settings** → slå på, og
-   fyll inn avsenderadresse, SMTP-server, port, brukernavn, passord og sikkerhet.
-3. Samme sted: sett malspråket til norsk, og gi «Email link sign-in»-malen et
-   gjenkjennelig avsendernavn (f.eks. «Søknadsportal»).
-4. Test fra innloggingssiden på test-siden med en adresse du kan lese.
+1. Lag et app-passord i Google-kontoen: `https://myaccount.google.com/apppasswords`
+   (siden ligger ikke lenger i menyen under Sikkerhet; søk «App-passord» øverst på
+   myaccount.google.com hvis lenken ikke virker). Krever at totrinnsbekreftelse er på.
+   Gi det navnet «Firebase». Passordet på 16 tegn vises bare én gang.
+2. Firebase Console → Authentication → Templates → **SMTP settings** → slå på, og fyll inn:
+   avsenderadresse = gmail-adressen, server `smtp.gmail.com`, port 465 (SSL) eller 587 (TLS),
+   brukernavn = gmail-adressen, passord = app-passordet.
+3. Øverst på Templates-fanen: sett malspråket («Template language») til norsk.
+4. Velg malen **Email link sign-in** i listen til venstre, trykk blyanten, og sett
+   «Sender name» til «Søknadsportal». «From» skal nå være gmail-adressen.
+5. Test fra innloggingssiden på test-siden med en adresse du kan lese.
 
-Innstillingen gjelder hele Firebase-prosjektet (også KorpsApp og Bestillingsportal).
+Alternativ: en e-postkonto hos ProISP på eget domene, f.eks. `portal@beitnes.net`.
+SMTP-server, port og sikkerhet står under kontoens oppsett for e-postklient i
+kontrollpanelet; resten er som over. Returmeldinger fra mottakere havner da i den kontoens
+innboks, og e-postloggen i kontrollpanelet viser hva som er sendt.
+
+Å vite:
+- Gmail skriver om «Fra» til gmail-adressen uansett hva som står i malen, med mindre adressen
+  er lagt inn som «Send e-post som» i Gmail-innstillingene.
+- En vanlig Gmail-konto kan sende rundt 500 e-poster i døgnet – nok for innloggingslenker.
+- App-passordet skal bare ligge i Firebase Console, aldri i repoet.
+- Innstillingen gjelder hele Firebase-prosjektet (også KorpsApp og Bestillingsportal).
 
 ## 4. Første administrator
 Firestore → velg databasen → «Start collection» `brukere`:

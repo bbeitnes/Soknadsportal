@@ -1,7 +1,7 @@
 ---
 id: 0023
 tittel: Brukermanual i portalen (HTML + PDF)
-status: testes
+status: ferdig
 opprettet: 2026-10-28
 ---
 

@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brukermanual – Søknadsportal</title>
+<link rel="stylesheet" href="design/modernist.css">
+<style>
+  /* Brukermanualen (kort 0023). Én side uten innlogging, lesbar på skjerm og
+     skrevet ut som PDF med nettleserens utskrift. Versjon og dato står i
+     <header>; oppdater dem når manualen endres (se CLAUDE.md). */
+  :root { --bredde: 760px; --toc: 240px; }
+  html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+  body { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-body); line-height: 1.5; }
+
+  .topp { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 0 24px; min-height: 52px; background: var(--color-bg); border-bottom: 2px solid var(--color-divider); }
+  .topp .merke { font-weight: 800; font-size: 14px; white-space: nowrap; }
+  .topp .merke span { font-weight: 600; color: var(--color-neutral-700); margin-left: 8px; }
+  .topp .knapper { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .knapp { height: 34px; padding: 0 14px; border: 2px solid var(--color-divider); cursor: pointer; font: 600 14px var(--font-body); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; background: transparent; color: var(--color-text); text-decoration: none; }
+  .knapp:hover { background: var(--color-surface); }
+  .knapp-primar { background: var(--color-accent); color: var(--color-neutral-100); border-color: var(--color-accent); }
+  .knapp-primar:hover { background: var(--color-accent-600); }
+  .rollevarsel { display: none; width: 100%; padding: 8px 12px; margin: 12px 0 0; background: var(--color-accent-100); font-size: 14px; }
+  body.rolle-revisor .rollevarsel { display: block; }
+
+  .ramme { display: grid; grid-template-columns: var(--toc) minmax(0, var(--bredde)); gap: 40px; justify-content: center; padding: 24px 24px 80px; }
+  .toc { position: sticky; top: 68px; align-self: start; max-height: calc(100vh - 90px); overflow: auto; font-size: 13px; }
+  .toc summary { cursor: pointer; font-weight: 700; list-style: none; padding: 8px 0; }
+  .toc summary::-webkit-details-marker { display: none; }
+  .toc ol { list-style: none; margin: 0; padding: 0; }
+  .toc li a { display: block; padding: 4px 0; color: var(--color-neutral-800); text-decoration: none; }
+  .toc li a:hover { color: var(--color-accent-700); }
+  .toc li li a { padding-left: 14px; font-size: 12px; color: var(--color-neutral-700); }
+  .toc li.aktiv > a { color: var(--color-accent-700); font-weight: 600; }
+
+  article { min-width: 0; }
+  h1 { font-size: 34px; line-height: 1.1; margin: 8px 0 6px; }
+  .versjon { color: var(--color-neutral-700); font-size: 14px; margin-bottom: 28px; }
+  h2 { font-size: 24px; margin: 56px 0 10px; padding-top: 16px; border-top: 2px solid var(--color-divider); }
+  h3 { font-size: 17px; margin: 30px 0 6px; }
+  h4 { font-size: 15px; margin: 20px 0 4px; }
+  p, ul, ol { margin: 0 0 12px; }
+  li { margin-bottom: 4px; }
+  b { font-weight: 700; }
+  kbd { font: 600 12px var(--font-body); padding: 1px 6px; border: 1px solid var(--color-neutral-400); border-bottom-width: 2px; background: var(--color-neutral-100); white-space: nowrap; }
+  code { font-family: ui-monospace, Menlo, monospace; font-size: 13px; background: var(--color-neutral-200); padding: 1px 5px; }
+  .ingress { font-size: 17px; color: var(--color-neutral-800); }
+  .tips { padding: 10px 14px; margin: 14px 0; background: var(--color-neutral-200); border-left: 4px solid var(--color-neutral-500); font-size: 14px; }
+  .tips.viktig { background: var(--color-accent-100); border-left-color: var(--color-accent); }
+  .tips b:first-child { display: block; margin-bottom: 2px; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0 18px; font-size: 14px; }
+  th { text-align: left; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--color-neutral-700); padding: 6px 8px; border-bottom: 2px solid var(--color-text); vertical-align: bottom; }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--color-neutral-300); vertical-align: top; }
+  td:first-child { font-weight: 600; white-space: nowrap; }
+  .steg { counter-reset: steg; list-style: none; padding: 0; }
+  .steg > li { counter-increment: steg; position: relative; padding-left: 38px; margin-bottom: 10px; }
+  .steg > li::before { content: counter(steg); position: absolute; left: 0; top: 0; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; background: var(--color-text); color: var(--color-neutral-100); font-weight: 700; font-size: 13px; }
+  .sti { font-weight: 600; color: var(--color-neutral-700); font-size: 13px; letter-spacing: .02em; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0 0 14px; }
+  dt { font-weight: 700; }
+  dd { margin: 0; }
+  .toc-print { display: none; }
+
+  body.rolle-revisor [data-roller]:not([data-roller~="revisor"]) { display: none; }
+
+  @media (max-width: 960px) {
+    .ramme { grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 16px; }
+    .toc { position: static; max-height: none; border: 2px solid var(--color-divider); padding: 0 12px; }
+    h1 { font-size: 28px; }
+    h2 { margin-top: 40px; }
+    dl { grid-template-columns: 1fr; gap: 0 }
+    dd { margin-bottom: 8px; }
+    td:first-child { white-space: normal; }
+    .topp { padding: 8px 16px; }
+  }
+
+  @media print {
+    @page { size: A4; margin: 18mm 16mm 20mm;
+      @top-left { content: "Søknadsportal – brukermanual"; font: 600 9pt Archivo, system-ui, sans-serif; color: #605d5d; }
+      @bottom-right { content: "Side " counter(page); font: 9pt Archivo, system-ui, sans-serif; color: #605d5d; } }
+    html { scroll-behavior: auto; }
+    body { background: #fff; color: #201e1d; font-size: 11pt; line-height: 1.4; }
+    .topp, .toc, .skjerm-bare { display: none !important; }
+    .ramme { display: block; padding: 0; }
+    article { max-width: none; }
+    h1 { font-size: 26pt; }
+    h2 { font-size: 18pt; margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+    section.kapittel:first-of-type h2, .toc-print h2 { break-before: auto; }
+    h3 { font-size: 13pt; break-after: avoid; }
+    h4 { break-after: avoid; }
+    p, li, td { orphans: 3; widows: 3; }
+    table, .tips, .steg > li { break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
+    kbd { border-color: #bab6b6; background: #fff; }
+    code { background: #eae7e7; }
+    .tips { background: #eae7e7; }
+    .tips.viktig { background: #fff2ef; }
+    .toc-print { display: block; margin: 20px 0 0; }
+    .toc-print ol { list-style: none; padding: 0; columns: 2; column-gap: 28px; }
+    .toc-print li { break-inside: avoid; }
+    .toc-print li li { padding-left: 14px; font-size: 10pt; color: #605d5d; }
+    .toc-print a { text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topp">
+  <span class="merke">Søknadsportal<span>Brukermanual</span></span>
+  <div class="knapper">
+    <a class="knapp" href="./">Til portalen</a>
+    <button type="button" class="knapp knapp-primar" id="pdf">Last ned som PDF</button>
+  </div>
+  <div class="rollevarsel">Viser kapitlene for revisor. <a href="hjelp.html">Vis hele manualen</a></div>
+</header>
+
+<div class="ramme">
+<details class="toc skjerm-bare" id="toc" open>
+  <summary>Innhold</summary>
+  <ol id="toc-liste"></ol>
+</details>
+
+<article>
+
+<h1>Brukermanual for Søknadsportal</h1>
+<div class="versjon" id="versjon">Versjon 1.0 · 28. oktober 2026</div>
+
+<p class="ingress">Søknadsportal holder orden på det korpset trenger, søknadene til stiftelser og andre givere, innkjøpene pengene går til, og regnskapet med fakturaer og revisjon for hver søknad. Denne manualen beskriver skjermbildene, arbeidsgangene og det hver rolle kan gjøre.</p>
+
+<p class="skjerm-bare">Knappen <b>Last ned som PDF</b> øverst skriver manualen ut med nettleserens utskrift. Velg «Lagre som PDF» som skriver.</p>
+
+<div class="toc-print" id="toc-print"><h2>Innhold</h2><ol></ol></div>
+
+<!-- ============================================================ -->
+<section class="kapittel" id="roller" data-roller="alle revisor">
+<h2>1. Roller</h2>
+
+<p>Alle som bruker portalen er invitert av en administrator og har én av fire roller. Rollen bestemmer hva du ser og hva du kan endre. Det finnes ingen rettigheter per søknad, bortsett fra at revisorer bare ser søknadene de er satt som revisor for.</p>
+
+<table>
+  <thead><tr><th>Rolle</th><th>Ser</th><th>Kan</th></tr></thead>
+  <tbody>
+    <tr><td>Bruker</td><td>Alt: behov, søknader, årshjul og innstillinger.</td><td>Alt i søknadene. Opprette og endre givere og leverandører. Endre «Om korpset».</td></tr>
+    <tr><td>Administrator</td><td>Det samme som bruker, pluss brukerlisten.</td><td>I tillegg: invitere og fjerne brukere, sette roller, endre korpsets kontaktinfo, slette givere og leverandører.</td></tr>
+    <tr><td>Leser</td><td>Det samme som bruker, med merket «Leserett» i toppmenyen.</td><td>Ingenting kan endres. Kan åpne dokumenter, skrive ut, lage rapporter og kopiere tekster.</td></tr>
+    <tr><td>Revisor</td><td>Bare søknadene hen er krysset av som revisor på, og der bare pottlinjen, dokumentene og Revisjon.</td><td>Godkjenne revisjonen når søknaden er avsluttet, skrive en merknad, og kommentere enkeltfakturaer.</td></tr>
+  </tbody>
+</table>
+
+<p>Manualen er delt inn slik: kapittel 2–6 gjelder brukere og administratorer, kapittel 7 lesere, kapittel 8 revisorer og kapittel 9 administratorer. Kapittel 10 er svar på vanlige spørsmål.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="kapittel" id="komme-i-gang" data-roller="alle revisor">
+<h2>2. Komme i gang</h2>
+
+<h3 id="innlogging">Innlogging</h3>
+<p>Du må være invitert før du kan logge inn. Invitasjonen gjelder en bestemt e-postadresse, og du logger inn på en av to måter:</p>
+<ul>
+  <li><b>Logg inn med Google</b> – hvis e-postadressen din er en Google-konto (for eksempel Gmail eller en Google Workspace-konto).</li>
+  <li><b>Send meg en innloggingslenke</b> – skriv inn e-postadressen, og du får en lenke på e-post. Lenken virker én gang. Åpner du den i en annen nettleser enn den du ba om lenken fra, blir du bedt om å bekrefte e-postadressen.</li>
+</ul>
+<p>Får du meldingen «har ikke tilgang», er adressen ikke invitert. Be en administrator om en invitasjon, eller sjekk at du logget inn med den adressen invitasjonen gjelder. <b>Logg ut</b> står til høyre i toppmenyen.</p>
+<div class="tips"><b>Finner du ikke innloggingslenken?</b> Se i søppelposten. En administrator kan også sende deg en ny fra brukerlisten.</div>
+
+<h3 id="toppmenyen">Toppmenyen</h3>
+<p>Toppmenyen har fire valg: <b>Behov</b>, <b>Søknader</b>, <b>Årshjul</b> og <b>Innstillinger</b>. Til høyre står navnet ditt, <b>Hjelp</b> (denne manualen) og <b>Logg ut</b>. Der dukker også «Lagret» opp når noe lagres, og for administratorer en liten prikk som viser status for sikkerhetskopien (se kapittel 9). På telefon vises bare <b>Kvittering</b>; revisorer ser bare <b>Revisjon</b>.</p>
+
+<h3 id="lagring">Ingen lagreknapper</h3>
+<p>Portalen har ingen lagre- eller avbryt-knapper. Et felt lagres i det øyeblikket du forlater det: med <kbd>Tab</kbd>, med <kbd>Enter</kbd> i et vanlig felt, eller ved å klikke et annet sted. Nedtrekkslister og avkrysninger lagres med én gang du velger. «Lagret» vises diskret i toppmenyen. Går lagringen galt, vises en rød melding med <b>Prøv igjen</b>.</p>
+<p>Skriver du noe som ikke er gyldig (for eksempel en dato som ikke finnes), får du en melding, og feltet settes tilbake til det som sto der. Alle kan jobbe samtidig: endrer to personer det samme feltet, vinner den siste lagringen. Søknader, behov og leverandører viser «Sist endret av» nederst.</p>
+
+<h3 id="sidepaneler">Sidepaneler og taster</h3>
+<p>Detaljer vises i et panel til høyre, ikke på egne sider. Klikk en rad i en liste for å åpne panelet, og lukk det med <kbd>Esc</kbd> eller krysset øverst.</p>
+<table>
+  <thead><tr><th>Tast</th><th>Gjør</th></tr></thead>
+  <tbody>
+    <tr><td><kbd>Enter</kbd></td><td>Lagrer feltet du står i (i tekstområder gir Enter linjeskift).</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>Angrer det du har skrevet i feltet. Er feltet uendret, lukker Esc panelet.</td></tr>
+    <tr><td><kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Enter</kbd></td><td>Trykker på <b>+ Ny …</b> nederst i panelet, så du kan legge inn flere behov, fakturaer, givere eller leverandører på rad uten å bruke musen.</td></tr>
+    <tr><td><kbd>Tab</kbd></td><td>Går til neste felt og lagrer det forrige.</td></tr>
+  </tbody>
+</table>
+
+<h3 id="tabeller">Tabeller, filtre og rekkefølge</h3>
+<p>Skjermene er laget for å unngå rulling: tabellene har faste overskrifter og sumrader, og det er bare tabellen som ruller. Filtrene over en liste viser antall i parentes. Beløp vises alltid med to desimaler og tusenskille («12 000,00»).</p>
+<p>Behov og søknadslinjer er gruppert på <b>type</b> (Instrument, Uniform, Utstyr …) med delsum per gruppe. Rekkefølgen kan du endre selv: ta tak i håndtaket <b>⠿</b> foran en rad og dra den opp eller ned, eller inn i en annen type. Drar du en typeoverskrift, flyttes hele gruppen.</p>
+
+<h3 id="dokumenter">Filer og dokumenter</h3>
+<p>Filer lastes opp med <b>Last opp fil</b> eller ved å slippe dem i feltet. Klikk filnavnet for å åpne filen i en ny fane. Blokkerer nettleseren den nye fanen, må du tillate popup-vinduer for portalen.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="kapittel" id="skjermbilder" data-roller="alle">
+<h2>3. Skjermbildene</h2>
+
+<h3 id="behov">Behov</h3>
+<p class="sti">Toppmenyen → Behov</p>
+<p>Behovslisten er alt korpset trenger, uavhengig av søknader. Et behov kan ligge i flere søknader, og listen holder rede på hvor mye som gjenstår. Nøkkeltallene øverst viser antall åpne behov, gjenstående estimert beløp og hvor mange behov som ikke er med i noen søknad.</p>
+<dl>
+  <dt>Filtre</dt><dd><b>Åpne</b> · <b>Anskaffet og lukket</b> · <b>Alle</b>.</dd>
+  <dt>Knapper</dt><dd><b>Importer</b> (fra regneark), <b>Skriv ut</b> (listen slik filteret viser den) og <b>+ Nytt behov</b>.</dd>
+  <dt>Kolonner</dt><dd>Behov (med spesifikasjon og beskrivelse under), Gjenstår («3 av 5» med fremdriftsstolpe), Est. stk.pris, Gjenstår i kroner, Søknader (én brikke per søknad: giver og antall; fylt brikke betyr at det er valgt en pris i et innkjøp) og Status.</dd>
+</dl>
+<p>Klikk en rad for å åpne panelet. Der står:</p>
+<ul>
+  <li><b>Tittel</b> og <b>Type</b>. Typen er fritekst, og listen foreslår typene som er brukt før.</li>
+  <li><b>Spesifikasjon</b> – merke, modell, størrelse: det leverandøren trenger. Går til leverandøren i tilbudsforespørselen.</li>
+  <li><b>Beskrivelse</b> – hvorfor vi trenger det. Bare internt og i søknaden; går aldri til leverandøren.</li>
+  <li><b>Antall totalt</b> og <b>Est. stykkpris</b>, med tellerne Anskaffet, I søknader og Gjenstår.</li>
+  <li><b>Status</b>: <b>Automatisk</b>, <b>Trengs ikke</b> eller <b>Anskaffet</b>. Automatisk status regnes ut fra søknadene og innkjøpene (se tabellen under).</li>
+  <li>Søknadene behovet ligger i, med lenker. <b>Slett behov</b> vises bare når behovet ikke er med i noen søknad.</li>
+</ul>
+<table>
+  <thead><tr><th>Status</th><th>Betyr</th></tr></thead>
+  <tbody>
+    <tr><td>Ikke søkt</td><td>Behovet er ikke med i noen aktiv søknad.</td></tr>
+    <tr><td>Søkt</td><td>Ligger i minst én søknad.</td></tr>
+    <tr><td>Finansiert</td><td>Det er valgt en pris for behovet i et innkjøp.</td></tr>
+    <tr><td>Delvis anskaffet</td><td>Noe er fakturert, men ikke hele antallet.</td></tr>
+    <tr><td>Anskaffet</td><td>Hele antallet er fakturert, eller statusen er satt manuelt.</td></tr>
+    <tr><td>Trengs ikke</td><td>Satt manuelt. Behovet beholdes, men er lukket.</td></tr>
+  </tbody>
+</table>
+<p>Anskaffet antall telles fra innkjøp: en valgt linje regnes som anskaffet når den er dekket av en faktura, eller når innkjøpet har status «Fakturert».</p>
+
+<h4>Importere behov fra regneark</h4>
+<p><b>Importer</b> åpner et panel der du limer inn rader fra Excel eller Google Sheets, eller velger en CSV-fil. Første rad skal være overskrifter: Type, Tittel (påkrevd), Spesifikasjon (eller Modell), Beskrivelse, Antall og Est. stykkpris, i valgfri rekkefølge. Panelet viser hva som vil bli importert og hva som hoppes over (for eksempel behov som finnes fra før), og <b>Last ned mal (CSV)</b> gir en tom mal. Trykk <b>Importer N behov</b>.</p>
+
+<h3 id="soknader">Søknader</h3>
+<p class="sti">Toppmenyen → Søknader</p>
+<p>Én rad per søknad. Nøkkeltallene viser innvilget i år, hva som gjenstår i pottene og hvor mange søknader som venter på svar.</p>
+<dl>
+  <dt>Filtre</dt><dd><b>Aktive</b> (utkast, sendt og innvilget) · <b>Innvilget</b> · <b>Utkast og sendt</b> · <b>Avsluttet og avslått</b> · <b>Alle</b>.</dd>
+  <dt>Kolonner</dt><dd>Søknad (tittel og giver), Neste frist, Status, Søkt, Innvilget, Disponert, Gjenstår og Sist endret. Listen sorteres etter hva som haster: forfalte og nære frister øverst.</dd>
+  <dt>Ny søknad</dt><dd><b>+ Ny søknad</b> åpner et panel med giver, tittel og frist. <b>Opprett og åpne</b> lager et utkast og åpner det.</dd>
+</dl>
+
+<h3 id="soknad">Søknad</h3>
+<p class="sti">Søknader → klikk en søknad</p>
+<p>Øverst står tittelen (klikk den for å bytte til en annen aktiv søknad), status, giver, neste frist, sendt-dato og sist endret. Til høyre ligger <b>pottlinjen</b>: Søkt, Innvilget, Disponert, Fakturert og Gjenstår. Har søknaden egenandel eller egne midler, vises også Egenandel/Egne midler og Ramme. Linjen under forklarer regnestykket: hva vi betaler, og hvor mye som dekkes av egne midler, giveren og momskompensasjonen. Begrepene er forklart i kapittel 5.</p>
+<p>Søknaden har fem faner: <b>Søknad</b>, <b>Tekst</b>, <b>Innkjøp</b>, <b>Utgifter</b> og <b>Revisjon</b>.</p>
+
+<h4>Fanen Søknad</h4>
+<p>Til venstre står behovene i søknaden, gruppert på type: Behov, Type, Antall, Est. stk.pris og Kostnad. Krever giveren at momskompensasjonen trekkes ut, kommer kolonnene «Fra giver» og «Fra momskomp.» i tillegg. Over tabellen: <b>Skriv ut</b>, <b>+ Behov fra listen</b> (åpne behov fra behovslisten, med antall satt til det som gjenstår) og <b>+ Fri linje</b> (noe som ikke er et behov, for eksempel «Seminar for dirigenter»).</p>
+<p>Under tabellen: <b>Egenandel</b> (det korpset dekker selv), <b>Søkt beløp</b> (foreslås fra estimatet, kan overstyres – tøm feltet for å få forslaget tilbake), <b>Innvilget beløp</b> (fylles inn når svaret kommer, med et hint om estimatet er over eller under) og <b>Momskompensasjon</b> i prosent (arves fra giveren).</p>
+<p>Til høyre: <b>Giver</b>, <b>Tittel</b>, <b>Frist</b>, <b>Sendt</b>, <b>Neste frist</b> med feltet <b>Hva</b> (for eksempel «sluttrapport til giver»), <b>Status</b>, krysset <b>Revisjon på denne søknaden</b> med valg av revisorer, <b>Dokumenter</b> (søknadsteksten slik den ble sendt, budsjett, tilsagnsbrev) og <b>Slett søknad</b>.</p>
+<table>
+  <thead><tr><th>Status</th><th>Betyr</th></tr></thead>
+  <tbody>
+    <tr><td>Utkast</td><td>Søknaden skrives. Alt kan endres.</td></tr>
+    <tr><td>Sendt</td><td>Søknaden er levert til giveren. Det vi søkte om er låst (se under).</td></tr>
+    <tr><td>Innvilget</td><td>Giveren har sagt ja. Innvilget beløp blir en pott som brukes gjennom innkjøp og utgifter.</td></tr>
+    <tr><td>Avslått</td><td>Giveren sa nei. Søknaden beholdes som historikk.</td></tr>
+    <tr><td>Avsluttet</td><td>Pengene er brukt og rapportert. Revisorer kan godkjenne først nå.</td></tr>
+  </tbody>
+</table>
+<div class="tips viktig"><b>Hengelåsen</b> Når søknaden ikke lenger er et utkast, låses det vi søkte om: behovslinjene, egenandelen, søkt beløp, momsprosenten og giveren. Fanene Søknad og Tekst får en hengelås. Endrer behovet seg etter at søknaden er sendt, legger du det nye til under <b>Innkjøp</b> – da merkes det «lagt til etter søknaden» og teller ikke i søkt beløp. Trenger du likevel å endre søknaden, setter du status tilbake til Utkast; fra Innvilget eller Avsluttet må det bekreftes.</div>
+
+<h4>Fanen Tekst</h4>
+<p>Her skrives selve søknadsteksten, ett tekstområde per felt i giverens skjema (feltene settes opp på giveren under Innstillinger → Givere). Under hvert felt står en teller, for eksempel «120 av maks 150 ord», og statuslinjen øverst viser hvor mange felt som er utfylt. Har giveren ikke noe skjema, får søknaden ett fritt tekstfelt. Teksten låses sammen med søknaden.</p>
+<p><b>Kopier underlag</b> legger et ferdig oppdrag på utklippstavlen med alt portalen vet: «Om korpset» fra Innstillinger, giverens skjema, behovene per type, beløpene, tidligere søknader til samme giver og det du alt har skrevet. Lim det inn i Claude eller ChatGPT for å få utkast til hvert felt, og lim svarene tilbake i feltene. Portalen har ingen språkmodell selv. Når søknaden sendes, kopierer du teksten inn i giverens eget skjema.</p>
+
+<h4>Fanen Innkjøp</h4>
+<p>Innkjøp er der tilbudene sammenlignes og leverandør velges. En søknad kan ha flere innkjøp (for eksempel «Instrumenter» og «Uniformer»), vist som brikker øverst med navn og sum. Klikk en brikke for å vise innkjøpet; klikk den aktive brikken en gang til for å endre navn og status eller slette innkjøpet. <b>+</b> lager et nytt innkjøp. Statusen (<b>Innhenter tilbud</b> → <b>Valgt</b> → <b>Fakturert</b>) kan også endres ved å klikke merkelappen ved siden av brikkene.</p>
+<p>Knappene over matrisen: <b>N behov ikke fordelt</b> (behov i søknaden som ennå ikke ligger i noe innkjøp), <b>+ Behov fra listen</b>, <b>+ Fri linje</b>, <b>+ Leverandør</b>, <b>Tilbudsforespørsel</b> og <b>Billigst per linje</b>.</p>
+<p><b>Matrisen</b> har linjene nedover og leverandørene bortover. Antallet står ved linjenavnet og kan endres fritt i innkjøpet, uavhengig av søknaden («søkt 4» står under). Hver celle er leverandørens <b>netto stykkpris</b>:</p>
+<ul>
+  <li><b>Klikk</b> en celle for å velge den leverandøren for linjen. Den valgte cellen får en hake, og summen går inn i kolonnen <b>Valgt</b>.</li>
+  <li><b>Dobbeltklikk</b> for å skrive prisen. Du kan skrive listepris med rabatt: <code>1200 -15%</code> eller <code>1200 -180</code> gir begge 1 020,00 per stykk. Cellen viser nettoprisen stort og listeprisen og rabatten i liten skrift.</li>
+  <li><b>Lim inn</b> fra et regneark for å fylle flere celler på én gang (én kolonne eller flere, med tabulator mellom).</li>
+  <li><b>•••</b> i cellen åpner tilbudspanelet: alternativt produkt, hvilket tilbudsdokument og hvilken side prisen står på, og egne midler på varen (bare for den valgte prisen).</li>
+  <li><b>Binders</b> i cellen åpner tilbudsdokumentet.</li>
+  <li>Klikk <b>leverandørnavnet</b> i overskriften for å velge alt fra den leverandøren. Binders-ikonet ved navnet åpner leverandørpanelet.</li>
+  <li><b>Del linjen</b> (pilene ved antallet) når en vare skal fordeles på flere leverandører: linjen blir to med samme navn, hver med sitt antall og sin valgte leverandør.</li>
+</ul>
+<p>Nederst står raden <b>Frakt og faste kostnader</b> per leverandør (teller bare når noe er valgt hos leverandøren), raden <b>Alt hos én leverandør</b> (hva alt ville kostet hos hver enkelt, inkludert frakt) og <b>Valgt kombinasjon</b> – den reelle totalen for det som er valgt, med egne midler og giverens andel.</p>
+<div class="tips"><b>Be om pris per linje</b> Portalen sammenligner netto stykkpris linje for linje og godtar ikke en samlet rabatt på hele bestillingen. Tilbudsforespørselen sier dette til leverandøren.</div>
+<p><b>Leverandørpanelet</b> (binders ved navnet) har kontaktinfo (fra leverandørregisteret, eller fritekst for en leverandør som ikke ligger der), leveringsadresse for denne bestillingen, vedleggene (<b>Last opp tilbud</b>, <b>Lim inn tekst fra e-post</b> og <b>Les priser fra tilbudet</b>), knappen <b>Velg alt fra …</b>, bestillingene og <b>Fjern fra innkjøpet</b>. Har leverandøren ett vedlegg, peker alle prisene til det automatisk; har den flere, velger du dokument og side i tilbudspanelet.</p>
+<p><b>Les priser fra tilbudet</b> leser varelinjene ut av en PDF, foreslår hvilken av våre linjer hver tilbudslinje gjelder, og viser stykkpris med rabatt slik den vil stå i matrisen. Du retter koblingene i nedtrekkslistene, kan sette en linje til <b>+ Ny linje i innkjøpet</b> når leverandøren tilbyr noe vi ikke har spurt om, og trykker <b>Legg inn N priser</b>. Skannede tilbud uten tekst kan ikke leses.</p>
+
+<h4>Fanen Utgifter</h4>
+<p>Løse utgifter som ikke går gjennom et innkjøp: frakt, rekvisita, honorarer. Kolonnene er Beskrivelse, Type (valgfri – med type regnes utgiften inn i den kategorien i revisjonen), Dato, Beløp, Egeninnsats og Lagt inn av. Nederste rad er alltid en tom ny utgift; den lagres når beskrivelse og beløp er fylt ut og du forlater raden.</p>
+<p><b>+ Fra søknaden</b> plukker frie linjer fra søknaden inn som utgifter (planlagte utgifter): de står i gruppen «Fra søknaden» med det søkte beløpet ved siden av det faktiske. <b>Koble til linje</b> gjør det samme for en utgift som alt er lagt inn. En linje følges opp enten i Innkjøp eller som utgift, aldri begge deler.</p>
+<p>Krysset <b>Egeninnsats</b> brukes for dugnad og annen egeninnsats: estimert verdi uten faktura. Hele beløpet regnes som egne midler.</p>
+
+<h4>Fanen Revisjon</h4>
+<p>Fanen er regnskapet for søknaden. Den er slått av til du trykker <b>Slå på</b> (eller krysser av «Revisjon på denne søknaden» i Søknad-fanen). Øverst står oppsummeringen: fakturert av disponert, antall linjer som mangler faktura, avvik fra tilbud og fakturaer som ikke er koblet til noe. Knappene er <b>+ Ny faktura</b> og <b>Revisjonsrapport (PDF)</b>. Har søknaden revisorer, står status per revisor i en egen linje.</p>
+<p>Til venstre: <b>fakturalisten</b> med løpenummer, leverandør, fakturanummer, dato, beløp og avvik. Til høyre: <b>Hva potten er brukt på</b> – alle valgte tilbudslinjer og utgifter, med tilbudt beløp, fakturert beløp, avvik og «Faktura N» eller «Mangler faktura». Har søknaden egne midler, får hver post et felt for egne midler og postene grupperes per kategori med delsum.</p>
+<p><b>Fakturapanelet</b> (klikk en faktura) har Leverandør (med forslag fra registeret og <b>+ Legg «…» i leverandørregisteret</b> når navnet er ukjent), Fakturanr, Dato, Beløp (negativt beløp er en kreditnota), Vedlegg (<b>+ Last opp PDF eller bilde</b>), <b>Gjelder</b> (kryss av de linjene og utgiftene fakturaen dekker – flere per faktura), <b>Merknad</b> (vises i listen og i rapporten), eventuelle kommentarer fra revisor, <b>+ Ny faktura</b> og <b>Slett faktura</b>. Under en avkrysset post kan du krysse av <b>Flere fakturaer kommer</b> når dette er en delfaktura.</p>
+
+<h3 id="aarshjul">Årshjul</h3>
+<p class="sti">Toppmenyen → Årshjul</p>
+<p>Tolv månedsruter fra forrige måned og ett år fram. Rutene viser givernes søknadsfrister (klikk for å åpne giveren) og søknadenes neste frist (klikk for å åpne søknaden). Frister som nærmer seg er uthevet, passerte er merket «Forfalt». Fristene legges inn på giveren under Innstillinger → Givere; en årlig frist gjentas samme dag hvert år.</p>
+
+<h3 id="innstillinger">Innstillinger</h3>
+<p class="sti">Toppmenyen → Innstillinger</p>
+<p>Innstillinger har fanene <b>Organisasjon</b>, <b>Givere</b>, <b>Leverandører</b> og, for administratorer, <b>Brukere</b>.</p>
+<h4>Organisasjon</h4>
+<p>Korpsets kontaktinfo: navn, organisasjonsnummer, kontaktperson, telefon, e-post, postadresse, leveringsadresse og «Faktura sendes til». Den står på bestillingene og i signaturen på tilbudsforespørselen, og endres av en administrator. Under ligger <b>Om korpset</b>: fem tekstfelt (kort om korpset, medlemmer og alder, aktiviteter i året, formål, økonomi) som alle brukere kan endre. De tas med i underlaget fra Tekst-fanen, så skriv dem slik en giver skal lese dem. Nederst står status for sikkerhetskopien.</p>
+<h4>Givere</h4>
+<p>Stiftelsene og de andre giverne korpset søker hos. Listen viser kontakt, frister, momsinnstilling og antall søknader. <b>+ Ny giver</b> lager en ny; klikk en rad for å åpne panelet:</p>
+<ul>
+  <li><b>Navn</b>, <b>Søknadsportal (nettadresse)</b> med lenken <b>Åpne ↗</b>, <b>Kontaktperson</b>, <b>E-post</b> med <b>Skriv e-post</b>, <b>Telefon</b> og <b>Notat</b> (krav til søknaden, andre kontakter).</li>
+  <li><b>Søknadsfrister</b>: <b>+ Frist</b> gir dato, tekst og krysset <b>Årlig</b>. Fristene vises i Årshjul, og <b>+ Søknad til denne fristen</b> oppretter et utkast med giveren og fristen ferdig utfylt.</li>
+  <li><b>Søknadsskjema</b>: feltene giveren ber om i søknaden, i deres rekkefølge, med maks antall ord eller tegn og en hjelpetekst. Søknader til giveren får ett tekstområde per felt i Tekst-fanen. Fjerner du et felt, blir tekst som er skrevet i det stående på søknadene.</li>
+  <li><b>Trekk ut momskompensasjon</b> med standardprosent. Når dette er på, viser søknadene til giveren kolonnene «Fra giver» og «Fra momskomp.» (se kapittel 5).</li>
+  <li>Søknadene til giveren, og <b>Slett giver</b> (bare administrator, og bare uten søknader).</li>
+</ul>
+<h4>Leverandører</h4>
+<p>Registeret over leverandørene korpset henter tilbud fra. Panelet har navn, nettside, kontaktperson, e-post, telefon, notat (for eksempel kundenummer) og hvilke innkjøp leverandøren er brukt i. Innkjøpene henter navn og kontakt herfra, og en leverandør kan også opprettes direkte fra <b>+ Leverandør</b> i Innkjøp eller fra fakturapanelet i Revisjon. <b>Slett leverandør</b> er for administrator, og bare når leverandøren ikke er brukt i noe innkjøp.</p>
+<h4>Brukere</h4>
+<p>Bare for administratorer. Se kapittel 9.</p>
+
+<h3 id="kvittering">Kvittering (mobil)</h3>
+<p class="sti">Åpne portalen på telefonen, eller Toppmenyen → Kvittering</p>
+<p>En rask vei for å få kvitteringer og fakturaer inn i riktig søknad mens du står i butikken. Fire steg: velg søknad (bare innvilgede vises, med gjenstående beløp) → <b>Ta bilde</b>, <b>Velg fra bilder</b> eller <b>PDF fra filer</b> → skriv beløpet og eventuelt fakturanummer → <b>Legg inn kvittering</b>. Bildet gjøres om til en søkbar PDF, og kvitteringen får løpenummer og dukker opp under Revisjon som «Ikke koblet til noe». Leverandør og kobling til linjer gjøres etterpå på PC. Arbeidsgangen er beskrevet i kapittel 4.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="kapittel" id="arbeidsganger" data-roller="alle">
+<h2>4. Arbeidsganger</h2>
+<p>Seks arbeidsganger fra start til slutt. Knappenavnene står i fet skrift, slik de står på skjermen.</p>
+
+<h3 id="ag-soknad">Fra behov til sendt søknad</h3>
+<ol class="steg">
+  <li><b>Legg inn behovene.</b> Gå til <b>Behov</b> og trykk <b>+ Nytt behov</b> for hvert behov, eller <b>Importer</b> en liste fra regneark. Fyll inn tittel, type, spesifikasjon (det leverandøren trenger), beskrivelse (hvorfor), antall og estimert stykkpris. Bruk <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Enter</kbd> for å gå rett til neste.</li>
+  <li><b>Sjekk giveren.</b> Under <b>Innstillinger → Givere</b>: finnes giveren, og er momsinnstillingen, fristen og søknadsskjemaet lagt inn? Skjemaet gir deg ett tekstfelt per spørsmål i søknaden, med ordgrense.</li>
+  <li><b>Opprett søknaden.</b> <b>Søknader → + Ny søknad</b>: velg giver, skriv tittel (for eksempel «Instrumenter 2027») og frist, og trykk <b>Opprett og åpne</b>. Står fristen i Årshjul, kan du i stedet bruke <b>+ Søknad til denne fristen</b> på giveren.</li>
+  <li><b>Velg behovene.</b> I fanen <b>Søknad</b>: <b>+ Behov fra listen</b> viser åpne behov, gruppert på type, med <b>Legg til</b> per behov og <b>Legg til alle</b>. Antallet settes til det som gjenstår; juster antall og estimert pris i tabellen. <b>+ Fri linje</b> for det som ikke er et behov. Dra radene for å få rekkefølgen slik giveren vil ha den.</li>
+  <li><b>Sett beløpene.</b> Skriv <b>Egenandel</b> hvis korpset skal dekke noe selv. <b>Søkt beløp</b> foreslås som summen av estimatene (giverens andel når momskompensasjon trekkes ut), etter egenandel. Overstyr hvis giveren har et tak.</li>
+  <li><b>Skriv teksten.</b> I fanen <b>Tekst</b>: trykk <b>Kopier underlag</b>, lim inn i Claude eller ChatGPT, og lim utkastene tilbake i feltene. Telleren under hvert felt viser om du holder deg innenfor giverens grense.</li>
+  <li><b>Send og lås.</b> Send søknaden i giverens egen portal (kopier teksten fra Tekst-fanen). Last opp søknaden og budsjettet under <b>Dokumenter</b>, skriv datoen i <b>Sendt</b>, og sett status til <b>Sendt</b>. Søknaden er nå låst.</li>
+  <li><b>Når svaret kommer.</b> Sett status til <b>Innvilget</b> eller <b>Avslått</b>, skriv <b>Innvilget beløp</b> og last opp tilsagnsbrevet. Er beløpet et annet enn søkt og søknaden har egenandel, velger du om egenandelen beholdes som <b>Beløp</b> eller som <b>Andel</b>. Skriv neste frist (for eksempel rapportfristen) i <b>Neste frist</b> med <b>Hva</b>, så dukker den opp i søknadslisten og Årshjul.</li>
+</ol>
+
+<h3 id="ag-innkjop">Innhente tilbud, velge priser og bestille</h3>
+<ol class="steg">
+  <li><b>Lag innkjøpet.</b> I fanen <b>Innkjøp</b>: trykk <b>+</b> (eller <b>+ Nytt innkjøp</b>), gi det et navn, for eksempel «Instrumenter». Lag ett innkjøp per tilbudsrunde.</li>
+  <li><b>Legg inn linjene.</b> Trykk <b>N behov ikke fordelt</b> og <b>Legg alle N i …</b>, eller <b>Legg til</b> per behov. Juster antallet i matrisen hvis dere skal kjøpe et annet antall enn dere søkte om. Har behovet endret seg, bruk <b>+ Behov fra listen</b> eller <b>+ Fri linje</b> her – søknaden røres ikke.</li>
+  <li><b>Legg til leverandørene.</b> <b>+ Leverandør</b>: søk i registeret og velg, eller skriv et nytt navn og trykk <b>+ Opprett «…» og legg til</b>.</li>
+  <li><b>Send tilbudsforespørselen.</b> Trykk <b>Tilbudsforespørsel</b>. Panelet viser en tabell med nummer, antall, vare og spesifikasjon, tomme kolonner for pris, rabatt og nettopris, og kravene våre (pris per stykk per linje, frakt og leveringstid, alternativ vare på linjen). Trykk <b>Kopier</b> og lim inn i e-posten til hver leverandør; tabellen følger med. Hilsen, svarfrist og mottaker skriver du selv. Sier panelet at linjer mangler spesifikasjon, legg den inn på behovet først.</li>
+  <li><b>Legg inn tilbudene.</b> Åpne leverandørpanelet (binders ved navnet) og <b>Last opp tilbud</b> (PDF), eller <b>Lim inn tekst fra e-post</b>. For en PDF: trykk <b>Les priser fra tilbudet</b>, sjekk koblingene og prisene, og trykk <b>Legg inn N priser</b>. Ellers dobbeltklikker du cellene og skriver prisen (<code>1200 -15%</code>). Sjekk om prisen er med eller uten mva.</li>
+  <li><b>Velg.</b> Trykk <b>Billigst per linje</b>, eller klikk leverandørnavnet for å ta alt fra én. Juster enkeltceller med ett klikk. Fyll inn <b>Frakt og faste kostnader</b> per leverandør. <b>Valgt kombinasjon</b> nederst til høyre er det det koster. Skal en vare fordeles på to leverandører, del linjen først.</li>
+  <li><b>Egne midler og alternativer.</b> Åpne <b>•••</b> på den valgte prisen for å skrive <b>Egne midler</b> på varen (hva korpset dekker selv av akkurat denne) og <b>Alternativt produkt</b> når leverandøren tilbød noe annet enn dere ba om.</li>
+  <li><b>Sett status.</b> Klikk statusmerket ved brikkene og sett innkjøpet til <b>Valgt</b>. Pottlinjen øverst viser nå hvor mye som er disponert.</li>
+  <li><b>Bestill.</b> I leverandørpanelet: <b>Last ned bestilling (PDF)</b>. Bestillingen har linjene som er valgt hos leverandøren, korpsets kontaktinfo fra Innstillinger og leveringsadressen (egen for denne bestillingen hvis feltet <b>Leveringsadresse</b> er fylt ut). PDF-en lagres på innkjøpet og sendes av deg selv. Linjene i bestillingen låses: antall, valgt leverandør og pris kan ikke endres før du åpner linjen igjen fra <b>•••</b> → <b>Åpne linjen for endring</b>, eller sletter bestillingen i leverandørpanelet.</li>
+</ol>
+
+<h3 id="ag-revisjon">Fakturaer og revisjon</h3>
+<ol class="steg">
+  <li><b>Slå på revisjon.</b> I fanen <b>Revisjon</b>: <b>Slå på</b>. Krever giveren revisjonsrapport, kryss også av revisorene i Søknad-fanen (se «Revisorgodkjenning» nedenfor).</li>
+  <li><b>Legg inn fakturaen.</b> <b>+ Ny faktura</b>: skriv leverandør, fakturanummer, dato og beløp, og last opp PDF-en eller et bilde av fakturaen. Bruk <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Enter</kbd> for neste faktura. Kvitteringer fra mobil ligger her allerede, merket «Ikke koblet til noe».</li>
+  <li><b>Koble den.</b> Under <b>Gjelder</b> krysser du av linjene og utgiftene fakturaen dekker. Panelet viser tilbudt beløp og avviket. Dekker fakturaen bare en del av en linje, kryss av <b>Flere fakturaer kommer</b>; da teller estimatet til resten er fakturert. Er navnet ukjent, tilbyr panelet <b>+ Legg «…» i leverandørregisteret</b>.</li>
+  <li><b>Forklar avvik.</b> Skriv i <b>Merknad</b> hvorfor beløpet avviker fra tilbudet, eller at det er en delfaktura. Merknaden står i fakturalisten og i rapporten. En kreditnota legges inn som en faktura med negativt beløp.</li>
+  <li><b>Følg med.</b> Oppsummeringen øverst sier hvor mye som er fakturert av disponert, hvilke linjer som mangler faktura og hvor mange avvik det er. «Hva potten er brukt på» viser status per post. Når alt er fakturert, sett innkjøpet til <b>Fakturert</b>.</li>
+  <li><b>Lag rapporten.</b> <b>Revisjonsrapport (PDF)</b> lager én PDF med forside (søkt, innvilget, brukt og gjenstående, fordelt per kategori og på egne midler, giver og momskompensasjon), oversikt over fakturaene med det hver faktura gjelder, og alle bilagene i samme rekkefølge med løpenummeret stemplet i hjørnet. Kan lages når som helst.</li>
+  <li><b>Avslutt.</b> Når rapporten er sendt giveren, sett status til <b>Avsluttet</b>. Først da kan revisorene godkjenne.</li>
+</ol>
+
+<h3 id="ag-kvittering">Kvittering fra mobil</h3>
+<ol class="steg">
+  <li>Åpne portalen på telefonen og logg inn. Du kommer rett til <b>Ny kvittering</b>.</li>
+  <li>Velg søknaden kvitteringen gjelder. Bare innvilgede søknader vises, med hvor mye som gjenstår.</li>
+  <li>Trykk <b>Ta bilde</b> og fotografer kvitteringen, eller velg et bilde eller en PDF du har fra før. Vent til bildet er klargjort.</li>
+  <li>Skriv <b>Beløp</b> og eventuelt <b>Fakturanummer</b>, og trykk <b>Legg inn kvittering</b>.</li>
+  <li>Kvitteringen får et løpenummer. Trykk <b>Ny kvittering til samme søknad</b> for neste, eller <b>Ferdig</b>. På PC finner du den under Revisjon og kobler den til riktig linje eller utgift.</li>
+</ol>
+
+<h3 id="ag-aarshjul">Årshjul og frister</h3>
+<ol class="steg">
+  <li>Legg giverens søknadsfrister inn på giveren: <b>Innstillinger → Givere</b>, åpne giveren, <b>+ Frist</b>, skriv dato og hva fristen gjelder («ordinær tildeling»), og kryss av <b>Årlig</b> hvis den gjentas hvert år.</li>
+  <li>Åpne <b>Årshjul</b>. Giverfristene og søknadenes neste frister ligger i månedsrutene; det som nærmer seg er uthevet.</li>
+  <li>Klikk en giverfrist for å åpne giveren, og trykk <b>+ Søknad til denne fristen</b> for å starte et utkast med giver, frist og tittel ferdig utfylt.</li>
+  <li>På en søknad som er sendt, skriv <b>Neste frist</b> og <b>Hva</b> (svar ventes, delrapport, sluttrapport). Så lenge søknaden er utkast, er neste frist søknadsfristen selv («Send søknaden»). Søknadslisten sorterer etter neste frist, og forfalte frister merkes «Forfalt».</li>
+</ol>
+
+<h3 id="ag-godkjenning">Revisorgodkjenning</h3>
+<p>Dette er arbeidsgangen sett fra korpset. Revisoren har sitt eget kapittel (8).</p>
+<ol class="steg">
+  <li>En administrator inviterer revisoren med rollen <b>Revisor</b> under <b>Innstillinger → Brukere</b>. Revisoren ser ingenting før neste steg.</li>
+  <li>Åpne søknaden, kryss av <b>Revisjon på denne søknaden</b> i Søknad-fanen, og kryss av revisoren under <b>Revisorer</b>. Flere revisorer kan krysses av; hver godkjenner for seg.</li>
+  <li>Gjør regnskapet ferdig (fakturaer, kobling, rapport) og sett søknaden til <b>Avsluttet</b>.</li>
+  <li>Revisoren logger inn, finner søknaden i sin liste, går gjennom fakturaene og trykker <b>Godkjenn revisjon</b>. Godkjenningen vises i Revisjon-fanen med tidspunkt og eventuell merknad, og nederst på forsiden av rapporten.</li>
+  <li>Endres tallene etterpå (en faktura, en valgt pris, et antall, egne midler, innvilget beløp), står revisoren som <b>Endret etter godkjenningen</b> og må godkjenne på nytt. Ingenting låses. Revisorens kommentarer til enkeltfakturaer vises som merket <b>Kommentar</b> i fakturalisten; revisoren fjerner dem selv når saken er løst.</li>
+</ol>
+</section>
+
+<!-- ============================================================ -->
+<section class="kapittel" id="begreper" data-roller="alle">
+<h2>5. Begreper og beløp</h2>
+
+<h3>Pottlinjen</h3>
+<table>
+  <thead><tr><th>Begrep</th><th>Betyr</th></tr></thead>
+  <tbody>
+    <tr><td>Søkt</td><td>Beløpet vi ba giveren om.</td></tr>
+    <tr><td>Innvilget</td><td>Beløpet giveren ga. Ofte lavere enn søkt. Blir potten.</td></tr>
+    <tr><td>Egenandel</td><td>Det korpset lovet å dekke selv i søknaden. Trekkes fra søkt beløp og legges til rammen.</td></tr>
+    <tr><td>Egne midler</td><td>Beløp korpset dekker selv på en bestemt vare (satt i Innkjøp bak •••) eller en utgift (satt i Revisjon). Er egenandelen satt, viser egne midler på varene bare hvor egenandelen går; er den ikke satt, er egne midler summen av det som ligger på varene.</td></tr>
+    <tr><td>Ramme</td><td>Innvilget + egne midler. Det som kan brukes i alt.</td></tr>
+    <tr><td>Disponert</td><td>Det som er brukt av rammen: valgte priser i innkjøpene (antall × netto stykkpris, pluss frakt) og løse utgifter. En post med faktura teller det fakturerte beløpet, resten teller estimatet.</td></tr>
+    <tr><td>Fakturert</td><td>Summen av fakturaene på søknaden.</td></tr>
+    <tr><td>Gjenstår</td><td>Ramme − disponert. Er det negativt, står det «Overforbruk», og linjen under viser hva som er over rammen og må dekkes selv.</td></tr>
+  </tbody>
+</table>
+
+<h3>Momskompensasjon</h3>
+<p>Noen givere krever at forventet momskompensasjon trekkes ut av søknaden. Eksempel med 8 %: en vare til 1 000 kr dekkes med 920 kr fra giveren, og 80 kr dekkes av momskompensasjonen korpset får året etter. Når innstillingen er på hos giveren, viser søknaden kostnadene i tre kolonner (Kostnad, Fra giver, Fra momskompensasjon), søkt beløp foreslås som giverens andel, og rapporten viser hvilket år momskompensasjonen ventes mottatt. Prosenten arves fra giveren og kan justeres per søknad. Tilbudsmatrisen påvirkes ikke; fordelingen skjer bare på summene. Egne midler trekkes fra før fordelingen.</p>
+
+<h3>Antall på tre nivåer</h3>
+<dl>
+  <dt>Behov</dt><dd>Hva korpset totalt trenger («6 klarinetter»).</dd>
+  <dt>Søknad</dt><dd>Hva vi søkte om i denne søknaden («4 av dem»).</dd>
+  <dt>Innkjøp</dt><dd>Hva vi faktisk kjøper nå. Kan avvike fordi behovet endret seg eller pengene ikke strakk til.</dd>
+</dl>
+
+<h3>Andre uttrykk</h3>
+<dl>
+  <dt>Lagt til etter søknaden</dt><dd>En linje som ble lagt inn etter at søknaden var sendt. Har et notat («i stedet for klarinett»), teller ikke i søkt beløp, men går i innkjøp og revisjon.</dd>
+  <dt>Fri linje</dt><dd>En linje som ikke er et behov fra behovslisten: i søknaden («Seminar»), eller bare i innkjøpet (noe leverandøren tilbød).</dd>
+  <dt>Delt linje</dt><dd>Én vare fordelt på to leverandører: to linjer i matrisen med samme navn og hvert sitt antall.</dd>
+  <dt>Ikke fordelt</dt><dd>Behov i søknaden som ennå ikke ligger i noe innkjøp. Knappen i Innkjøp viser antallet.</dd>
+  <dt>Bestilt</dt><dd>En linje som står i en nedlastet bestilling. Antall, leverandør og pris er låst.</dd>
+  <dt>Avvik</dt><dd>Forskjellen mellom fakturert beløp og tilbudt beløp (antall × netto stykkpris) på en post.</dd>
+  <dt>Kreditnota</dt><dd>En faktura med negativt beløp.</dd>
+  <dt>Flere fakturaer kommer</dt><dd>Delfaktura: posten teller fortsatt estimatet i Disponert, ikke det som er fakturert så langt.</dd>
+  <dt>Egeninnsats</dt><dd>Dugnad og annen innsats ført som utgift uten faktura. Hele beløpet er egne midler, og rapporten regner den som brukt.</dd>
+  <dt>Løpenummer</dt><dd>Fakturaens nummer i denne søknaden (1, 2, 3 …). Stemples på bilaget i rapporten.</dd>
+</dl>
+</section>
+
+<!-- ============================================================ -->
+<section class="kapittel" id="tips" data-roller="alle">
+<h2>6. Gode vaner</h2>
+<ul>
+  <li><b>Legg alt i behovslisten først.</b> Da ser du hva som gjenstår på tvers av søknader, og nye søknader kan plukke fra listen.</li>
+  <li><b>Sett spesifikasjon på behovet</b> før du sender tilbudsforespørselen, så leverandøren vet hva du mener.</li>
+  <li><b>Én tilbudsrunde = ett innkjøp.</b> Instrumenter og uniformer har sjelden samme leverandører.</li>
+  <li><b>Last opp tilbudet som PDF</b> og bruk «Les priser fra tilbudet». Da peker hver pris til dokumentet, og revisoren kan åpne det fra revisjonen.</li>
+  <li><b>Koble fakturaene med en gang.</b> En ukoblet faktura teller ikke i Disponert, og oppsummeringen sier fra.</li>
+  <li><b>Skriv merknad på avvik.</b> Den står i rapporten og sparer spørsmål fra revisor og giver.</li>
+  <li><b>Bruk Neste frist.</b> Rapportfrister er lette å glemme; i søknadslisten og Årshjul ser hele styret dem.</li>
+  <li><b>Ikke lås opp en innvilget søknad</b> for å endre behov. Legg endringen til under Innkjøp.</li>
+</ul>
+</section>
+
+<!-- ============================================================ -->
+<section class="kapittel" id="leser" data-roller="alle">
+<h2>7. For lesere</h2>
+<p>En leser ser nøyaktig de samme skjermene som en bruker, men kan ikke endre noe. Merket <b>Leserett</b> står i toppmenyen. Feltene er skrivebeskyttet, og knapper som endrer noe er borte. Rollen passer for styremedlemmer og andre som skal følge med uten å føre.</p>
+<p>Det en leser kan gjøre:</p>
+<ul>
+  <li>Åpne alle lister, søknader, faner og paneler, og filtrere og bla.</li>
+  <li>Åpne dokumenter, tilbud, fakturabilag og lagrede bestillinger.</li>
+  <li><b>Skriv ut</b> behovslisten og søknadens behovstabell.</li>
+  <li>Lage <b>Revisjonsrapport (PDF)</b>.</li>
+  <li><b>Kopier underlag</b> i Tekst-fanen og <b>Kopier</b> tilbudsforespørselen.</li>
+</ul>
+<p>Mobilskjermen Kvittering er ikke tilgjengelig for lesere, og det vises ingen «Lagret»-status.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="kapittel" id="revisor" data-roller="alle revisor">
+<h2>8. For revisorer</h2>
+<p>Dette kapitlet er skrevet for deg som er satt som revisor for en eller flere søknader i korpsets Søknadsportal. Du trenger ikke lese resten av manualen.</p>
+
+<h3>Hva du ser</h3>
+<p>Du logger inn som beskrevet i kapittel 2, med e-postadressen korpset inviterte. Toppmenyen har bare valget <b>Revisjon</b>, som viser listen over søknadene du er satt som revisor for: tittel og giver, status, innvilget beløp, fakturert beløp og din godkjenning. Er listen tom, har korpset ikke krysset deg av på noen søknad ennå.</p>
+<p>Klikk en søknad. Øverst står tittelen, status, giver og sendt-dato, <b>dokumentene</b> på søknaden (søknaden slik den ble sendt, budsjett, tilsagnsbrev – klikk for å åpne) og pottlinjen med søkt, innvilget, disponert, fakturert og gjenstående beløp. Begrepene er forklart i kapittel 5 i den fulle manualen; kort fortalt er <b>Disponert</b> det som er brukt av innvilget beløp pluss korpsets egne midler, der poster med faktura teller det fakturerte og resten teller estimatet.</p>
+<p>Under ligger revisjonen, skrivebeskyttet:</p>
+<ul>
+  <li><b>Oppsummeringen</b>: fakturert av disponert, linjer som mangler faktura, avvik fra tilbud og fakturaer som ikke er koblet til noe.</li>
+  <li><b>Revisjonsrapport (PDF)</b>: samme rapport som korpset sender giveren – forside med fordeling, oversikt over fakturaene og alle bilagene med løpenummer stemplet i hjørnet.</li>
+  <li><b>Fakturaene</b> med løpenummer, leverandør, fakturanummer, dato, beløp og avvik. Klikk en faktura for å se detaljene, hva den dekker, korpsets merknad og bilaget (<b>Åpne i ny fane</b>). Står det «Vedlegg mangler», finnes det ikke noe bilag.</li>
+  <li><b>Hva potten er brukt på</b>: hver valgt tilbudslinje og utgift med tilbudt beløp, fakturert beløp, avvik, egne midler og hvilken faktura som dekker den – eller «Mangler faktura». «Egeninnsats» er dugnad ført uten faktura.</li>
+</ul>
+<p>Står det «Revisjon er slått av for denne søknaden», har korpset ikke tatt revisjonen i bruk for den ennå.</p>
+
+<h3>Kommentere en faktura</h3>
+<p>I fakturapanelet har du feltet <b>Din kommentar</b>. Skriv for eksempel «bilaget mangler spesifikasjon» og gå ut av feltet; kommentaren lagres med én gang og vises for dem som fører søknaden, med merket «Kommentar» i fakturalisten. Kommentarer står ikke i rapporten, kan ikke besvares i portalen og hindrer ikke godkjenning. Tøm feltet for å fjerne kommentaren når saken er løst. Kommentarer fra andre revisorer vises under.</p>
+
+<h3>Godkjenne</h3>
+<p>Linjen <b>Revisjon</b> over tabellene viser din godkjenning og de andre revisorenes. Du kan godkjenne først når korpset har satt søknaden til <b>Avsluttet</b>; før det står det «Kan godkjennes når søknaden er satt til Avsluttet».</p>
+<ol class="steg">
+  <li>Skriv eventuelt en <b>merknad</b> i feltet ved siden av godkjenningen, for eksempel et forbehold. Merknaden står i rapporten sammen med godkjenningen.</li>
+  <li>Trykk <b>Godkjenn revisjon</b> og bekreft. Godkjenningen lagres med navnet ditt og tidspunktet, og rapporten får linjen «Godkjent i Søknadsportal av ‹navn›, ‹tidspunkt›».</li>
+  <li>Godkjenningen gjelder tallene og bilagene slik de står nå. Endrer korpset noe etterpå (en faktura, en valgt pris, et antall, egne midler, innvilget beløp), står du som <b>Endret etter godkjenningen</b> og må trykke <b>Godkjenn på nytt</b> etter å ha sett på endringen.</li>
+  <li><b>Trekk godkjenningen</b> fjerner den igjen.</li>
+</ol>
+<div class="tips"><b>Hva godkjenningen er</b> En handling gjort av deg som innlogget person, ikke en signatur med BankID. Ingenting i søknaden låses av godkjenningen, og korpset ser til enhver tid om den er gyldig.</div>
+</section>
+
+<!-- ============================================================ -->
+<section class="kapittel" id="administrator" data-roller="alle">
+<h2>9. For administratorer</h2>
+<p>Administratorer gjør alt en bruker gjør, og vedlikeholder i tillegg brukerne, korpsets kontaktinfo og registrene. Oppsettet av selve tjenesten (database, innlogging, sikkerhetskopi) er beskrevet i en egen oppskrift for den som drifter portalen, ikke her.</p>
+
+<h3>Brukere</h3>
+<p class="sti">Innstillinger → Brukere</p>
+<p>Listen viser navn, e-post, rolle, status (<b>Aktiv</b>, eller <b>Invitert</b> med dato for dem som ikke har logget inn ennå) og knapper per bruker.</p>
+<ol class="steg">
+  <li><b>Inviter.</b> <b>+ Inviter bruker</b>: skriv e-postadressen, velg rolle (<b>Bruker</b>, <b>Administrator</b>, <b>Leser</b> eller <b>Revisor</b>) og trykk <b>Inviter og kopier tekst</b>. Portalen sender ingen e-post selv; invitasjonsteksten med adressen til portalen legges på utklippstavlen, og du sender den på e-post eller melding. Personen logger inn med Google eller innloggingslenke, med adressen du inviterte, og får status Aktiv ved første innlogging.</li>
+  <li><b>Send innloggingslenke.</b> For brukere uten Google-konto: trykk <b>Send innloggingslenke</b> i raden, og portalen sender en engangslenke på e-post. Mottakeren skriver inn e-postadressen sin når lenken åpnes. Be dem se i søppelpost. <b>Kopier invitasjon</b> kopierer invitasjonsteksten på nytt.</li>
+  <li><b>Bytt rolle</b> ved å klikke rollen i raden. Du kan ikke fjerne din egen administratorrolle.</li>
+  <li><b>Fjern</b> tar bort tilgangen. Det som personen har lagt inn, blir stående.</li>
+</ol>
+<div class="tips"><b>Revisorer</b> ser ingenting før de er krysset av som revisor på en søknad (Søknad-fanen, under «Revisjon på denne søknaden»). Husk å gjøre det etter invitasjonen.</div>
+
+<h3>Organisasjon</h3>
+<p class="sti">Innstillinger → Organisasjon</p>
+<p>Bare administratorer kan endre korpsets navn, organisasjonsnummer, kontaktperson, telefon, e-post, postadresse, leveringsadresse og «Faktura sendes til». Opplysningene står på bestillingene som lastes ned fra Innkjøp og i signaturen på tilbudsforespørselen. Leveringsadressen brukes når en bestilling ikke har sin egen; er den tom, brukes postadressen. Feltene under <b>Om korpset</b> kan alle brukere endre.</p>
+
+<h3>Givere og leverandører</h3>
+<p>Alle brukere kan opprette og endre givere og leverandører. Bare administrator kan slette dem: en giver bare når den ikke har søknader, og en leverandør bare når den ikke er brukt i noe innkjøp.</p>
+
+<h3>Sikkerhetskopien</h3>
+<p>Portalen tas kopi av hver natt. Prikken til høyre i toppmenyen viser status, og under Innstillinger → Organisasjon står tidspunktet for siste kopi og siste test av gjenoppretting. Klikk prikken for å hente status på nytt.</p>
+<table>
+  <thead><tr><th>Farge</th><th>Betyr</th></tr></thead>
+  <tbody>
+    <tr><td>Grønn</td><td>Siste kopi er under 26 timer gammel. Alt i orden.</td></tr>
+    <tr><td>Gul</td><td>Siste kopi er mellom 26 og 50 timer gammel; en natt er hoppet over. Teksten «Ingen kopi siden …» vises.</td></tr>
+    <tr><td>Rød</td><td>Over 50 timer siden siste kopi. Si fra til den som drifter portalen.</td></tr>
+    <tr><td>Grå</td><td>Status er ukjent (kunne ikke hentes).</td></tr>
+  </tbody>
+</table>
+
+<h3>Sletting</h3>
+<p>Det meste kan slettes av alle brukere, etter bekreftelse: behov (som ikke ligger i noen søknad), søknader, innkjøp, fakturaer og dokumenter. Søknader og innkjøp med bestillinger kan ikke slettes før bestillingene er slettet. Sletting kan ikke angres i portalen; den som drifter portalen kan hente fram sikkerhetskopien.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="kapittel" id="sporsmal" data-roller="alle">
+<h2>10. Vanlige spørsmål</h2>
+<dl>
+  <dt>Det jeg skrev forsvant.</dt>
+  <dd>Feltet lagres når du forlater det. Står det en rød melding i toppmenyen, feilet lagringen – trykk <b>Prøv igjen</b>. Sto verdien tilbake til det gamle, var den ugyldig (for eksempel «32.13.2026»).</dd>
+  <dt>Jeg kan ikke endre behovene i søknaden.</dt>
+  <dd>Søknaden er låst fordi den ikke lenger er et utkast. Legg endringen til under Innkjøp, eller sett status tilbake til Utkast.</dd>
+  <dt>Dokumentet åpner seg ikke.</dt>
+  <dd>Nettleseren blokkerer trolig den nye fanen. Tillat popup-vinduer for portalen.</dd>
+  <dt>«Kopier» virker ikke.</dt>
+  <dd>Nettleseren slapp ikke portalen til på utklippstavlen. Teksten vises da i et panel eller er merket i tabellen; trykk <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>C</kbd> selv.</dd>
+  <dt>«Fant ingen prislinjer» når jeg leser tilbudet.</dt>
+  <dd>PDF-en er et skannet bilde uten tekst, eller tabellen er satt opp slik at linjene ikke kjennes igjen. Skriv prisene inn i cellene i stedet.</dd>
+  <dt>En linje mangler i revisjonen.</dt>
+  <dd>Bare linjer med valgt leverandør er med. Revisjon-fanen sier fra om linjer uten valg; velg pris i Innkjøp.</dd>
+  <dt>Disponert stemmer ikke med det jeg forventer.</dt>
+  <dd>Poster med faktura teller det fakturerte beløpet, ikke tilbudet. Ukoblede fakturaer teller ikke. Frakt teller til første faktura fra leverandøren er koblet. Se kapittel 5.</dd>
+  <dt>Revisoren får ikke godkjent.</dt>
+  <dd>Søknaden må ha status Avsluttet, og revisoren må være krysset av under Revisorer i Søknad-fanen.</dd>
+  <dt>Jeg vil se mobilskjermen på PC.</dt>
+  <dd>Bruk <b>Kvittering</b> i toppmenyen (vises bare på smal skjerm) eller gjør nettleservinduet smalt og last siden på nytt. Lesere har ikke skjermen.</dd>
+  <dt>Hvem endret dette?</dt>
+  <dd>Søknader, behov, innkjøp og leverandører viser «Sist endret av» med navn og tidspunkt. Fakturaer, dokumenter, tilbudsvedlegg, utgifter og bestillinger viser hvem som la dem inn.</dd>
+</dl>
+</section>
+
+</article>
+</div>
+
+<script>
+  // Rollefilter: ?rolle=revisor viser bare kapitlene merket for revisor.
+  const rolle = new URLSearchParams(location.search).get('rolle');
+  if (rolle === 'revisor') document.body.classList.add('rolle-revisor');
+
+  // Innholdsfortegnelsen bygges fra overskriftene (de som er synlige for rollen).
+  const kapitler = [...document.querySelectorAll('section.kapittel')].filter(s => !document.body.classList.contains('rolle-revisor') || (s.dataset.roller || '').split(' ').includes('revisor'));
+  const bygg = (liste, medUnder) => {
+    liste.innerHTML = kapitler.map(s => {
+      const h2 = s.querySelector('h2');
+      const under = medUnder ? [...s.querySelectorAll('h3')].filter(h => h.id).map(h => `<li><a href="#${h.id}">${h.textContent}</a></li>`).join('') : '';
+      return `<li data-id="${s.id}"><a href="#${s.id}">${h2.textContent}</a>${under ? `<ol>${under}</ol>` : ''}</li>`;
+    }).join('');
+  };
+  bygg(document.getElementById('toc-liste'), true);
+  bygg(document.querySelector('#toc-print ol'), false);
+
+  // Aktivt kapittel i margen følger rullingen.
+  const toc = document.getElementById('toc');
+  const marker = () => {
+    const y = window.scrollY + 90;
+    let aktiv = kapitler[0];
+    for (const s of kapitler) if (s.offsetTop <= y) aktiv = s;
+    toc.querySelectorAll('li[data-id]').forEach(li => li.classList.toggle('aktiv', li.dataset.id === aktiv?.id));
+  };
+  document.addEventListener('scroll', marker, { passive: true });
+  marker();
+
+  // På smal skjerm er innholdsfortegnelsen sammenfoldet.
+  const smal = window.matchMedia('(max-width: 960px)');
+  const tilpass = () => { toc.open = !smal.matches; };
+  smal.addEventListener('change', tilpass);
+  tilpass();
+  toc.addEventListener('click', e => { if (e.target.closest('a') && smal.matches) toc.open = false; });
+
+  document.getElementById('pdf').addEventListener('click', () => window.print());
+</script>
+</body>
+</html>

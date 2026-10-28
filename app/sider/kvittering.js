@@ -35,7 +35,8 @@ function stegVelg() {
         </button>`; }).join('') || '<div class="kv-hint">Ingen innvilgede søknader.</div>'}
     </div>
     <div class="kv-hint">Bare innvilgede søknader vises.</div>
-    <a href="#/soknader" class="kv-lenke">Til portalen →</a>`;
+    <a href="#/soknader" class="kv-lenke">Til portalen →</a>
+    <a href="hjelp.html" class="kv-lenke" target="_blank" rel="noopener" style="padding-top:0; color:var(--color-neutral-700)">Hjelp</a>`;
 }
 
 function stegBilde() {

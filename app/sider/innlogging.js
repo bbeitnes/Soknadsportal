@@ -22,6 +22,7 @@ export const innloggingsside = {
         <label class="felt"><span class="etikett">E-post</span><input class="inndata" name="epost" type="email" autocomplete="email" placeholder="navn@korpset.no"></label>
         <button type="submit" class="knapp knapp-primar">Send meg en innloggingslenke</button>
         <div class="beskjed" id="beskjed">${escapeHtml(beskjed)}</div>`}
+        <a class="beskjed" href="hjelp.html" target="_blank" rel="noopener" style="font-weight:600">Brukermanual →</a>
       </form></div>`;
     const skjema = rot.querySelector('#innlogging');
     const skriv = (tekst, erFeil) => {

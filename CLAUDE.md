@@ -278,6 +278,12 @@ Svar på norsk i chatten. Kode, UI-tekst, kommentarer og commits på norsk bokm�
   reserve for eldre behov uten spesifikasjon (`behovsbeskrivelse()` i `sider/innkjop.js` – brukes også i
   bestillings-PDF-ens varetekst og «Les priser»). Importen kjenner «Spesifikasjon»/«Modell» som eget felt;
   uten overskrift er kolonnene som før (Type, Tittel, Beskrivelse, Antall, Pris).
+- Brukermanualen (kort 0023) er `app/hjelp.html`: én statisk side uten innlogging, lenket fra «Hjelp» i
+  toppmenyen (`#hjelp`, revisor får `?rolle=revisor` som bare viser kapitlene merket `data-roller="… revisor"`),
+  fra innloggingsskjermen og nederst på mobilskjermen. «Last ned som PDF» er nettleserens utskrift
+  (utskrifts-CSS i filen, ny side per kapittel). Ingen skjermbilder. **Hvert kort som endrer et skjermbilde,
+  en knapp, en status eller en arbeidsgang skal også oppdatere manualen** (riktig kapittel, knappenavn
+  slik de står på skjermen) og datoen i `#versjon` øverst; ny hovedversjon bare ved større omlegging.
 - Endres `firebase/firestore.rules`, må HELE filen limes inn i Console for
   alle tre databasene (prod, test og `soknadsportal-restore`) — si fra om det i svaret.
 - Sikkerhetskopi (`backup/`, B-24/B-25): `kopier.mjs` (nattlig GitHub-jobb, bare leserett) legger

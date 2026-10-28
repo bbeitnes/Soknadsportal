@@ -385,10 +385,8 @@ function visMeg() {
   el.hidden = false;
   el.innerHTML = `${erLeser() ? '<b class="lesemerke" title="Du kan se alt, men ikke endre noe">Leserett</b>' : ''}<span>${escapeHtml(m.navn || m.epost)}</span><button type="button" id="logg-ut">Logg ut</button>`;
   el.querySelector('#logg-ut').addEventListener('click', () => innlogging.loggUt());
-  // Brukermanualen (kort 0023): revisor får bare sine kapitler.
-  const hjelp = document.getElementById('hjelp');
-  hjelp.href = erRevisor() ? 'hjelp.html?rolle=revisor' : 'hjelp.html';
-  hjelp.hidden = false;
+  // Brukermanualen (kort 0023) i menyraden: revisor får bare sine kapitler.
+  document.getElementById('hjelp').href = erRevisor() ? 'hjelp.html?rolle=revisor' : 'hjelp.html';
 }
 
 function visInnlogging(beskjed) {
@@ -399,7 +397,6 @@ function visInnlogging(beskjed) {
   document.getElementById('meny').hidden = true;
   document.getElementById('lagrestatus').hidden = true;
   document.getElementById('kopilampe').hidden = true;
-  document.getElementById('hjelp').hidden = true;
   document.getElementById('meg').hidden = true;
   innloggingsside.vis(rot, beskjed);
 }
